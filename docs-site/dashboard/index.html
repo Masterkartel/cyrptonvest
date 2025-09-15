@@ -23,13 +23,13 @@
     .brand img{width:22px;height:22px}
     .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
     .content{max-width:1200px;margin:0 auto}
-    /* Cards & grid */
+    /* Cards & layout */
     .section{padding:16px}
     .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
     .card h2{margin:0 0 12px}
     .muted{color:var(--muted)}
-    .grid2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
     .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
     /* Avatar dropdown */
     .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer}
@@ -38,14 +38,14 @@
     .dropdown .hd{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700}
     .dropdown a{display:block;color:#e6edf3;padding:10px 12px;text-decoration:none}
     .dropdown a:hover{background:#121d3a}
-    /* Wallet left */
-    .wallet-kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
-    .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
-    /* Right side tabs */
-    .switch{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+    /* Tabs */
+    .switch{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
     .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700}
     .switch button.active{background:var(--brand);color:#111827}
     .panel{border:1px solid var(--line);background:#0d1530;border-radius:12px;padding:12px}
+    /* KPI tiles */
+    .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
+    .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
     /* Address pill rows */
     .addr-pill{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#0c1428;border-radius:999px;padding:10px 12px}
     .tag{font-size:12px;background:#111d3a;border:1px solid var(--line);padding:.2rem .5rem;border-radius:999px}
@@ -55,11 +55,12 @@
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
+    .field-warn{color:#fca5a5;font-size:12px;margin-top:6px}
     /* Toasts */
     #toasts{position:fixed;bottom:14px;right:14px;display:grid;gap:8px;z-index:60}
     .toast{background:#0f1629;border:1px solid var(--line);padding:10px 12px;border-radius:10px}
     /* Responsive */
-    @media(max-width:980px){.grid2,.row{grid-template-columns:1fr}}
+    @media(max-width:980px){.row,.row-3{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -82,7 +83,7 @@
     </div>
   </header>
 
-  <!-- Edge-to-edge TradingView Ticker Tape -->
+  <!-- TradingView Ticker Tape -->
   <div class="ticker-wrap" style="border-bottom:1px solid var(--line)">
     <div class="tradingview-widget-container">
       <div class="tradingview-widget-container__widget"></div>
@@ -113,113 +114,135 @@
 
   <main class="content">
     <section class="section">
-      <!-- Split wallet area -->
-      <div class="grid2">
-        <!-- Left: total assets -->
-        <div class="card">
-          <h2>Wallet</h2>
-          <div class="wallet-kpi">
-            <div class="wallet-icon">💼</div>
-            <div>
-              <div class="muted">Total assets</div>
-              <div id="total-assets" style="font-size:28px;font-weight:800">$0.00 <span class="muted" style="font-size:14px">USD</span></div>
+      <!-- Unified top card: Wallet / Deposit / Withdraw -->
+      <div class="card">
+        <div class="switch">
+          <button id="tab-wallet" class="active" onclick="switchTop('wallet')">Wallet</button>
+          <button id="tab-dep" onclick="switchTop('deposit')">Deposit</button>
+          <button id="tab-wd"  onclick="switchTop('withdraw')">Withdraw</button>
+        </div>
+
+        <!-- Wallet panel (default) -->
+        <div id="panel-wallet" class="panel">
+          <div class="row">
+            <div class="kpi">
+              <div class="wallet-icon">💼</div>
+              <div>
+                <div class="muted">Total assets</div>
+                <div id="total-assets" style="font-size:28px;font-weight:800">$0.00 <span class="muted" style="font-size:14px">USD</span></div>
+              </div>
+            </div>
+            <div class="kpi">
+              <div class="wallet-icon">📈</div>
+              <div>
+                <div class="muted">Total profits</div>
+                <div id="total-profits" style="font-size:28px;font-weight:800">$0.00 <span class="muted" style="font-size:14px">USD</span></div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Right: deposit/withdraw switch -->
-        <div class="card">
-          <div class="switch">
-            <button id="tab-dep" class="active" onclick="switchTab('deposit')">Deposit</button>
-            <button id="tab-wd" onclick="switchTab('withdraw')">Withdraw</button>
+        <!-- Deposit panel -->
+        <div id="panel-deposit" class="panel" style="display:none">
+          <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
+          <div style="display:grid;gap:8px">
+            <div class="addr-pill"><span class="tag">BTC</span><span class="addr" id="dep-btc">—</span><button class="icon-btn" onclick="copy('#dep-btc')">⧉</button></div>
+            <div class="addr-pill"><span class="tag">USDT-TRC20</span><span class="addr" id="dep-trc20">—</span><button class="icon-btn" onclick="copy('#dep-trc20')">⧉</button></div>
+            <div class="addr-pill"><span class="tag">ETH-ERC20</span><span class="addr" id="dep-eth">—</span><button class="icon-btn" onclick="copy('#dep-eth')">⧉</button></div>
           </div>
-          <!-- Deposit panel -->
-          <div id="panel-deposit" class="panel">
-            <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
-            <div style="display:grid;gap:8px">
-              <div class="addr-pill"><span class="tag">BTC</span><span class="addr" id="dep-btc">—</span><button class="icon-btn" onclick="copy('#dep-btc')">⧉</button></div>
-              <div class="addr-pill"><span class="tag">USDT-TRC20</span><span class="addr" id="dep-trc20">—</span><button class="icon-btn" onclick="copy('#dep-trc20')">⧉</button></div>
-              <div class="addr-pill"><span class="tag">ETH-ERC20</span><span class="addr" id="dep-eth">—</span><button class="icon-btn" onclick="copy('#dep-eth')">⧉</button></div>
+          <div style="height:10px"></div>
+          <div class="row">
+            <div>
+              <label class="muted">TXID / Hash <span style="color:#ef4444">*</span></label>
+              <input id="dep-txid" placeholder="Paste TXID here" />
+              <div id="dep-warn" class="field-warn" style="display:none">Enter BOTH TXID and Amount.</div>
             </div>
-            <div style="height:10px"></div>
-            <div class="row">
-              <div>
-                <label class="muted">TXID / Hash <span style="color:#ef4444">*</span></label>
-                <input id="dep-txid" placeholder="Paste TXID here" />
-              </div>
-              <div>
-                <label class="muted">Amount (USD) <span style="color:#ef4444">*</span></label>
-                <input id="dep-amount" type="number" step="0.01" placeholder="100.00" />
-              </div>
+            <div>
+              <label class="muted">Amount (USD) <span style="color:#ef4444">*</span></label>
+              <input id="dep-amount" type="number" step="0.01" placeholder="100.00" />
             </div>
-            <div style="height:10px"></div>
-            <button class="btn" onclick="submitDeposit()">I sent funds</button>
-            <p class="muted" style="font-size:12px;margin-top:6px">We credit after network confirmations and review.</p>
+          </div>
+          <div style="height:10px"></div>
+          <button class="btn" onclick="submitDeposit()">I sent funds</button>
+          <p class="muted" style="font-size:12px;margin-top:6px">We credit after network confirmations and review.</p>
+        </div>
+
+        <!-- Withdraw panel -->
+        <div id="panel-withdraw" class="panel" style="display:none">
+          <div class="row">
+            <div>
+              <div class="muted">Balance</div>
+              <div id="wd-balance" style="font-weight:800;font-size:20px">$0.00 USD</div>
+            </div>
+            <div>
+              <label class="muted">Amount (USD)</label>
+              <input id="wd-amount" type="number" step="0.01" placeholder="50.00" />
+            </div>
+          </div>
+          <div style="height:8px"></div>
+
+          <div style="display:grid;gap:12px">
+            <div>
+              <label class="muted">BTC address</label>
+              <div class="addr-pill" style="border-radius:12px">
+                <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0;width:100%">
+              </div>
+              <div style="height:8px"></div>
+              <button class="btn" onclick="submitWithdrawal('BTC','#wd-btc-addr')">Request BTC withdrawal</button>
+            </div>
+
+            <div>
+              <label class="muted">USDT-TRC20 address</label>
+              <div class="addr-pill" style="border-radius:12px">
+                <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0;width:100%">
+              </div>
+              <div style="height:8px"></div>
+              <button class="btn" onclick="submitWithdrawal('USDT-TRC20','#wd-trc-addr')">Request USDT-TRC20 withdrawal</button>
+            </div>
+
+            <div>
+              <label class="muted">ETH-ERC20 address</label>
+              <div class="addr-pill" style="border-radius:12px">
+                <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0;width:100%">
+              </div>
+              <div style="height:8px"></div>
+              <button class="btn" onclick="submitWithdrawal('ETH-ERC20','#wd-eth-addr')">Request ETH-ERC20 withdrawal</button>
+            </div>
           </div>
 
-          <!-- Withdraw panel -->
-          <div id="panel-withdraw" class="panel" style="display:none">
-            <div class="row">
-              <div>
-                <div class="muted">Balance</div>
-                <div id="wd-balance" style="font-weight:800;font-size:20px">$0.00 USD</div>
-              </div>
-              <div>
-                <label class="muted">Amount (USD)</label>
-                <input id="wd-amount" type="number" step="0.01" placeholder="50.00" />
-              </div>
-            </div>
-            <div style="height:8px"></div>
-
-            <div style="display:grid;gap:12px">
-              <div>
-                <label class="muted">BTC address</label>
-                <div class="addr-pill" style="border-radius:12px">
-                  <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0;width:100%">
-                </div>
-                <div style="height:8px"></div>
-                <button class="btn" onclick="submitWithdrawal('BTC','#wd-btc-addr')">Request BTC withdrawal</button>
-              </div>
-
-              <div>
-                <label class="muted">USDT-TRC20 address</label>
-                <div class="addr-pill" style="border-radius:12px">
-                  <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0;width:100%">
-                </div>
-                <div style="height:8px"></div>
-                <button class="btn" onclick="submitWithdrawal('USDT-TRC20','#wd-trc-addr')">Request USDT-TRC20 withdrawal</button>
-              </div>
-
-              <div>
-                <label class="muted">ETH-ERC20 address</label>
-                <div class="addr-pill" style="border-radius:12px">
-                  <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0;width:100%">
-                </div>
-                <div style="height:8px"></div>
-                <button class="btn" onclick="submitWithdrawal('ETH-ERC20','#wd-eth-addr')">Request ETH-ERC20 withdrawal</button>
-              </div>
-            </div>
-
-            <p class="muted" style="font-size:12px;margin:10px 0 0">
-              <strong style="color:var(--warn)">⚠ Confirm the destination address carefully.</strong>
-              Blockchain transactions are irreversible once sent.
-            </p>
-          </div>
+          <p class="muted" style="font-size:12px;margin:10px 0 0">
+            <strong style="color:var(--warn)">⚠ Confirm the destination address carefully.</strong>
+            Blockchain transactions are irreversible once sent.
+          </p>
         </div>
       </div>
     </section>
 
-    <!-- Plans + Transactions -->
+    <!-- Bottom card: Plans / Transactions -->
     <section class="section">
-      <div class="row">
-        <div class="card" id="plans-card">
-          <h2>Plans</h2>
+      <div class="card">
+        <div class="switch" style="grid-template-columns:1fr 1fr">
+          <button id="tab-plans" class="active" onclick="switchBottom('plans')">Plans</button>
+          <button id="tab-tx" onclick="switchBottom('tx')">Transactions</button>
+        </div>
+
+        <!-- Plans panel (default) -->
+        <div id="panel-plans" class="panel">
           <div id="plans"></div>
         </div>
-        <div class="card" id="tx-card">
-          <h2>Transactions</h2>
+
+        <!-- Transactions panel -->
+        <div id="panel-tx" class="panel" style="display:none">
           <div id="tx-table">Loading…</div>
         </div>
+      </div>
+    </section>
+
+    <!-- Optional extras to fill space -->
+    <section class="section">
+      <div class="card">
+        <h2>Announcements & Tips</h2>
+        <p class="muted">Need help? Email <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a>. Enable 2FA when available for better account security.</p>
       </div>
     </section>
   </main>
@@ -230,6 +253,7 @@
   <script>
     const $ = (s)=>document.querySelector(s);
     let walletCache = null;
+    let txCache = [];
 
     function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(), 3200); }
     function alertCopy(){ alert('Copied'); }
@@ -247,51 +271,60 @@
     });
     document.getElementById('menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
-    // Tabs
-    function switchTab(name){
-      const dep = document.getElementById('panel-deposit');
-      const wd = document.getElementById('panel-withdraw');
-      const td = document.getElementById('tab-dep');
-      const tw = document.getElementById('tab-wd');
-      if(name==='deposit'){ dep.style.display='block'; wd.style.display='none'; td.classList.add('active'); tw.classList.remove('active'); }
-      else{ dep.style.display='none'; wd.style.display='block'; tw.classList.add('active'); td.classList.remove('active'); }
+    // Top tabs
+    function switchTop(which){
+      const tabs = {wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw'};
+      for(const k in tabs){
+        document.querySelector(tabs[k]).style.display = (k===which)?'block':'none';
+        document.getElementById('tab-'+(k==='wallet'?'wallet':k)).classList.toggle('active', k===which);
+      }
+    }
+    // Bottom tabs
+    function switchBottom(which){
+      const t = which==='plans';
+      document.getElementById('panel-plans').style.display = t?'block':'none';
+      document.getElementById('panel-tx').style.display = t?'none':'block';
+      document.getElementById('tab-plans').classList.toggle('active', t);
+      document.getElementById('tab-tx').classList.toggle('active', !t);
     }
 
-    // Plans calculators with min/max warnings
-    function attachCalc(id, rate, min, max){
+    // Plans calculators with inline warnings (no clamping)
+    function attachCalcSoft(id, rate, min, max){
       const amt = document.getElementById(id+'-amt');
-      const out = document.getElementById(id+'-out');
+      const warn = document.getElementById(id+'-warn');
+      const out  = document.getElementById(id+'-out');
       const update = ()=>{
-        let v = parseFloat(amt.value||'0');
-        if(!v){ out.textContent = '$0.00 total ($0.00 profit)'; return; }
-        if(v<min){ toast(`Minimum for ${id} is $${min}`); v=min; amt.value=min; }
-        if(v>max){ toast(`Maximum for ${id} is $${max}`); v=max; amt.value=max; }
-        const p = v*rate, t = v+p;
-        out.textContent = `$${t.toFixed(2)} total ($${p.toFixed(2)} profit)`;
+        const raw = amt.value.trim();
+        const v = parseFloat(raw);
+        if(!raw){ warn.textContent='Enter an amount'; warn.style.display='block'; out.textContent='—'; return; }
+        if(isNaN(v)){ warn.textContent='Not a number'; warn.style.display='block'; out.textContent='—'; return; }
+        if(v<min){ warn.textContent=`Minimum is $${min}`; warn.style.display='block'; out.textContent='—'; return; }
+        if(v>max){ warn.textContent=`Maximum is $${max}`; warn.style.display='block'; out.textContent='—'; return; }
+        warn.style.display='none';
+        const profit = v*rate, total = v+profit;
+        out.textContent = `$${total.toFixed(2)} total ($${profit.toFixed(2)} profit)`;
       };
       amt?.addEventListener('input', update);
       update();
     }
-
-    // Start plan -> go to deposit and prefill amount
     function startPlan(id, min, max){
       const input = document.getElementById(id+'-amt');
-      let v = parseFloat(input?.value||'0');
-      if(!(v>0)) v=min;
-      if(v<min) v=min; if(v>max) v=max;
+      const warn  = document.getElementById(id+'-warn');
+      const v = parseFloat(input.value||'');
+      if(!(v>=min && v<=max)){ warn.style.display='block'; if(!input.value) warn.textContent='Enter an amount'; else if(isNaN(v)) warn.textContent='Not a number'; else if(v<min) warn.textContent=`Minimum is $${min}`; else warn.textContent=`Maximum is $${max}`; input.focus(); return; }
+      // valid -> prefill deposit
       document.getElementById('dep-amount').value = v.toFixed(2);
-      switchTab('deposit');
-      document.querySelector('.grid2').scrollIntoView({behavior:'smooth', block:'start'});
+      switchTop('deposit');
+      document.querySelector('.section .card').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // Submit actions
+    // Submits
     async function submitDeposit(){
       const txid = document.getElementById('dep-txid').value.trim();
       const amount = parseFloat(document.getElementById('dep-amount').value || '0');
-      if(!txid || !amount){
-        toast('⚠ Enter BOTH TXID and Amount before submitting');
-        return;
-      }
+      const warn = document.getElementById('dep-warn');
+      if(!txid || !amount){ warn.style.display='block'; return; }
+      warn.style.display='none';
       const res = await api('/api/wallet/deposit',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -300,7 +333,6 @@
       if(res?.ok){ toast('Deposit submitted'); document.getElementById('dep-txid').value=''; document.getElementById('dep-amount').value=''; renderEverything(); }
       else toast('Failed to submit');
     }
-
     async function submitWithdrawal(network, selector){
       const amount = parseFloat(document.getElementById('wd-amount').value||'0');
       const address = document.querySelector(selector).value.trim();
@@ -318,7 +350,8 @@
     async function renderTransactionsTable(targetId, limit){
       const target = document.getElementById(targetId);
       const data = await api('/api/transactions');
-      const rows = (data.transactions||[]).slice(0, limit||50).map(t=>
+      txCache = data.transactions || [];
+      const rows = txCache.slice(0, limit||50).map(t=>
         `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`
       ).join('');
       target.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr>
@@ -328,6 +361,18 @@
         <th style="padding:10px;border-bottom:1px solid #172042">Status</th>
         <th style="padding:10px;border-bottom:1px solid #172042">Ref</th>
       </tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody></table>`;
+    }
+
+    function computeTotalProfitsUsd(){
+      // sum profits from transactions if available
+      const profitKinds = new Set(['profit','plan_payout','interest','bonus']);
+      let cents = 0;
+      for(const t of txCache){
+        if(profitKinds.has(t.kind) && (t.status==='cleared' || t.status==='completed' || t.status==='success')){
+          cents += t.amount_cents || 0;
+        }
+      }
+      return cents;
     }
 
     // Page rendering
@@ -345,52 +390,56 @@
       document.getElementById('wd-balance').textContent = `$${(walletCache.balance_cents/100).toFixed(2)} ${walletCache.currency||'USD'}`;
 
       // deposit addresses
-      document.getElementById('dep-btc').textContent = walletCache.btc_addr || '—';
+      document.getElementById('dep-btc').textContent   = walletCache.btc_addr || '—';
       document.getElementById('dep-trc20').textContent = walletCache.trc20_addr || '—';
-      document.getElementById('dep-eth').textContent = walletCache.eth_addr || '—';
+      document.getElementById('dep-eth').textContent   = walletCache.eth_addr || '—';
 
-      // plans
-      const planHtml = (id, name, min, max, rate, hours) => `
+      // TX + profits
+      await renderTransactionsTable('tx-table', 50);
+      const profitsCents = computeTotalProfitsUsd();
+      document.getElementById('total-profits').innerHTML = `$${(profitsCents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency||'USD'}</span>`;
+
+      // Plans (soft validation)
+      const planCard = (id, name, min, max, rate, hours) => `
         <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0">
           <strong>${name}</strong>
           <div class="muted">Range: $${min} – $${max} • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
           <div class="row" style="margin-top:8px">
             <div>
               <label class="muted">Enter amount (USD)</label>
-              <input id="${id}-amt" type="number" min="${min}" max="${max}" step="0.01" placeholder="${min}">
+              <input id="${id}-amt" type="number" step="0.01" placeholder="${min}">
+              <div id="${id}-warn" class="field-warn" style="display:none"></div>
             </div>
             <div>
               <label class="muted">Estimated return</label>
-              <div id="${id}-out" class="pill" style="display:inline-flex;margin-top:6px">$0.00 total ($0.00 profit)</div>
+              <div id="${id}-out" class="pill" style="display:inline-flex;margin-top:6px">—</div>
             </div>
           </div>
           <div style="height:8px"></div>
           <button class="btn" onclick="startPlan('${id}', ${min}, ${max})">Start</button>
         </div>`;
       document.getElementById('plans').innerHTML =
-        planHtml('starter','Starter',5,10,0.60,3) +
-        planHtml('growth','Growth',50,400,1.40,6) +
-        planHtml('pro','Professional',500,10000,2.00,24);
+        planCard('starter','Starter',5,10,0.60,3) +
+        planCard('growth','Growth',50,400,1.40,6) +
+        planCard('pro','Professional',500,10000,2.00,24);
 
-      attachCalc('starter',0.60,5,10);
-      attachCalc('growth',1.40,50,400);
-      attachCalc('pro',2.00,500,10000);
+      attachCalcSoft('starter',0.60,5,10);
+      attachCalcSoft('growth',1.40,50,400);
+      attachCalcSoft('pro',2.00,500,10000);
 
-      // transactions
-      renderTransactionsTable('tx-table', 50);
-
-      // default tab
-      switchTab('deposit');
+      // defaults
+      switchTop('wallet');
+      switchBottom('plans');
     }
 
     // Router
     const routes = {
       '#overview': ()=>{ renderEverything(); window.scrollTo({top:0,behavior:'smooth'}); },
-      '#wallet': ()=>{ renderEverything(); setTimeout(()=>document.querySelector('.grid2').scrollIntoView({behavior:'smooth'}), 100); },
-      '#plans': ()=>{ renderEverything(); setTimeout(()=>document.getElementById('plans-card').scrollIntoView({behavior:'smooth'}), 100); },
-      '#history': ()=>{ renderEverything(); setTimeout(()=>document.getElementById('tx-card').scrollIntoView({behavior:'smooth'}), 100); },
-      '#settings': ()=>{ document.getElementById('dropdown').classList.remove('show'); document.body.querySelector('main .content')?.scrollIntoView({behavior:'smooth'}); document.getElementById('tx-card')?.insertAdjacentHTML('beforebegin', `<div class="card" style="margin:16px 0"><h2>Settings</h2><p>Coming soon: change password, 2FA, export data.</p><p>Support: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p></div>`); },
-      '#support': ()=>{ document.getElementById('dropdown').classList.remove('show'); alert('Support: support@cyrptonvest.com'); }
+      '#wallet':   ()=>{ renderEverything(); setTimeout(()=>switchTop('wallet'), 50); },
+      '#plans':    ()=>{ renderEverything(); setTimeout(()=>switchBottom('plans'), 50); },
+      '#history':  ()=>{ renderEverything(); setTimeout(()=>switchBottom('tx'), 50); },
+      '#settings': ()=>{ document.getElementById('dropdown').classList.remove('show'); alert('Settings coming soon'); },
+      '#support':  ()=>{ document.getElementById('dropdown').classList.remove('show'); alert('Support: support@cyrptonvest.com'); }
     };
     function navigate(){ (routes[location.hash]||routes['#overview'])(); }
     window.addEventListener('hashchange', navigate);
