@@ -1,0 +1,8 @@
+{
+  "name": "cyrptonvest",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "uuid": "^9.0.1"
+  }
+}
