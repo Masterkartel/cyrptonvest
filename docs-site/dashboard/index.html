@@ -6,7 +6,7 @@
   <title>Dashboard — Cyrptonvest</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <meta name="description" content="Cyrptonvest dashboard: wallet, deposits, withdrawals, plans, and transactions." />
-  <meta name="x-build" content="cv-2025-09-16-02">
+  <meta name="x-build" content="cv-2025-09-16-03">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -138,7 +138,7 @@
             <li>It’s fast, secure, and stress-free—you don’t need any trading experience! Join thousands of investors already earning with us.</li>
           </ul>
         </div>
-        <div style="font-size:12px;color:#7a879b;margin-top:8px">Build: cv-2025-09-16-02</div>
+        <div style="font-size:12px;color:#7a879b;margin-top:8px">Build: cv-2025-09-16-03</div>
       </div>
     </section>
 
@@ -292,12 +292,13 @@
     });
     document.getElementById('menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
-    // Top tabs
+    // FIXED: top tab highlight map (IDs now match buttons)
     function switchTop(which){
-      const tabs = {wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw'};
-      for(const k in tabs){
-        document.querySelector(tabs[k]).style.display = (k===which)?'block':'none';
-        document.getElementById('tab-'+(k==='wallet'?'wallet':k)).classList.toggle('active', k===which);
+      const panels = {wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw'};
+      const ids    = {wallet:'tab-wallet',    deposit:'tab-dep',      withdraw:'tab-wd'};
+      for(const k in panels){
+        document.querySelector(panels[k]).style.display = (k===which)?'block':'none';
+        document.getElementById(ids[k]).classList.toggle('active', k===which);
       }
     }
     // Bottom tabs
