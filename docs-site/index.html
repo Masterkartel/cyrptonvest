@@ -4,19 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cyrptonvest — Alternative Investments, Reimagined</title>
-  <meta name="description" content="Cyrptonvest provides clear, transparent alternative‑investment plans with live market visibility. Not financial advice. Capital at risk." />
+  <meta name="description" content="Cyrptonvest provides clear, transparent alternative-investment plans with live market visibility. Not financial advice. Capital at risk." />
   <meta property="og:title" content="Cyrptonvest — Alternative Investments, Reimagined" />
-  <meta property="og:description" content="Transparent plans, live charts, and a disciplined risk‑first approach." />
+  <meta property="og:description" content="Transparent plans, live charts, and a disciplined risk-first approach." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://docs.cyrptonvest.com/" />
-  <meta property="og:image" content="/favicon.png" />
-  <link rel="icon" href="/favicon.png" sizes="32x32" />
+  <meta property="og:image" content="/favicon.svg" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#0b0f19; --card:#0f1629; --muted:#9aa4b2; --text:#e6edf3; --line:#1d2640; --brand:#f59e0b; --accent:#22c55e; --warn:#f97316;
+      --bg:#0b0f19; --card:#0f1629; --muted:#9aa4b2; --text:#e6edf3; --line:#1d2640;
+      --brand:#f59e0b; --accent:#22c55e; --warn:#f97316;
     }
     *{box-sizing:border-box}
     html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif;scroll-behavior:smooth}
@@ -24,50 +25,42 @@
     a:hover{text-decoration:underline}
     .container{max-width:1200px;margin:0 auto;padding:0 16px}
     .nav{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0c1223,rgba(12,18,35,.4));backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid #11162b}
-    .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+    .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
     .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}
-    .brand .mark{width:28px;height:28px;border-radius:8px;background:conic-gradient(from 180deg, #f59e0b, #fde68a, #f59e0b);box-shadow:0 0 0 2px #1d2640}
+    .brand img{width:28px;height:28px}
     .menu{display:flex;gap:18px}
     .menu a{color:var(--text);opacity:.92}
-    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 16px;font-weight:700}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 16px;font-weight:700;cursor:pointer}
     .btn:hover{filter:brightness(1.05)}
-
     header.hero{padding:80px 0 36px;background:radial-gradient(1200px 600px at 50% -200px,#1a2444,transparent)}
     .title{font-size:44px;line-height:1.15;margin:0 0 10px;text-wrap:balance}
     .subtitle{color:var(--muted);max-width:880px;margin:0 auto 20px}
     .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px auto 10px;max-width:960px}
     .pill{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}
-
     .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0e1426}
-
     section{padding:48px 0;border-top:1px solid #0f1630}
     .section-title{font-size:28px;margin:0 0 12px}
     .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
     .card h3{margin:0 0 6px}
     .tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin-right:6px;color:var(--muted);font-size:12px}
-
     .grid2{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
     .note{font-size:13px;color:var(--muted)}
-
     .faq details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
     .faq summary{cursor:pointer;font-weight:600}
-
     .addr{display:flex;align-items:center;gap:8px;word-break:break-all;background:#0b1224;border:1px solid var(--line);padding:10px;border-radius:10px}
     .addr code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
     .addr .actions{margin-left:auto;display:flex;gap:8px}
     .mini{font-size:12px;color:var(--muted)}
-
     .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55)}
     .modal .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:360px;width:92%}
-
     footer{border-top:1px solid var(--line);padding:30px 0 60px;color:var(--muted);text-align:center}
-
     @media (max-width: 1000px){
       .kpis{grid-template-columns:1fr 1fr}
       .cards{grid-template-columns:1fr}
       .grid2{grid-template-columns:1fr}
       .title{font-size:34px}
+      .menu{display:none}
     }
   </style>
 </head>
@@ -75,8 +68,11 @@
   <!-- NAV -->
   <nav class="nav">
     <div class="container nav-inner">
-      <div class="brand"><div class="mark"></div> <span>Cyrptonvest</span></div>
-      <div class="menu">
+      <div class="brand">
+        <img src="/assets/logo.svg" alt="Cyrptonvest logo" />
+        <span>Cyrptonvest</span>
+      </div>
+      <div class="menu" role="navigation" aria-label="Primary">
         <a href="#live">Live Charts</a>
         <a href="#plans">Plans</a>
         <a href="#topups">Top Ups</a>
@@ -84,7 +80,7 @@
         <a href="#faq">FAQ</a>
         <a href="#contact">Contact</a>
       </div>
-      <a class="btn" href="#contact">Get Started</a>
+      <a class="btn" href="#contact" aria-label="Get started">Get Started</a>
     </div>
   </nav>
 
@@ -92,11 +88,11 @@
   <header class="hero">
     <div class="container" style="text-align:center">
       <h1 class="title">Alternative investment access — with live market visibility</h1>
-      <p class="subtitle">Transparent plans, clearly stated fees, and a disciplined, risk‑first approach. Cyrptonvest lets you monitor key markets in real‑time while keeping your capital strategy simple.</p>
+      <p class="subtitle">Transparent plans, clearly stated fees, and a disciplined, risk-first approach. Cyrptonvest lets you monitor key markets in real-time while keeping your capital strategy simple.</p>
       <div class="kpis">
         <div class="pill">Fast onboarding • KYC in minutes</div>
-        <div class="pill">Flexible top‑ups &amp; withdrawals</div>
-        <div class="pill">Bank &amp; mobile‑money friendly</div>
+        <div class="pill">Flexible top-ups &amp; withdrawals</div>
+        <div class="pill">Bank &amp; mobile-money friendly</div>
       </div>
     </div>
   </header>
@@ -184,7 +180,7 @@
           <h3>Starter</h3>
           <div class="tag">From $100</div>
           <div class="tag">Flexible</div>
-          <p>Get started with disciplined exposure. Clear fees, no lock‑in. Great for first‑timers.</p>
+          <p>Get started with disciplined exposure. Clear fees, no lock-in. Great for first-timers.</p>
           <ul>
             <li>Daily NAV updates</li>
             <li>Email statements</li>
@@ -196,10 +192,10 @@
           <h3>Growth</h3>
           <div class="tag">From $1,000</div>
           <div class="tag">Balanced</div>
-          <p>Diversified, risk‑aware strategy targeting steadier returns over a longer horizon.</p>
+          <p>Diversified, risk-aware strategy targeting steadier returns over a longer horizon.</p>
           <ul>
             <li>Quarterly reports</li>
-            <li>Loss‑limits policy</li>
+            <li>Loss-limits policy</li>
             <li>Priority support</li>
           </ul>
           <p><a class="btn" href="#contact">Apply</a></p>
@@ -224,7 +220,7 @@
   <section id="topups">
     <div class="container">
       <h2 class="section-title">Top Ups</h2>
-      <p class="note">Always verify the address on this page before sending. Cyrptonvest will <strong>never</strong> DM you a deposit address. Network fees apply. Wrong‑network deposits may be lost.</p>
+      <p class="note">Always verify the address on this page before sending. Cyrptonvest will <strong>never</strong> DM you a deposit address. Network fees apply. Wrong-network deposits may be lost.</p>
 
       <div class="card">
         <h3>BTC (Bitcoin)</h3>
@@ -271,20 +267,20 @@
     <div class="container grid2">
       <div class="card">
         <h2 class="section-title">Our approach</h2>
-        <p>We prioritize downside protection and clarity. Allocation rules, maximum drawdown thresholds, and de‑risk triggers are documented and reviewed regularly. Execution uses reputable venues with strict custody standards.</p>
+        <p>We prioritize downside protection and clarity. Allocation rules, maximum drawdown thresholds, and de-risk triggers are documented and reviewed regularly. Execution uses reputable venues with strict custody standards.</p>
         <ul>
-          <li>Risk‑first allocation &amp; drawdown caps</li>
+          <li>Risk-first allocation &amp; drawdown caps</li>
           <li>Independent pricing &amp; reconciliations</li>
           <li>Clear fees; no hidden charges</li>
         </ul>
       </div>
       <div class="card">
         <h2 class="section-title">Key documents</h2>
-        <p class="note">Link these to your Squarespace legal pages, or host markdown in a <code>policies/</code> folder.</p>
+        <p class="note">Linked to your legal pages.</p>
         <ul>
-          <li><a href="#" onclick="alert('Add your Terms URL')">Terms of Use</a></li>
-          <li><a href="#" onclick="alert('Add your Privacy URL')">Privacy Policy</a></li>
-          <li><a href="#" onclick="alert('Add your Risk Disclosure URL')">Risk Disclosure</a></li>
+          <li><a href="/policies/terms.html">Terms of Use</a></li>
+          <li><a href="/policies/privacy.html">Privacy Policy</a></li>
+          <li><a href="/policies/risk-disclosure.html">Risk Disclosure</a></li>
         </ul>
       </div>
     </div>
@@ -315,16 +311,18 @@
         <h2 class="section-title">Contact</h2>
         <p>Email: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p>
         <p>Office: Add your physical address and hours.</p>
-        <p class="note">For security, never send sensitive information over plain email. We will never ask for your password or one‑time codes.</p>
+        <p class="note">For security, never send sensitive information over plain email. We will never ask for your password or one-time codes.</p>
       </div>
       <div class="card">
         <h2 class="section-title">Stay informed</h2>
         <p>Get monthly updates on strategy and risk. No spam.</p>
-        <form onsubmit="event.preventDefault(); alert('Hook this to your email provider.');">
-          <input type="email" required placeholder="you@example.com" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:var(--text)">
+        <form onsubmit="event.preventDefault(); window.location.href='mailto:support@cyrptonvest.com?subject=Subscribe&body=Please%20subscribe%20me%20to%20updates.';">
+          <input type="email" required placeholder="you@example.com" aria-label="Email address"
+                 style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:var(--text)">
           <div style="height:10px"></div>
           <button class="btn" type="submit">Subscribe</button>
         </form>
+        <p class="note">Want a real form endpoint? I can wire this to a Cloudflare Worker or your email provider on request.</p>
       </div>
     </div>
   </section>
@@ -336,7 +334,7 @@
     </div>
   </footer>
 
-  <!-- TradingView Advanced Chart (single large chart) -->
+  <!-- TradingView Advanced Chart -->
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <!-- QR generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-Mn6JX8r8QG4Czh2M2GmP8O8f9m4f0o0g7gE7xY2C6C7r8kC1J4S6YB6w2S3+7JmXqY8zT5y7GqvB3w9zVZb4Xw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -364,9 +362,9 @@
     // Copy address helper
     function copyAddr(id){
       const text = document.getElementById(id).textContent.trim();
-      navigator.clipboard.writeText(text).then(()=>{
+      navigator.clipboard?.writeText(text).then(()=>{
         alert('Copied: ' + text.slice(0, 10) + '…');
-      },()=>{
+      }).catch(()=>{
         prompt('Copy address manually:', text);
       });
     }
@@ -376,18 +374,17 @@
     modal.className = 'modal';
     modal.innerHTML = '<div class="box"><h3 id="qr-title" style="margin-top:0">QR</h3><div id="qrcode" style="display:grid;place-items:center;padding:10px"></div><div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" id="closeqr">Close</button></div></div>';
     document.body.appendChild(modal);
-    document.getElementById('closeqr')?.addEventListener('click', ()=> modal.style.display='none');
-
     function showQR(label, value){
-      document.getElementById('qr-title').textContent = label + ' Address';
+      const t = document.getElementById('qr-title');
       const el = document.getElementById('qrcode');
+      t.textContent = label + ' Address';
       el.innerHTML = '';
       new QRCode(el, {text:value, width:220, height:220, correctLevel: QRCode.CorrectLevel.M});
       modal.style.display = 'grid';
     }
-
-    // Close modal on overlay click
     modal.addEventListener('click', (e)=>{ if(e.target === modal) modal.style.display='none'; });
+    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') modal.style.display='none'; });
+    document.addEventListener('click', (e)=>{ if(e.target && e.target.id === 'closeqr') modal.style.display='none'; });
   </script>
 </body>
 </html>
