@@ -11,8 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;--brand:#f59e0b;--ok:#22c55e;
-      --ring: rgba(245,158,11,.35);
+      --bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;
+      --brand:#f59e0b;--ok:#22c55e;--ring:rgba(245,158,11,.35);
     }
     *{box-sizing:border-box}
     html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif}
@@ -30,26 +30,22 @@
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
     .btn.secondary{background:#121a33;color:#e5e7eb;border:1px solid var(--line)}
     .wrap{padding:16px}
-    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
     .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
     .card h2,.card h3{margin:0 0 10px}
     .muted{color:var(--muted)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #172042;text-align:left}
-    .footer-note{font-size:12px;color:#8ea0b7}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace}
     /* Wallet action circles */
     .fab-row{display:flex;justify-content:space-between;gap:12px;margin-top:8px}
     .fab{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#121a33;color:#e6edf3;cursor:pointer}
     .fab .circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#0b1224;border:1px solid var(--line);font-weight:900}
     .fab.deposit .circle{background:#08240f;border-color:#174a2b}
     .fab.withdraw .circle{background:#241309;border-color:#7a3b16}
-    /* Address box */
-    .addr{display:flex;align-items:center;gap:8px;word-break:break-all;background:#0b1224;border:1px solid var(--line);padding:10px;border-radius:10px}
-    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
-    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
+    /* Address boxes */
+    .addr{display:flex;align-items:center;gap:8px;background:#0b1224;border:1px solid var(--line);padding:10px;border-radius:12px}
+    .vaddr{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:1px;white-space:pre-wrap}
+    .icon-btn{width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer}
+    .icon-btn:hover{background:#132043}
     /* Modal */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
     .modal>.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:700px;width:100%;padding:16px}
@@ -57,10 +53,12 @@
     .tabs{display:flex;gap:8px;flex-wrap:wrap}
     .tab{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#121a33;cursor:pointer}
     .tab.active{background:var(--brand);color:#111827;border-color:var(--brand)}
+    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
+    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
     /* Toasts */
     #toasts{position:fixed;bottom:14px;right:14px;display:grid;gap:8px;z-index:60}
     .toast{background:#0f1629;border:1px solid var(--line);padding:10px 12px;border-radius:10px}
-    @media(max-width:1000px){.layout{grid-template-columns:1fr}.side{position:static;height:auto}.grid{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}}
+    @media(max-width:1000px){.layout{grid-template-columns:1fr}.side{position:static;height:auto}.row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -105,14 +103,13 @@
       <div class="row">
         <div>
           <label class="muted">Deposit address</label>
-          <div class="addr" id="dep-addr-box"><code id="dep-addr">—</code></div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn secondary" onclick="copy('#dep-addr')">Copy</button>
-            <button class="btn secondary" onclick="copyUri()">Copy URI</button>
+          <div class="addr"><code id="dep-addr" class="vaddr mono">—</code>
+            <button class="icon-btn" onclick="copy('#dep-addr')" aria-label="Copy">⧉</button>
+            <button class="icon-btn" onclick="copyUri()" aria-label="Copy URI">↗</button>
           </div>
         </div>
-        <div>
-          <div id="dep-qr" style="width:140px;height:140px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center">QR</div>
+        <div style="display:grid;place-items:center">
+          <div id="dep-qr" style="width:100px;height:100px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center">QR</div>
         </div>
       </div>
 
@@ -129,7 +126,7 @@
       </div>
       <div style="height:10px"></div>
       <button class="btn" onclick="submitDeposit()">I sent funds</button>
-      <p class="footer-note">We credit after network confirmations and review.</p>
+      <p class="muted" style="font-size:12px">We credit after network confirmations and review.</p>
     </div>
   </div>
 
@@ -152,7 +149,7 @@
       </div>
       <div style="height:8px"></div>
       <button class="btn" onclick="submitWithdrawal()">Request withdrawal</button>
-      <p class="footer-note">Payouts are processed after review.</p>
+      <p class="muted" style="font-size:12px">Payouts are processed after review.</p>
     </div>
   </div>
 
@@ -173,7 +170,7 @@
     async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
     function openModal(id){ document.getElementById(id).classList.add('show'); }
     function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-    function copy(sel){ const txt=document.querySelector(sel).textContent.trim(); navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>prompt('Copy manually:',txt)); }
+    function copy(sel){ const txt=document.querySelector(sel).textContent.replace(/\\s+/g,'').trim(); navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>prompt('Copy manually:',txt)); }
 
     function coinToAddr(coin){
       const w = walletCache || {};
@@ -183,11 +180,11 @@
     }
     function coinUri(coin, addr){
       if(coin==='BTC') return `bitcoin:${addr}`;
-      if(coin==='USDT-TRC20') return addr; // TRON wallets typically accept raw address
+      if(coin==='USDT-TRC20') return addr; // TRON often accepts raw address
       if(coin==='ETH-ERC20') return `ethereum:${addr}`;
       return addr;
     }
-    function copyUri(){ const addr=$('#dep-addr').textContent.trim(); navigator.clipboard.writeText(coinUri(currentCoin,addr)).then(()=>toast('URI copied')); }
+    function copyUri(){ const addr=$('#dep-addr').textContent.replace(/\\s+/g,'').trim(); navigator.clipboard.writeText(coinUri(currentCoin,addr)).then(()=>toast('URI copied')); }
 
     async function renderOverview(){
       const me = await api('/api/me');
@@ -196,84 +193,72 @@
       const bal = await api('/api/wallet/balance');
       walletCache = bal.wallet || { balance_cents:0, currency:'USD', btc_addr:'', trc20_addr:'', eth_addr:'' };
 
+      // --- Layout: Wallet (top), then Plans, then Transactions ---
       page.innerHTML = `
-        <div class="grid">
-          <div>
-            <div class="card">
-              <h2>Wallet</h2>
-              <div class="row">
-                <div class="kpi" style="grid-column:span 2;">
-                  <div class="muted">Total assets</div>
-                  <div style="font-size:28px;font-weight:800">$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency}</span></div>
-                </div>
-              </div>
-              <div class="fab-row">
-                <div class="fab deposit" onclick="openDeposit()">
-                  <span class="circle">↓</span>
-                  <strong>Deposit</strong>
-                </div>
-                <div class="fab withdraw" onclick="openWithdraw()">
-                  <strong>Withdraw</strong>
-                  <span class="circle">↑</span>
-                </div>
-              </div>
-
-              <div style="height:12px"></div>
-              <div class="row">
-                <div class="addr"><small>BTC</small> <code id="btc-inline">${walletCache.btc_addr}</code> <button class="btn secondary" onclick="copy('#btc-inline')">Copy</button></div>
-                <div class="addr"><small>USDT-TRC20</small> <code id="trc-inline">${walletCache.trc20_addr}</code> <button class="btn secondary" onclick="copy('#trc-inline')">Copy</button></div>
-              </div>
-              <div class="row" style="margin-top:8px">
-                <div class="addr"><small>ETH (ERC20)</small> <code id="eth-inline">${walletCache.eth_addr}</code> <button class="btn secondary" onclick="copy('#eth-inline')">Copy</button></div>
-                <div style="display:grid;place-items:center;border:1px dashed var(--line);border-radius:10px;padding:10px"><span class="muted">Tip: Use Deposit to generate QR & submit TX.</span></div>
-              </div>
-            </div>
-
-            <div style="height:16px"></div>
-            <div class="card">
-              <h2>Transactions</h2>
-              <div id="tx-table">Loading…</div>
+        <div class="card" id="wallet-card">
+          <h2>Wallet</h2>
+          <div class="row">
+            <div class="kpi" style="grid-column:span 2;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px">
+              <div class="muted">Total assets</div>
+              <div style="font-size:28px;font-weight:800">$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency}</span></div>
             </div>
           </div>
-
-          <div>
-            <div class="card">
-              <h2>Plans</h2>
-              <div id="plans"></div>
-            </div>
-            <div style="height:16px"></div>
-            <div class="card">
-              <h2>Live chart</h2>
-              <div id="tvchart" style="height:420px"></div>
-              <p class="footer-note">Use the symbol box to switch instruments (e.g., BTCUSD, XAUUSD, EURUSD).</p>
-            </div>
+          <div class="fab-row">
+            <div class="fab deposit" onclick="openDeposit()"><span class="circle">↓</span><strong>Deposit</strong></div>
+            <div class="fab withdraw" onclick="openWithdraw()"><strong>Withdraw</strong><span class="circle">↑</span></div>
           </div>
+          <div style="height:12px"></div>
+          <div class="row">
+            <div class="addr"><small>BTC</small> <code id="btc-inline" class="vaddr mono">${walletCache.btc_addr}</code> <button class="icon-btn" onclick="copy('#btc-inline')" aria-label="Copy">⧉</button></div>
+            <div class="addr"><small>USDT-TRC20</small> <code id="trc-inline" class="vaddr mono">${walletCache.trc20_addr}</code> <button class="icon-btn" onclick="copy('#trc-inline')" aria-label="Copy">⧉</button></div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="addr"><small>ETH (ERC20)</small> <code id="eth-inline" class="vaddr mono">${walletCache.eth_addr}</code> <button class="icon-btn" onclick="copy('#eth-inline')" aria-label="Copy">⧉</button></div>
+            <div style="display:grid;place-items:center;border:1px dashed var(--line);border-radius:10px;padding:10px"><span class="muted">Tip: Use Deposit to generate QR & submit TX.</span></div>
+          </div>
+        </div>
+
+        <div class="row" id="second-row" style="margin-top:16px">
+          <div class="card" id="plans-card">
+            <h2>Plans</h2>
+            <div id="plans"></div>
+          </div>
+          <div class="card">
+            <h2>Live chart</h2>
+            <div id="tvchart" style="height:420px"></div>
+            <p class="muted" style="font-size:12px">Use the symbol box to switch instruments (e.g., BTCUSD, XAUUSD, EURUSD).</p>
+          </div>
+        </div>
+
+        <div class="card" id="tx-card" style="margin-top:16px">
+          <h2>Transactions</h2>
+          <div id="tx-table">Loading…</div>
         </div>`;
 
-      // Plans content (static text with examples, subscribe button still calls API)
+      // Plans with “Start” buttons (open Deposit modal)
       $('#plans').innerHTML = `
         <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
           <strong>Starter</strong>
           <div class="muted">Range: $5 – $10 • Profit: 60% in 3h</div>
-          <div class="footer-note">Example: $10 → $16 total (principal + profit) after 3h.</div>
-          <button class="btn" onclick="subscribe('starter')">Subscribe</button>
+          <div class="muted" style="font-size:12px">Example: $10 → $16 total after 3h.</div>
+          <button class="btn" onclick="startPlan('starter')">Start</button>
         </div>
         <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
           <strong>Growth</strong>
           <div class="muted">Range: $50 – $400 • Profit: 140% in 6h</div>
-          <div class="footer-note">Example: $100 → $240 total after 6h.</div>
-          <button class="btn" onclick="subscribe('growth')">Subscribe</button>
+          <div class="muted" style="font-size:12px">Example: $100 → $240 total after 6h.</div>
+          <button class="btn" onclick="startPlan('growth')">Start</button>
         </div>
         <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
           <strong>Professional</strong>
           <div class="muted">Range: $500 – $10,000 • Profit: 200% in 24h</div>
-          <div class="footer-note">Example: $500 → $1,500 total after 24h.</div>
-          <button class="btn" onclick="subscribe('pro')">Subscribe</button>
+          <div class="muted" style="font-size:12px">Example: $500 → $1,500 total after 24h.</div>
+          <button class="btn" onclick="startPlan('pro')">Start</button>
         </div>
-        <p class="footer-note">Examples are illustrative only. Investing involves risk of loss.</p>
+        <p class="muted" style="font-size:12px">Examples are illustrative only. Investing involves risk of loss.</p>
       `;
 
-      // Transactions table
+      // TX table
       renderTransactionsTable('tx-table', 50);
 
       // TradingView chart
@@ -281,11 +266,11 @@
     }
 
     // ----- Actions -----
+    function startPlan(id){ openDeposit(); } // open deposit modal directly
     function openDeposit(){
-      // default coin
       currentCoin = 'BTC';
       document.querySelectorAll('#coin-tabs .tab').forEach(t=>t.classList.remove('active'));
-      document.querySelector('#coin-tabs .tab[data-coin="BTC"]').classList.add('active');
+      const first=$('#coin-tabs .tab[data-coin="BTC"]'); if(first) first.classList.add('active');
       fillDepositFor(currentCoin);
       openModal('deposit-modal');
     }
@@ -293,9 +278,10 @@
 
     function fillDepositFor(coin){
       const addr = coinToAddr(coin) || '—';
-      $('#dep-addr').textContent = addr;
+      const target = $('#dep-addr');
+      target.textContent = addr;
       const depQr = $('#dep-qr'); depQr.innerHTML='';
-      if(addr && addr !== '—'){ new QRCode(depQr, { text: coinUri(coin, addr), width:128, height:128 }); }
+      if(addr && addr !== '—'){ new QRCode(depQr, { text: coinUri(coin, addr.replace(/\\s+/g,'')), width:96, height:96 }); }
     }
 
     // coin tab events
@@ -324,11 +310,6 @@
       if(res?.ok){ toast('Withdrawal requested'); closeModal('withdraw-modal'); renderOverview(); } else toast('Failed to request');
     }
 
-    async function subscribe(id){
-      const r = await api('/api/plans/subscribe',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ plan_id:id })});
-      if(r?.ok) toast('Subscribed to '+id); else toast('Subscribe failed');
-    }
-
     async function renderTransactionsTable(targetId, limit){
       const target = document.getElementById(targetId);
       const data = await api('/api/transactions');
@@ -338,12 +319,12 @@
       target.innerHTML = `<table><thead><tr><th>Time</th><th>Type</th><th>Amount</th><th>Status</th><th>Ref</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted">No transactions yet</td></tr>'}</tbody></table>`;
     }
 
-    // Router
+    // Router (basic)
     const routes = {
       '#overview': renderOverview,
       '#wallet': ()=>{ openDeposit(); },
-      '#plans': ()=>{ location.hash='#overview'; },
-      '#history': ()=>{ renderOverview(); setTimeout(()=> document.getElementById('tx-table').scrollIntoView({behavior:'smooth'}), 50); },
+      '#plans': ()=>{ renderOverview(); setTimeout(()=>document.getElementById('plans-card').scrollIntoView({behavior:'smooth'}), 50); },
+      '#history': ()=>{ renderOverview(); setTimeout(()=> document.getElementById('tx-card').scrollIntoView({behavior:'smooth'}), 50); },
       '#settings': ()=>{ page.innerHTML = `<div class="card"><h2>Settings</h2><p>Coming soon: change password, 2FA, export data.</p><p>Support: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p></div>`; },
       '#support': ()=>{ page.innerHTML = `<div class="card"><h2>Support</h2><p>Email us at <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a>. Never share passwords or one-time codes.</p></div>`; }
     };
