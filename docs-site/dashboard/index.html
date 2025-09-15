@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;--brand:#f59e0b;--ok:#22c55e;--warn:#f97316;--bad:#ef4444;
+      --bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;--brand:#f59e0b;--ok:#22c55e;
       --ring: rgba(245,158,11,.35);
     }
     *{box-sizing:border-box}
@@ -29,33 +29,36 @@
     .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
     .btn.secondary{background:#121a33;color:#e5e7eb;border:1px solid var(--line)}
-    .btn.ghost{background:transparent;border:1px dashed var(--line);color:#e5e7eb}
     .wrap{padding:16px}
-    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
     .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
-    .card h2,.card h3{margin:0 0 8px}
+    .card h2,.card h3{margin:0 0 10px}
     .muted{color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #172042;text-align:left}
+    .footer-note{font-size:12px;color:#8ea0b7}
+    /* Wallet action circles */
+    .fab-row{display:flex;justify-content:space-between;gap:12px;margin-top:8px}
+    .fab{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#121a33;color:#e6edf3;cursor:pointer}
+    .fab .circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#0b1224;border:1px solid var(--line);font-weight:900}
+    .fab.deposit .circle{background:#08240f;border-color:#174a2b}
+    .fab.withdraw .circle{background:#241309;border-color:#7a3b16}
+    /* Address box */
     .addr{display:flex;align-items:center;gap:8px;word-break:break-all;background:#0b1224;border:1px solid var(--line);padding:10px;border-radius:10px}
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #172042;text-align:left}
-    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px}
-    .chip{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:.25rem .55rem;margin-right:6px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .right{margin-left:auto}
-    .tag-ok{color:#10b981;background:#052b22;border-color:#164e3d}
-    .tag-warn{color:#fb923c;background:#2b1705;border-color:#7c3a03}
-    .tag-bad{color:#fecaca;background:#2b0d0d;border-color:#7f1d1d}
-    .actions{display:flex;gap:8px;flex-wrap:wrap}
-    .footer-note{font-size:12px;color:#8ea0b7}
     /* Modal */
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px}
-    .modal>.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:560px;width:100%;padding:16px}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+    .modal>.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:700px;width:100%;padding:16px}
     .modal.show{display:flex}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#121a33;cursor:pointer}
+    .tab.active{background:var(--brand);color:#111827;border-color:var(--brand)}
     /* Toasts */
-    #toasts{position:fixed;bottom:14px;right:14px;display:grid;gap:8px;z-index:40}
+    #toasts{position:fixed;bottom:14px;right:14px;display:grid;gap:8px;z-index:60}
     .toast{background:#0f1629;border:1px solid var(--line);padding:10px 12px;border-radius:10px}
     @media(max-width:1000px){.layout{grid-template-columns:1fr}.side{position:static;height:auto}.grid{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}}
   </style>
@@ -65,74 +68,72 @@
     <aside class="side">
       <div class="brand"><img src="/assets/logo.svg" alt="logo"/> Cyrptonvest</div>
       <div class="nav">
-        <a href="#overview" class="active" data-page><span>Overview</span></a>
-        <a href="#wallet" data-page><span>Wallet</span></a>
-        <a href="#plans" data-page><span>Plans</span></a>
-        <a href="#history" data-page><span>Transactions</span></a>
-        <a href="#settings" data-page><span>Settings</span></a>
-        <a href="#support" data-page><span>Support</span></a>
+        <a href="#overview" class="active" data-page>Overview</a>
+        <a href="#wallet" data-page>Wallet</a>
+        <a href="#plans" data-page>Plans</a>
+        <a href="#history" data-page>Transactions</a>
+        <a href="#settings" data-page>Settings</a>
+        <a href="#support" data-page>Support</a>
       </div>
-      <div style="margin-top:auto">
-        <div class="pill" id="user-pill">Loading…</div>
-      </div>
+      <div style="margin-top:auto"><div class="pill" id="user-pill">Loading…</div></div>
     </aside>
     <div class="main">
       <div class="topbar">
-        <div class="actions">
-          <span class="pill">Status: <strong style="margin-left:6px">Live</strong></span>
-          <span class="pill">UTC <span id="clock" style="margin-left:6px">--:--:--</span></span>
-        </div>
-        <div class="actions">
-          <button class="btn secondary" id="logout">Log out</button>
-        </div>
+        <div class="pill">UTC <span id="clock" style="margin-left:6px">--:--:--</span></div>
+        <button class="btn secondary" id="logout">Log out</button>
       </div>
-      <div class="wrap">
-        <div id="page"></div>
-      </div>
+      <div class="wrap"><div id="page"></div></div>
     </div>
   </div>
 
-  <!-- Modals -->
+  <!-- Deposit Modal -->
   <div class="modal" id="deposit-modal" aria-hidden="true">
     <div class="box">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <h3 style="margin:0">Deposit funds</h3>
+        <h3 style="margin:0">Deposit crypto</h3>
         <button class="btn secondary" onclick="closeModal('deposit-modal')">Close</button>
       </div>
-      <p class="muted">Send to a network below, then paste TXID so we can credit your wallet.</p>
-      <div class="row">
-        <div>
-          <h4>BTC</h4>
-          <div class="addr"><code id="btc-addr"></code><button class="btn secondary right" onclick="copy('#btc-addr')">Copy</button></div>
-          <div id="btc-qr" style="margin-top:8px"></div>
-        </div>
-        <div>
-          <h4>USDT (TRC20)</h4>
-          <div class="addr"><code id="trc-addr"></code><button class="btn secondary right" onclick="copy('#trc-addr')">Copy</button></div>
-          <div id="trc-qr" style="margin-top:8px"></div>
-        </div>
+      <p class="muted">Choose a coin, send funds, then paste TXID and amount so we can credit your wallet.</p>
+
+      <div class="tabs" id="coin-tabs">
+        <div class="tab active" data-coin="BTC">BTC</div>
+        <div class="tab" data-coin="USDT-TRC20">USDT-TRC20</div>
+        <div class="tab" data-coin="ETH-ERC20">ETH-ERC20</div>
       </div>
+
       <div style="height:10px"></div>
       <div class="row">
         <div>
-          <h4>ETH (ERC20)</h4>
-          <div class="addr"><code id="eth-addr"></code><button class="btn secondary right" onclick="copy('#eth-addr')">Copy</button></div>
-          <div id="eth-qr" style="margin-top:8px"></div>
+          <label class="muted">Deposit address</label>
+          <div class="addr" id="dep-addr-box"><code id="dep-addr">—</code></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn secondary" onclick="copy('#dep-addr')">Copy</button>
+            <button class="btn secondary" onclick="copyUri()">Copy URI</button>
+          </div>
         </div>
         <div>
-          <h4>Submit TX</h4>
-          <label class="muted">TXID / Hash</label>
-          <input id="dep-txid" placeholder="Paste TXID here">
-          <label class="muted">Amount (USD)</label>
-          <input id="dep-amount" type="number" step="0.01" placeholder="100.00">
-          <div style="height:8px"></div>
-          <button class="btn" onclick="submitDeposit()">I sent funds</button>
+          <div id="dep-qr" style="width:140px;height:140px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center">QR</div>
         </div>
       </div>
+
+      <div style="height:8px"></div>
+      <div class="row">
+        <div>
+          <label class="muted">TXID / Hash</label>
+          <input id="dep-txid" placeholder="Paste TXID here">
+        </div>
+        <div>
+          <label class="muted">Amount (USD)</label>
+          <input id="dep-amount" type="number" step="0.01" placeholder="100.00">
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <button class="btn" onclick="submitDeposit()">I sent funds</button>
       <p class="footer-note">We credit after network confirmations and review.</p>
     </div>
   </div>
 
+  <!-- Withdraw Modal -->
   <div class="modal" id="withdraw-modal" aria-hidden="true">
     <div class="box">
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -155,7 +156,7 @@
     </div>
   </div>
 
-  <!-- Toasts container -->
+  <!-- Toasts -->
   <div id="toasts"></div>
 
   <!-- TradingView & QR -->
@@ -163,56 +164,68 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
 
   <script>
-    // ---------- Helpers & API ----------
-    const $ = (sel)=> document.querySelector(sel);
-    const page = document.getElementById('page');
+    const $ = (s)=>document.querySelector(s);
+    const page = $('#page');
+    let walletCache = null;
+    let currentCoin = 'BTC';
 
-    function toast(msg){
-      const t = document.createElement('div'); t.className='toast'; t.textContent=msg; $('#toasts').appendChild(t);
-      setTimeout(()=> t.remove(), 3500);
-    }
-
-    async function api(path, opts){
-      const r = await fetch(path, { credentials:'include', ...opts });
-      if(r.status===401){ location.href='/login.html'; return; }
-      const ct = r.headers.get('Content-Type')||''; return ct.includes('application/json') ? r.json() : r.text();
-    }
-
+    function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(), 3500); }
+    async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
     function openModal(id){ document.getElementById(id).classList.add('show'); }
     function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-    function copy(sel){ const txt = document.querySelector(sel).textContent.trim(); navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>prompt('Copy manually:', txt)); }
+    function copy(sel){ const txt=document.querySelector(sel).textContent.trim(); navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>prompt('Copy manually:',txt)); }
 
-    // ---------- Pages ----------
+    function coinToAddr(coin){
+      const w = walletCache || {};
+      if(coin==='BTC') return w.btc_addr;
+      if(coin==='USDT-TRC20') return w.trc20_addr;
+      return w.eth_addr;
+    }
+    function coinUri(coin, addr){
+      if(coin==='BTC') return `bitcoin:${addr}`;
+      if(coin==='USDT-TRC20') return addr; // TRON wallets typically accept raw address
+      if(coin==='ETH-ERC20') return `ethereum:${addr}`;
+      return addr;
+    }
+    function copyUri(){ const addr=$('#dep-addr').textContent.trim(); navigator.clipboard.writeText(coinUri(currentCoin,addr)).then(()=>toast('URI copied')); }
+
     async function renderOverview(){
       const me = await api('/api/me');
-      const bal = await api('/api/wallet/balance');
-      const w = bal.wallet || { balance_cents:0, currency:'USD', btc_addr:'', trc20_addr:'', eth_addr:'' };
       $('#user-pill').textContent = me.user.email;
+
+      const bal = await api('/api/wallet/balance');
+      walletCache = bal.wallet || { balance_cents:0, currency:'USD', btc_addr:'', trc20_addr:'', eth_addr:'' };
 
       page.innerHTML = `
         <div class="grid">
           <div>
-            <div class="kpis">
-              <div class="kpi"><div class="muted">Balance</div><div style="font-size:26px;font-weight:800">$${(w.balance_cents/100).toFixed(2)}</div><div class="muted">${w.currency}</div></div>
-              <div class="kpi"><div class="muted">Status</div><div><span class="chip tag-ok">Verified email</span> <span class="chip">Tier 1</span></div></div>
-              <div class="kpi"><div class="muted">Active plans</div><div style="font-size:22px;font-weight:700" id="active-plans">—</div></div>
-              <div class="kpi"><div class="muted">Last login</div><div id="last-login">Now</div></div>
-            </div>
-
-            <div style="height:16px"></div>
             <div class="card">
-              <div style="display:flex;align-items:center;justify-content:space-between">
-                <h2>Wallet</h2>
-                <div class="actions"><button class="btn" onclick="openDeposit()">Deposit</button><button class="btn secondary" onclick="openWithdraw()">Withdraw</button></div>
-              </div>
-              <p class="muted">Assigned deposit addresses</p>
+              <h2>Wallet</h2>
               <div class="row">
-                <div class="addr"><small>BTC</small> <code id="btc-inline">${w.btc_addr}</code> <button class="btn secondary right" onclick="copy('#btc-inline')">Copy</button></div>
-                <div class="addr"><small>USDT-TRC20</small> <code id="trc-inline">${w.trc20_addr}</code> <button class="btn secondary right" onclick="copy('#trc-inline')">Copy</button></div>
+                <div class="kpi" style="grid-column:span 2;">
+                  <div class="muted">Total assets</div>
+                  <div style="font-size:28px;font-weight:800">$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency}</span></div>
+                </div>
+              </div>
+              <div class="fab-row">
+                <div class="fab deposit" onclick="openDeposit()">
+                  <span class="circle">↓</span>
+                  <strong>Deposit</strong>
+                </div>
+                <div class="fab withdraw" onclick="openWithdraw()">
+                  <strong>Withdraw</strong>
+                  <span class="circle">↑</span>
+                </div>
+              </div>
+
+              <div style="height:12px"></div>
+              <div class="row">
+                <div class="addr"><small>BTC</small> <code id="btc-inline">${walletCache.btc_addr}</code> <button class="btn secondary" onclick="copy('#btc-inline')">Copy</button></div>
+                <div class="addr"><small>USDT-TRC20</small> <code id="trc-inline">${walletCache.trc20_addr}</code> <button class="btn secondary" onclick="copy('#trc-inline')">Copy</button></div>
               </div>
               <div class="row" style="margin-top:8px">
-                <div class="addr"><small>ETH (ERC20)</small> <code id="eth-inline">${w.eth_addr}</code> <button class="btn secondary right" onclick="copy('#eth-inline')">Copy</button></div>
-                <div style="display:grid;place-items:center;border:1px dashed var(--line);border-radius:10px;padding:10px"><span class="muted">Tip: use Deposit to generate QR</span></div>
+                <div class="addr"><small>ETH (ERC20)</small> <code id="eth-inline">${walletCache.eth_addr}</code> <button class="btn secondary" onclick="copy('#eth-inline')">Copy</button></div>
+                <div style="display:grid;place-items:center;border:1px dashed var(--line);border-radius:10px;padding:10px"><span class="muted">Tip: Use Deposit to generate QR & submit TX.</span></div>
               </div>
             </div>
 
@@ -222,10 +235,11 @@
               <div id="tx-table">Loading…</div>
             </div>
           </div>
+
           <div>
             <div class="card">
               <h2>Plans</h2>
-              <div id="plans">Loading…</div>
+              <div id="plans"></div>
             </div>
             <div style="height:16px"></div>
             <div class="card">
@@ -236,50 +250,78 @@
           </div>
         </div>`;
 
-      // Fill deposit modal addresses
-      document.getElementById('btc-addr').textContent = w.btc_addr;
-      document.getElementById('trc-addr').textContent = w.trc20_addr;
-      document.getElementById('eth-addr').textContent = w.eth_addr;
+      // Plans content (static text with examples, subscribe button still calls API)
+      $('#plans').innerHTML = `
+        <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
+          <strong>Starter</strong>
+          <div class="muted">Range: $5 – $10 • Profit: 60% in 3h</div>
+          <div class="footer-note">Example: $10 → $16 total (principal + profit) after 3h.</div>
+          <button class="btn" onclick="subscribe('starter')">Subscribe</button>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
+          <strong>Growth</strong>
+          <div class="muted">Range: $50 – $400 • Profit: 140% in 6h</div>
+          <div class="footer-note">Example: $100 → $240 total after 6h.</div>
+          <button class="btn" onclick="subscribe('growth')">Subscribe</button>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
+          <strong>Professional</strong>
+          <div class="muted">Range: $500 – $10,000 • Profit: 200% in 24h</div>
+          <div class="footer-note">Example: $500 → $1,500 total after 24h.</div>
+          <button class="btn" onclick="subscribe('pro')">Subscribe</button>
+        </div>
+        <p class="footer-note">Examples are illustrative only. Investing involves risk of loss.</p>
+      `;
 
-      // Render QR codes
-      ['btc','trc','eth'].forEach(id=>{ const el = document.getElementById(id+'-qr'); el.innerHTML=''; new QRCode(el, { text: document.getElementById(id+'-addr').textContent, width:128, height:128 }); });
-
-      // Plans
-      const ps = await api('/api/plans/list');
-      const plansEl = document.getElementById('plans');
-      plansEl.innerHTML = (ps.plans||[]).map(p=>
-        `<div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
-           <strong>${p.name}</strong>
-           <div class="muted">Min: $${(p.min_deposit_cents/100).toFixed(2)}</div>
-           <button class="btn" onclick="subscribe('${p.id}')">Subscribe</button>
-         </div>`).join('') || '<span class="muted">No plans</span>';
-
-      // TX table
+      // Transactions table
       renderTransactionsTable('tx-table', 50);
 
       // TradingView chart
       new TradingView.widget({ container_id:'tvchart', autosize:true, symbol:'OANDA:XAUUSD', interval:'60', theme:'dark', style:'1', locale:'en', enable_publishing:false, allow_symbol_change:true, withdateranges:true, studies:['Volume@tv-basicstudies'] });
     }
 
-    function openDeposit(){ openModal('deposit-modal'); }
+    // ----- Actions -----
+    function openDeposit(){
+      // default coin
+      currentCoin = 'BTC';
+      document.querySelectorAll('#coin-tabs .tab').forEach(t=>t.classList.remove('active'));
+      document.querySelector('#coin-tabs .tab[data-coin="BTC"]').classList.add('active');
+      fillDepositFor(currentCoin);
+      openModal('deposit-modal');
+    }
     function openWithdraw(){ openModal('withdraw-modal'); }
 
+    function fillDepositFor(coin){
+      const addr = coinToAddr(coin) || '—';
+      $('#dep-addr').textContent = addr;
+      const depQr = $('#dep-qr'); depQr.innerHTML='';
+      if(addr && addr !== '—'){ new QRCode(depQr, { text: coinUri(coin, addr), width:128, height:128 }); }
+    }
+
+    // coin tab events
+    document.addEventListener('click', (e)=>{
+      const t = e.target.closest('.tab');
+      if(!t || !t.dataset.coin) return;
+      document.querySelectorAll('#coin-tabs .tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      currentCoin = t.dataset.coin;
+      fillDepositFor(currentCoin);
+    });
+
     async function submitDeposit(){
-      const txid = document.getElementById('dep-txid').value.trim();
-      const amount = parseFloat(document.getElementById('dep-amount').value||'0');
+      const txid = $('#dep-txid').value.trim();
+      const amount = parseFloat($('#dep-amount').value || '0');
       if(!txid || !amount) return toast('Enter TXID and amount');
-      const res = await api('/api/wallet/deposit',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount_cents:Math.round(amount*100), currency:'USD', network:'manual', address:'dashboard', txid })});
-      if(res?.ok){ toast('Deposit submitted'); closeModal('deposit-modal'); renderOverview(); }
-      else toast('Failed to submit');
+      const res = await api('/api/wallet/deposit',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount_cents:Math.round(amount*100), currency:'USD', network:currentCoin, address:coinToAddr(currentCoin), txid })});
+      if(res?.ok){ toast('Deposit submitted'); closeModal('deposit-modal'); renderOverview(); } else toast('Failed to submit');
     }
 
     async function submitWithdrawal(){
-      const amount = parseFloat(document.getElementById('wd-amount').value||'0');
-      const address = document.getElementById('wd-address').value.trim();
+      const amount = parseFloat($('#wd-amount').value||'0');
+      const address = $('#wd-address').value.trim();
       if(!amount || !address) return toast('Enter amount and address');
       const res = await api('/api/wallet/withdraw',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount_cents:Math.round(amount*100), currency:'USD', network:'manual', address })});
-      if(res?.ok){ toast('Withdrawal requested'); closeModal('withdraw-modal'); renderOverview(); }
-      else toast('Failed to request');
+      if(res?.ok){ toast('Withdrawal requested'); closeModal('withdraw-modal'); renderOverview(); } else toast('Failed to request');
     }
 
     async function subscribe(id){
@@ -291,33 +333,30 @@
       const target = document.getElementById(targetId);
       const data = await api('/api/transactions');
       const rows = (data.transactions||[]).slice(0, limit||50).map(t=>
-        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`).join('');
+        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`
+      ).join('');
       target.innerHTML = `<table><thead><tr><th>Time</th><th>Type</th><th>Amount</th><th>Status</th><th>Ref</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted">No transactions yet</td></tr>'}</tbody></table>`;
     }
 
-    document.getElementById('logout').addEventListener('click', async ()=>{ await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
-
-    // Router (simple)
+    // Router
     const routes = {
       '#overview': renderOverview,
       '#wallet': ()=>{ openDeposit(); },
-      '#plans': ()=>{ location.hash='#overview';},
+      '#plans': ()=>{ location.hash='#overview'; },
       '#history': ()=>{ renderOverview(); setTimeout(()=> document.getElementById('tx-table').scrollIntoView({behavior:'smooth'}), 50); },
-      '#settings': ()=>{
-        page.innerHTML = `<div class="card"><h2>Settings</h2><p>Coming soon: change password, 2FA, export data.</p><p>Support: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p><a class="btn" href="/policies/privacy.html">Privacy Policy</a></div>`;
-      },
-      '#support': ()=>{
-        page.innerHTML = `<div class="card"><h2>Support</h2><p>Email us at <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a> with your account email and reference numbers. Never share passwords or one-time codes.</p></div>`;
-      }
+      '#settings': ()=>{ page.innerHTML = `<div class="card"><h2>Settings</h2><p>Coming soon: change password, 2FA, export data.</p><p>Support: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p></div>`; },
+      '#support': ()=>{ page.innerHTML = `<div class="card"><h2>Support</h2><p>Email us at <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a>. Never share passwords or one-time codes.</p></div>`; }
     };
-
     function navigate(){ (routes[location.hash]||routes['#overview'])(); }
     window.addEventListener('hashchange', navigate);
 
-    // Clock
-    setInterval(()=>{ const d=new Date(); const s=d.toISOString().slice(11,19); document.getElementById('clock').textContent=s; }, 1000);
+    // Topbar clock
+    setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
 
-    // Start
+    // logout
+    document.getElementById('logout').addEventListener('click', async ()=>{ await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
+
+    // boot
     navigate();
   </script>
 </body>
