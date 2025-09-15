@@ -9,7 +9,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
   <style>
     :root{
       --bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;
@@ -19,39 +18,26 @@
     html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif}
     a{color:var(--brand);text-decoration:none}
     /* Top bar */
-    .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e152f,transparent)}
+    .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e152f,transparent)}
     .brand{display:flex;align-items:center;gap:10px;font-weight:800}
     .brand img{width:22px;height:22px}
     .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
-    .content{max-width:1200px;margin:0 auto;padding:16px}
+    .content{max-width:1200px;margin:0 auto}
+    /* Ticker */
+    .ticker-wrap{border-bottom:1px solid var(--line);background:#0d1430;overflow:hidden}
+    .ticker{display:inline-block;white-space:nowrap;animation:marq 28s linear infinite;padding:8px 0}
+    .tick{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:#121a33;border-radius:999px;padding:6px 10px;margin-right:12px}
+    .up{color:#22c55e}.down{color:#ef4444}
+    @keyframes marq{from{transform:translateX(100%)}to{transform:translateX(-110%)}}
     /* Cards & grid */
+    .section{padding:16px}
     .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
     .card h2{margin:0 0 12px}
     .muted{color:var(--muted)}
+    .grid2{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    /* Address pill */
-    .addr-pill{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#0c1428;border-radius:999px;padding:10px 12px}
-    .tag{font-size:12px;background:#111d3a;border:1px solid var(--line);padding:.2rem .5rem;border-radius:999px}
-    .addr{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;word-break:break-all}
-    .icon-btn{width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer}
-    .icon-btn:hover{background:#132043}
-    /* Actions */
-    .fab-row{display:flex;gap:12px;flex-wrap:wrap}
-    .fab{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#121a33;color:#e6edf3;cursor:pointer}
-    .fab .circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#0b1224;border:1px solid var(--line);font-weight:900}
-    .fab.deposit .circle{background:#08240f;border-color:#174a2b}
-    .fab.withdraw .circle{background:#241309;border-color:#7a3b16}
-    /* Modal */
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
-    .modal>.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:760px;width:100%;padding:16px}
-    .modal.show{display:flex}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap}
-    .tab{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#121a33;cursor:pointer}
-    .tab.active{background:var(--brand);color:#111827;border-color:var(--brand)}
-    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
-    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
-    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
     /* Avatar dropdown */
     .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer}
     .dropdown{position:absolute;top:56px;right:16px;background:#0f1629;border:1px solid var(--line);border-radius:12px;min-width:240px;display:none;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.35)}
@@ -59,11 +45,28 @@
     .dropdown .hd{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700}
     .dropdown a{display:block;color:#e6edf3;padding:10px 12px;text-decoration:none}
     .dropdown a:hover{background:#121d3a}
+    /* Wallet left */
+    .wallet-kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
+    .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
+    /* Right side tabs */
+    .switch{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+    .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700}
+    .switch button.active{background:var(--brand);color:#111827}
+    .panel{border:1px solid var(--line);background:#0d1530;border-radius:12px;padding:12px}
+    /* Address pill rows */
+    .addr-pill{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#0c1428;border-radius:999px;padding:10px 12px}
+    .tag{font-size:12px;background:#111d3a;border:1px solid var(--line);padding:.2rem .5rem;border-radius:999px}
+    .addr{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;word-break:break-all}
+    .icon-btn{width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer}
+    .icon-btn:hover{background:#132043}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
+    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
+    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
     /* Toasts */
     #toasts{position:fixed;bottom:14px;right:14px;display:grid;gap:8px;z-index:60}
     .toast{background:#0f1629;border:1px solid var(--line);padding:10px 12px;border-radius:10px}
     /* Responsive */
-    @media(max-width:980px){.row,.row-3{grid-template-columns:1fr}}
+    @media(max-width:980px){.grid2,.row,.row-3{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -86,131 +89,239 @@
     </div>
   </header>
 
+  <!-- Edge-to-edge ticker -->
+  <div class="ticker-wrap">
+    <div class="ticker" id="ticker">
+      <span class="tick">BTCUSD <b class="up">+0.8%</b></span>
+      <span class="tick">ETHUSD <b class="down">-0.4%</b></span>
+      <span class="tick">XAUUSD <b class="up">+0.3%</b></span>
+      <span class="tick">XAGUSD <b class="up">+0.1%</b></span>
+      <span class="tick">EURUSD <b class="down">-0.2%</b></span>
+      <span class="tick">GBPUSD <b class="up">+0.1%</b></span>
+      <span class="tick">USOIL <b class="up">+1.2%</b></span>
+      <span class="tick">NATGAS <b class="down">-0.6%</b></span>
+      <span class="tick">SPX500 <b class="up">+0.4%</b></span>
+    </div>
+  </div>
+
   <main class="content">
-    <div id="page"></div>
-  </main>
-
-  <!-- Deposit Modal -->
-  <div class="modal" id="deposit-modal" aria-hidden="true">
-    <div class="box">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <h3 style="margin:0">Deposit crypto</h3>
-        <button class="pill" onclick="closeModal('deposit-modal')">Close</button>
-      </div>
-      <p class="muted">Choose a coin, send funds, then paste TXID and amount so we can credit your wallet.</p>
-
-      <div class="tabs" id="coin-tabs">
-        <div class="tab active" data-coin="BTC">BTC</div>
-        <div class="tab" data-coin="USDT-TRC20">USDT-TRC20</div>
-        <div class="tab" data-coin="ETH-ERC20">ETH-ERC20</div>
-      </div>
-
-      <div style="height:10px"></div>
-      <div class="row">
-        <div>
-          <label class="muted">Deposit address</label>
-          <div class="addr-pill">
-            <span class="tag" id="dep-tag">BTC</span>
-            <span class="addr" id="dep-addr">—</span>
-            <button class="icon-btn" onclick="copy('#dep-addr')" aria-label="Copy">⧉</button>
+    <section class="section">
+      <!-- Split wallet area -->
+      <div class="grid2">
+        <!-- Left: total assets -->
+        <div class="card">
+          <h2>Wallet</h2>
+          <div class="wallet-kpi">
+            <div class="wallet-icon">💼</div>
+            <div>
+              <div class="muted">Total assets</div>
+              <div id="total-assets" style="font-size:28px;font-weight:800">$0.00 <span class="muted" style="font-size:14px">USD</span></div>
+            </div>
+          </div>
+          <div style="margin-top:12px" class="row-3">
+            <div class="addr-pill"><span class="tag">BTC</span><span class="addr" id="btc-inline">—</span><button class="icon-btn" onclick="copy('#btc-inline')">⧉</button></div>
+            <div class="addr-pill"><span class="tag">USDT-TRC20</span><span class="addr" id="trc-inline">—</span><button class="icon-btn" onclick="copy('#trc-inline')">⧉</button></div>
+            <div class="addr-pill"><span class="tag">ETH-ERC20</span><span class="addr" id="eth-inline">—</span><button class="icon-btn" onclick="copy('#eth-inline')">⧉</button></div>
           </div>
         </div>
-        <div style="display:grid;place-items:center">
-          <div id="dep-qr" style="width:100px;height:100px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center">QR</div>
+
+        <!-- Right: deposit/withdraw switch -->
+        <div class="card">
+          <div class="switch">
+            <button id="tab-dep" class="active" onclick="switchTab('deposit')">Deposit</button>
+            <button id="tab-wd" onclick="switchTab('withdraw')">Withdraw</button>
+          </div>
+          <!-- Deposit panel -->
+          <div id="panel-deposit" class="panel">
+            <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then (optional) submit your TXID and amount.</p>
+            <div style="display:grid;gap:8px">
+              <div class="addr-pill"><span class="tag">BTC</span><span class="addr" id="dep-btc">—</span><button class="icon-btn" onclick="copy('#dep-btc')">⧉</button></div>
+              <div class="addr-pill"><span class="tag">USDT-TRC20</span><span class="addr" id="dep-trc20">—</span><button class="icon-btn" onclick="copy('#dep-trc20')">⧉</button></div>
+              <div class="addr-pill"><span class="tag">ETH-ERC20</span><span class="addr" id="dep-eth">—</span><button class="icon-btn" onclick="copy('#dep-eth')">⧉</button></div>
+            </div>
+            <div style="height:10px"></div>
+            <div class="row">
+              <div>
+                <label class="muted">TXID / Hash (optional)</label>
+                <input id="dep-txid" placeholder="Paste TXID here">
+              </div>
+              <div>
+                <label class="muted">Amount (USD)</label>
+                <input id="dep-amount" type="number" step="0.01" placeholder="100.00">
+              </div>
+            </div>
+            <div style="height:10px"></div>
+            <button class="btn" onclick="submitDeposit()">I sent funds</button>
+            <p class="muted" style="font-size:12px;margin-top:6px">We credit after network confirmations and review.</p>
+          </div>
+
+          <!-- Withdraw panel -->
+          <div id="panel-withdraw" class="panel" style="display:none">
+            <div class="row">
+              <div>
+                <div class="muted">Balance</div>
+                <div id="wd-balance" style="font-weight:800;font-size:20px">$0.00 USD</div>
+              </div>
+              <div>
+                <label class="muted">Amount (USD)</label>
+                <input id="wd-amount" type="number" step="0.01" placeholder="50.00">
+              </div>
+            </div>
+            <div style="height:8px"></div>
+            <div style="display:grid;gap:8px">
+              <label class="muted">Choose network</label>
+              <label><input type="radio" name="wd-net" value="BTC" checked> BTC</label>
+              <label><input type="radio" name="wd-net" value="USDT-TRC20"> USDT-TRC20</label>
+              <label><input type="radio" name="wd-net" value="ETH-ERC20"> ETH-ERC20</label>
+            </div>
+            <div style="height:8px"></div>
+            <label class="muted" id="addr-label">Enter your BTC address</label>
+            <div class="addr-pill" style="border-radius:12px">
+              <input id="wd-address" placeholder="Wallet address" style="border:none;background:transparent;padding:0;width:100%">
+            </div>
+            <p class="muted" style="font-size:12px;margin:10px 0 0">
+              <strong style="color:var(--warn)">⚠ Confirm the destination address carefully.</strong>
+              Blockchain transactions are irreversible once sent.
+            </p>
+            <div style="height:8px"></div>
+            <button class="btn" onclick="submitWithdrawal()">Request withdrawal</button>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div style="height:8px"></div>
+    <!-- Plans + Transactions -->
+    <section class="section">
       <div class="row">
-        <div>
-          <label class="muted">TXID / Hash</label>
-          <input id="dep-txid" placeholder="Paste TXID here">
+        <div class="card" id="plans-card">
+          <h2>Plans</h2>
+          <div id="plans"></div>
         </div>
-        <div>
-          <label class="muted">Amount (USD)</label>
-          <input id="dep-amount" type="number" step="0.01" placeholder="100.00">
-        </div>
-      </div>
-      <div style="height:10px"></div>
-      <button class="btn" onclick="submitDeposit()">I sent funds</button>
-      <p class="muted" style="font-size:12px">We credit after network confirmations and review.</p>
-    </div>
-  </div>
-
-  <!-- Withdraw Modal -->
-  <div class="modal" id="withdraw-modal" aria-hidden="true">
-    <div class="box">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <h3 style="margin:0">Withdraw funds</h3>
-        <button class="pill" onclick="closeModal('withdraw-modal')">Close</button>
-      </div>
-
-      <div class="tabs" id="wd-tabs" style="margin-bottom:10px">
-        <div class="tab active" data-coin="BTC">BTC</div>
-        <div class="tab" data-coin="USDT-TRC20">USDT-TRC20</div>
-        <div class="tab" data-coin="ETH-ERC20">ETH-ERC20</div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label class="muted">Amount (USD)</label>
-          <input id="wd-amount" type="number" step="0.01" placeholder="50.00">
-        </div>
-        <div>
-          <label class="muted">Destination address</label>
-          <input id="wd-address" placeholder="Wallet address">
+        <div class="card" id="tx-card">
+          <h2>Transactions</h2>
+          <div id="tx-table">Loading…</div>
         </div>
       </div>
-      <p class="muted" style="font-size:12px;margin:10px 0 0">
-        <strong style="color:var(--warn)">⚠️ Confirm the destination address carefully.</strong>
-        Blockchain transactions are irreversible once sent.
-      </p>
-      <div style="height:8px"></div>
-      <button class="btn" onclick="submitWithdrawal()">Request withdrawal</button>
-    </div>
-  </div>
+    </section>
+  </main>
 
   <!-- Toasts -->
   <div id="toasts"></div>
 
-  <!-- TradingView & QR -->
-  <script src="https://s3.tradingview.com/tv.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
-
   <script>
     const $ = (s)=>document.querySelector(s);
-    const page = $('#page');
     let walletCache = null;
-    let currentCoin = 'BTC';
-    let currentWdCoin = 'BTC';
 
-    function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(), 3500); }
+    function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(), 3000); }
+    function alertCopy(){ alert('Copied'); }
     async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
-    function openModal(id){ document.getElementById(id).classList.add('show'); }
-    function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-    function copy(sel){ const txt=document.querySelector(sel).textContent.trim(); navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>prompt('Copy manually:',txt)); }
+    function copy(sel){ const txt=document.querySelector(sel).textContent.trim(); navigator.clipboard.writeText(txt).then(alertCopy,()=>prompt('Copy manually:',txt)); }
 
     // Avatar dropdown
     document.addEventListener('click', (e)=>{
-      const dd = $('#dropdown');
-      const av = $('#avatar');
+      const dd = $('#dropdown'); const av = $('#avatar');
       if(av.contains(e.target)){ dd.classList.toggle('show'); return; }
       if(!dd.contains(e.target)) dd.classList.remove('show');
     });
-    // In-menu navigation
     document.querySelectorAll('[data-nav]').forEach(a=>{
-      a.addEventListener('click', (e)=>{ e.preventDefault(); const hash=e.currentTarget.getAttribute('href'); location.hash=hash; $('#dropdown').classList.remove('show'); });
+      a.addEventListener('click', (e)=>{ e.preventDefault(); location.hash = e.currentTarget.getAttribute('href'); $('#dropdown').classList.remove('show'); });
     });
     $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
+
+    // Tabs
+    function switchTab(name){
+      const dep = $('#panel-deposit'), wd = $('#panel-withdraw');
+      const td = $('#tab-dep'), tw = $('#tab-wd');
+      if(name==='deposit'){ dep.style.display='block'; wd.style.display='none'; td.classList.add('active'); tw.classList.remove('active'); }
+      else{ dep.style.display='none'; wd.style.display='block'; tw.classList.add('active'); td.classList.remove('active'); }
+      // reset wd placeholder
+      const net = document.querySelector('input[name="wd-net"]:checked')?.value || 'BTC';
+      $('#addr-label').textContent = 'Enter your ' + net + ' address';
+    }
+
+    // Withdraw network change
+    document.addEventListener('change', (e)=>{
+      if(e.target.name==='wd-net'){
+        const v = e.target.value;
+        $('#addr-label').textContent = 'Enter your ' + v + ' address';
+      }
+    });
 
     function coinToAddr(coin){
       const w = walletCache || {};
       if(coin==='BTC') return w.btc_addr;
       if(coin==='USDT-TRC20') return w.trc20_addr;
-      return w.eth_addr;
+      if(coin==='ETH-ERC20') return w.eth_addr;
+      return '';
     }
 
-    async function renderOverview(){
+    // Plans calculators
+    function attachCalc(id, rate, min, max){
+      const amt = document.getElementById(id+'-amt');
+      const out = document.getElementById(id+'-out');
+      const update = ()=>{
+        let v = parseFloat(amt.value||'0');
+        if(!v){ out.textContent = '$0.00 total ($0.00 profit)'; return; }
+        if(v<min) v=min; if(v>max) v=max;
+        const p = v*rate, t = v+p;
+        out.textContent = `$${t.toFixed(2)} total ($${p.toFixed(2)} profit)`;
+      };
+      amt?.addEventListener('input', update);
+      update();
+    }
+    function startPlan(id, min, max){
+      const input = document.getElementById(id+'-amt');
+      let v = parseFloat(input?.value||'0');
+      if(!(v>0)) v=min;
+      if(v<min) v=min; if(v>max) v=max;
+      // Pre-fill deposit amount and switch tab
+      $('#dep-amount').value = v.toFixed(2);
+      switchTab('deposit');
+      // Scroll into view
+      document.querySelector('.grid2').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    // Submit actions
+    async function submitDeposit(){
+      const txid = $('#dep-txid').value.trim();
+      const amount = parseFloat($('#dep-amount').value || '0');
+      if(!amount){ toast('Enter amount sent (USD)'); return; }
+      const res = await api('/api/wallet/deposit',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        amount_cents:Math.round(amount*100), currency:'USD',
+        // network left generic (user may use any of the addresses); save optional txid
+        network:'manual', address:'', txid
+      })});
+      if(res?.ok){ toast('Deposit submitted'); $('#dep-txid').value=''; $('#dep-amount').value=''; renderEverything(); } else toast('Failed to submit');
+    }
+
+    async function submitWithdrawal(){
+      const amount = parseFloat($('#wd-amount').value||'0');
+      const address = $('#wd-address').value.trim();
+      const net = document.querySelector('input[name="wd-net"]:checked')?.value || 'BTC';
+      if(!amount || !address) return toast('Enter amount and address');
+      const res = await api('/api/wallet/withdraw',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        amount_cents:Math.round(amount*100), currency:'USD', network:net, address
+      })});
+      if(res?.ok){ toast('Withdrawal requested'); $('#wd-amount').value=''; $('#wd-address').value=''; renderEverything(); } else toast('Failed to request');
+    }
+
+    async function renderTransactionsTable(targetId, limit){
+      const target = document.getElementById(targetId);
+      const data = await api('/api/transactions');
+      const rows = (data.transactions||[]).slice(0, limit||50).map(t=>
+        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`
+      ).join('');
+      target.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr>
+        <th style="text-align:left;padding:10px;border-bottom:1px solid #172042">Time</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Type</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Amount</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Status</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Ref</th>
+      </tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody></table>`;
+    }
+
+    // Page rendering
+    async function renderEverything(){
       const me = await api('/api/me');
       const email = me.user.email || "user";
       $('#avatar').textContent = email.slice(0,1).toUpperCase();
@@ -218,50 +329,17 @@
 
       const bal = await api('/api/wallet/balance');
       walletCache = bal.wallet || { balance_cents:0, currency:'USD', btc_addr:'', trc20_addr:'', eth_addr:'' };
+      // totals
+      $('#total-assets').innerHTML = `$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency||'USD'}</span>`;
+      $('#wd-balance').textContent = `$${(walletCache.balance_cents/100).toFixed(2)} ${walletCache.currency||'USD'}`;
 
-      page.innerHTML = `
-        <!-- Wallet -->
-        <section class="card" id="wallet-card">
-          <h2>Wallet</h2>
-          <div class="row">
-            <div style="grid-column:span 2;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px">
-              <div class="muted">Total assets</div>
-              <div style="font-size:28px;font-weight:800">$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency}</span></div>
-            </div>
-          </div>
+      // addresses (both left and deposit list)
+      const btc = walletCache.btc_addr||'—', trc = walletCache.trc20_addr||'—', eth = walletCache.eth_addr||'—';
+      $('#btc-inline').textContent = btc; $('#dep-btc').textContent = btc;
+      $('#trc-inline').textContent = trc; $('#dep-trc20').textContent = trc;
+      $('#eth-inline').textContent = eth; $('#dep-eth').textContent = eth;
 
-          <div class="fab-row" style="margin:12px 0 6px">
-            <div class="fab deposit" onclick="openDeposit()"><span class="circle">↓</span><strong>Deposit</strong></div>
-            <div class="fab withdraw" onclick="openWithdraw()"><strong>Withdraw</strong><span class="circle">↑</span></div>
-          </div>
-
-          <div class="row-3" style="margin-top:6px">
-            <div class="addr-pill"><span class="tag">BTC</span><span class="addr" id="btc-inline">${walletCache.btc_addr}</span><button class="icon-btn" onclick="copy('#btc-inline')" aria-label="Copy">⧉</button></div>
-            <div class="addr-pill"><span class="tag">USDT-TRC20</span><span class="addr" id="trc-inline">${walletCache.trc20_addr}</span><button class="icon-btn" onclick="copy('#trc-inline')" aria-label="Copy">⧉</button></div>
-            <div class="addr-pill"><span class="tag">ETH-ERC20</span><span class="addr" id="eth-inline">${walletCache.eth_addr}</span><button class="icon-btn" onclick="copy('#eth-inline')" aria-label="Copy">⧉</button></div>
-          </div>
-        </section>
-
-        <!-- Plans + Chart -->
-        <section class="row" style="margin-top:16px">
-          <div class="card" id="plans-card">
-            <h2>Plans</h2>
-            <div id="plans"></div>
-          </div>
-          <div class="card">
-            <h2>Live chart</h2>
-            <div id="tvchart" style="height:420px"></div>
-            <p class="muted" style="font-size:12px">Use the symbol box to switch instruments (e.g., BTCUSD, XAUUSD, EURUSD).</p>
-          </div>
-        </section>
-
-        <!-- Transactions -->
-        <section class="card" id="tx-card" style="margin-top:16px">
-          <h2>Transactions</h2>
-          <div id="tx-table">Loading…</div>
-        </section>`;
-
-      // Plans with calculators and Start -> Deposit (prefill)
+      // plans
       const planHtml = (id, name, min, max, rate, hours) => `
         <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0">
           <strong>${name}</strong>
@@ -273,13 +351,12 @@
             </div>
             <div>
               <label class="muted">Estimated return</label>
-              <div id="${id}-out" class="pill" style="display:inline-flex;margin-top:6px">$0.00 total (<span id="${id}-profit">$0.00</span> profit)</div>
+              <div id="${id}-out" class="pill" style="display:inline-flex;margin-top:6px">$0.00 total ($0.00 profit)</div>
             </div>
           </div>
           <div style="height:8px"></div>
           <button class="btn" onclick="startPlan('${id}', ${min}, ${max})">Start</button>
         </div>`;
-
       $('#plans').innerHTML =
         planHtml('starter','Starter',5,10,0.60,3) +
         planHtml('growth','Growth',50,400,1.40,6) +
@@ -289,101 +366,21 @@
       attachCalc('growth',1.40,50,400);
       attachCalc('pro',2.00,500,10000);
 
-      // TX table
+      // transactions
       renderTransactionsTable('tx-table', 50);
 
-      // TradingView chart
-      new TradingView.widget({ container_id:'tvchart', autosize:true, symbol:'OANDA:XAUUSD', interval:'60', theme:'dark', style:'1', locale:'en', enable_publishing:false, allow_symbol_change:true, withdateranges:true, studies:['Volume@tv-basicstudies'] });
+      // default tab
+      switchTab('deposit');
     }
 
-    function attachCalc(id, rate, min, max){
-      const amt = document.getElementById(id+'-amt');
-      const out = document.getElementById(id+'-out');
-      const update = ()=>{
-        let v = parseFloat(amt.value||'0');
-        if(!v){ out.textContent = '$0.00 total ($0.00 profit)'; return; }
-        if(v<min) v=min; if(v>max) v=max;
-        const profit = v*rate; const total = v+profit;
-        out.textContent = `$${total.toFixed(2)} total (${(profit).toFixed(2)} profit)`;
-      };
-      amt?.addEventListener('input', update);
-      update();
-    }
-
-    // ----- Deposit / Withdraw -----
-    function openDeposit(prefillAmount){
-      currentCoin = 'BTC';
-      document.querySelectorAll('#coin-tabs .tab').forEach(t=>t.classList.remove('active'));
-      $('#coin-tabs .tab[data-coin="BTC"]').classList.add('active');
-      if(typeof prefillAmount==='number' && prefillAmount>0){ $('#dep-amount').value = prefillAmount.toFixed(2); }
-      fillDepositFor(currentCoin);
-      openModal('deposit-modal');
-    }
-    function openWithdraw(){
-      currentWdCoin = 'BTC';
-      document.querySelectorAll('#wd-tabs .tab').forEach(t=>t.classList.remove('active'));
-      $('#wd-tabs .tab[data-coin="BTC"]').classList.add('active');
-      openModal('withdraw-modal');
-    }
-
-    function fillDepositFor(coin){
-      const addr = coinToAddr(coin) || '—';
-      $('#dep-addr').textContent = addr;
-      $('#dep-tag').textContent = coin;
-      const depQr = $('#dep-qr'); depQr.innerHTML='';
-      if(addr && addr !== '—'){ new QRCode(depQr, { text: addr, width:96, height:96 }); }
-    }
-
-    // Coin tabs
-    document.addEventListener('click', (e)=>{
-      const t1 = e.target.closest('#coin-tabs .tab');
-      if(t1){ document.querySelectorAll('#coin-tabs .tab').forEach(x=>x.classList.remove('active')); t1.classList.add('active'); currentCoin = t1.dataset.coin; fillDepositFor(currentCoin); }
-      const t2 = e.target.closest('#wd-tabs .tab');
-      if(t2){ document.querySelectorAll('#wd-tabs .tab').forEach(x=>x.classList.remove('active')); t2.classList.add('active'); currentWdCoin = t2.dataset.coin; }
-    });
-
-    async function submitDeposit(){
-      const txid = $('#dep-txid').value.trim();
-      const amount = parseFloat($('#dep-amount').value || '0');
-      if(!txid || !amount) return toast('Enter TXID and amount');
-      const res = await api('/api/wallet/deposit',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount_cents:Math.round(amount*100), currency:'USD', network:currentCoin, address:coinToAddr(currentCoin), txid })});
-      if(res?.ok){ toast('Deposit submitted'); closeModal('deposit-modal'); renderOverview(); } else toast('Failed to submit');
-    }
-
-    async function submitWithdrawal(){
-      const amount = parseFloat($('#wd-amount').value||'0');
-      const address = $('#wd-address').value.trim();
-      if(!amount || !address) return toast('Enter amount and address');
-      const res = await api('/api/wallet/withdraw',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount_cents:Math.round(amount*100), currency:'USD', network:currentWdCoin, address })});
-      if(res?.ok){ toast('Withdrawal requested'); closeModal('withdraw-modal'); renderOverview(); } else toast('Failed to request');
-    }
-
-    // Plan Start -> open deposit with calculator amount
-    function startPlan(id, min, max){
-      const input = document.getElementById(id+'-amt');
-      let v = parseFloat(input?.value||'0');
-      if(!(v>0)) v = min;
-      if(v<min) v=min; if(v>max) v=max;
-      openDeposit(v);
-    }
-
-    async function renderTransactionsTable(targetId, limit){
-      const target = document.getElementById(targetId);
-      const data = await api('/api/transactions');
-      const rows = (data.transactions||[]).slice(0, limit||50).map(t=>
-        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`
-      ).join('');
-      target.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:10px;border-bottom:1px solid #172042">Time</th><th style="padding:10px;border-bottom:1px solid #172042">Type</th><th style="padding:10px;border-bottom:1px solid #172042">Amount</th><th style="padding:10px;border-bottom:1px solid #172042">Status</th><th style="padding:10px;border-bottom:1px solid #172042">Ref</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody></table>`;
-    }
-
-    // Router
+    // Router (all menu items bring back here then scroll)
     const routes = {
-      '#overview': renderOverview,
-      '#wallet': ()=>{ openDeposit(); },
-      '#plans': ()=>{ renderOverview(); setTimeout(()=>document.getElementById('plans-card').scrollIntoView({behavior:'smooth'}), 50); },
-      '#history': ()=>{ renderOverview(); setTimeout(()=> document.getElementById('tx-card').scrollIntoView({behavior:'smooth'}), 50); },
-      '#settings': ()=>{ page.innerHTML = `<div class="card"><h2>Settings</h2><p>Coming soon: change password, 2FA, export data.</p><p>Support: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p></div>`; },
-      '#support': ()=>{ page.innerHTML = `<div class="card"><h2>Support</h2><p>Email us at <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a>. Never share passwords or one-time codes.</p></div>`; }
+      '#overview': ()=>{ renderEverything(); window.scrollTo({top:0,behavior:'smooth'}); },
+      '#wallet': ()=>{ renderEverything(); setTimeout(()=>document.querySelector('.grid2').scrollIntoView({behavior:'smooth'}), 100); },
+      '#plans': ()=>{ renderEverything(); setTimeout(()=>document.getElementById('plans-card').scrollIntoView({behavior:'smooth'}), 100); },
+      '#history': ()=>{ renderEverything(); setTimeout(()=>document.getElementById('tx-card').scrollIntoView({behavior:'smooth'}), 100); },
+      '#settings': ()=>{ $('#dropdown').classList.remove('show'); page.innerHTML = `<section class="section"><div class="card"><h2>Settings</h2><p>Coming soon: change password, 2FA, export data.</p><p>Support: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p></div></section>`; },
+      '#support': ()=>{ $('#dropdown').classList.remove('show'); page.innerHTML = `<section class="section"><div class="card"><h2>Support</h2><p>Email us at <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a>. Never share passwords or one-time codes.</p></div></section>`; }
     };
     function navigate(){ (routes[location.hash]||routes['#overview'])(); }
     window.addEventListener('hashchange', navigate);
@@ -391,7 +388,7 @@
     // Topbar clock
     setInterval(()=>{ const d=new Date(); document.getElementById('clock').textContent=d.toISOString().slice(11,19); },1000);
 
-    // Start
+    // Boot
     navigate();
   </script>
 </body>
