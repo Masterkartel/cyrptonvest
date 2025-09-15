@@ -1,5 +1,5 @@
 // Load session (if any) and attach current user to data.user
-import { parseCookies } from "../_utils";
+import { parseCookies } from "./_utils";
 
 export const onRequest: PagesFunction = async ({ request, env, next, data }) => {
   data.user = null;
