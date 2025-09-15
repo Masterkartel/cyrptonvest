@@ -25,16 +25,14 @@
     .nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:#e6edf3}
     .nav a.active,.nav a:hover{background:#111a36}
     .main{display:grid;grid-template-rows:auto 1fr}
-    .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e152f,transparent)}
+    .topbar{position:relative;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e152f,transparent)}
     .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
-    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
-    .btn.secondary{background:#121a33;color:#e5e7eb;border:1px solid var(--line)}
     .wrap{padding:16px}
     .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
     .card h2,.card h3{margin:0 0 10px}
     .muted{color:var(--muted)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
     /* Wallet action circles */
     .fab-row{display:flex;justify-content:space-between;gap:12px;margin-top:8px}
     .fab{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#121a33;color:#e6edf3;cursor:pointer}
@@ -43,7 +41,7 @@
     .fab.withdraw .circle{background:#241309;border-color:#7a3b16}
     /* Address boxes */
     .addr{display:flex;align-items:center;gap:8px;background:#0b1224;border:1px solid var(--line);padding:10px;border-radius:12px}
-    .vaddr{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:1px;white-space:pre-wrap}
+    .addr code{word-break:break-all}
     .icon-btn{width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer}
     .icon-btn:hover{background:#132043}
     /* Modal */
@@ -55,6 +53,13 @@
     .tab.active{background:var(--brand);color:#111827;border-color:var(--brand)}
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
+    /* Avatar dropdown */
+    .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer}
+    .dropdown{position:absolute;top:52px;right:16px;background:#0f1629;border:1px solid var(--line);border-radius:12px;min-width:220px;display:none;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .dropdown.show{display:block}
+    .dropdown .hd{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700}
+    .dropdown a{display:block;color:#e6edf3;padding:10px 12px;text-decoration:none}
+    .dropdown a:hover{background:#121d3a}
     /* Toasts */
     #toasts{position:fixed;bottom:14px;right:14px;display:grid;gap:8px;z-index:60}
     .toast{background:#0f1629;border:1px solid var(--line);padding:10px 12px;border-radius:10px}
@@ -78,7 +83,14 @@
     <div class="main">
       <div class="topbar">
         <div class="pill">UTC <span id="clock" style="margin-left:6px">--:--:--</span></div>
-        <button class="btn secondary" id="logout">Log out</button>
+        <!-- Avatar menu replaces Logout -->
+        <div id="avatar" class="avatar" title="Menu">U</div>
+        <div id="dropdown" class="dropdown">
+          <div class="hd" id="dd-email">user@example.com</div>
+          <a href="#settings">Settings</a>
+          <a href="#support">Support</a>
+          <a href="#" id="menu-logout">Log out</a>
+        </div>
       </div>
       <div class="wrap"><div id="page"></div></div>
     </div>
@@ -89,7 +101,7 @@
     <div class="box">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <h3 style="margin:0">Deposit crypto</h3>
-        <button class="btn secondary" onclick="closeModal('deposit-modal')">Close</button>
+        <button class="pill" onclick="closeModal('deposit-modal')">Close</button>
       </div>
       <p class="muted">Choose a coin, send funds, then paste TXID and amount so we can credit your wallet.</p>
 
@@ -103,7 +115,8 @@
       <div class="row">
         <div>
           <label class="muted">Deposit address</label>
-          <div class="addr"><code id="dep-addr" class="vaddr mono">—</code>
+          <div class="addr">
+            <code id="dep-addr" class="mono">—</code>
             <button class="icon-btn" onclick="copy('#dep-addr')" aria-label="Copy">⧉</button>
             <button class="icon-btn" onclick="copyUri()" aria-label="Copy URI">↗</button>
           </div>
@@ -125,7 +138,7 @@
         </div>
       </div>
       <div style="height:10px"></div>
-      <button class="btn" onclick="submitDeposit()">I sent funds</button>
+      <button class="pill" style="background:var(--brand);color:#111827;border:0" onclick="submitDeposit()">I sent funds</button>
       <p class="muted" style="font-size:12px">We credit after network confirmations and review.</p>
     </div>
   </div>
@@ -135,7 +148,7 @@
     <div class="box">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <h3 style="margin:0">Withdraw funds</h3>
-        <button class="btn secondary" onclick="closeModal('withdraw-modal')">Close</button>
+        <button class="pill" onclick="closeModal('withdraw-modal')">Close</button>
       </div>
       <div class="row">
         <div>
@@ -148,7 +161,7 @@
         </div>
       </div>
       <div style="height:8px"></div>
-      <button class="btn" onclick="submitWithdrawal()">Request withdrawal</button>
+      <button class="pill" style="background:var(--brand);color:#111827;border:0" onclick="submitWithdrawal()">Request withdrawal</button>
       <p class="muted" style="font-size:12px">Payouts are processed after review.</p>
     </div>
   </div>
@@ -170,7 +183,16 @@
     async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
     function openModal(id){ document.getElementById(id).classList.add('show'); }
     function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-    function copy(sel){ const txt=document.querySelector(sel).textContent.replace(/\\s+/g,'').trim(); navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>prompt('Copy manually:',txt)); }
+    function copy(sel){ const txt=document.querySelector(sel).textContent.trim(); navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>prompt('Copy manually:',txt)); }
+
+    // Avatar dropdown
+    document.addEventListener('click', (e)=>{
+      const dd = $('#dropdown');
+      const av = $('#avatar');
+      if(av.contains(e.target)){ dd.classList.toggle('show'); return; }
+      if(!dd.contains(e.target)) dd.classList.remove('show');
+    });
+    $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
     function coinToAddr(coin){
       const w = walletCache || {};
@@ -180,40 +202,45 @@
     }
     function coinUri(coin, addr){
       if(coin==='BTC') return `bitcoin:${addr}`;
-      if(coin==='USDT-TRC20') return addr; // TRON often accepts raw address
+      if(coin==='USDT-TRC20') return addr;
       if(coin==='ETH-ERC20') return `ethereum:${addr}`;
       return addr;
     }
-    function copyUri(){ const addr=$('#dep-addr').textContent.replace(/\\s+/g,'').trim(); navigator.clipboard.writeText(coinUri(currentCoin,addr)).then(()=>toast('URI copied')); }
+    function copyUri(){ const addr=$('#dep-addr').textContent.trim(); navigator.clipboard.writeText(coinUri(currentCoin,addr)).then(()=>toast('URI copied')); }
 
     async function renderOverview(){
       const me = await api('/api/me');
-      $('#user-pill').textContent = me.user.email;
+      const email = me.user.email || "user";
+      $('#user-pill').textContent = email;
+      $('#avatar').textContent = email.slice(0,1).toUpperCase();
+      $('#dd-email').textContent = email;
 
       const bal = await api('/api/wallet/balance');
       walletCache = bal.wallet || { balance_cents:0, currency:'USD', btc_addr:'', trc20_addr:'', eth_addr:'' };
 
-      // --- Layout: Wallet (top), then Plans, then Transactions ---
+      // Wallet (top), Plans, Transactions
       page.innerHTML = `
         <div class="card" id="wallet-card">
           <h2>Wallet</h2>
           <div class="row">
-            <div class="kpi" style="grid-column:span 2;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px">
+            <div style="grid-column:span 2;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px">
               <div class="muted">Total assets</div>
               <div style="font-size:28px;font-weight:800">$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency}</span></div>
             </div>
           </div>
+
           <div class="fab-row">
             <div class="fab deposit" onclick="openDeposit()"><span class="circle">↓</span><strong>Deposit</strong></div>
             <div class="fab withdraw" onclick="openWithdraw()"><strong>Withdraw</strong><span class="circle">↑</span></div>
           </div>
+
           <div style="height:12px"></div>
           <div class="row">
-            <div class="addr"><small>BTC</small> <code id="btc-inline" class="vaddr mono">${walletCache.btc_addr}</code> <button class="icon-btn" onclick="copy('#btc-inline')" aria-label="Copy">⧉</button></div>
-            <div class="addr"><small>USDT-TRC20</small> <code id="trc-inline" class="vaddr mono">${walletCache.trc20_addr}</code> <button class="icon-btn" onclick="copy('#trc-inline')" aria-label="Copy">⧉</button></div>
+            <div class="addr"><small>BTC</small> <code id="btc-inline" class="mono">${walletCache.btc_addr}</code> <button class="icon-btn" onclick="copy('#btc-inline')" aria-label="Copy">⧉</button></div>
+            <div class="addr"><small>USDT-TRC20</small> <code id="trc-inline" class="mono">${walletCache.trc20_addr}</code> <button class="icon-btn" onclick="copy('#trc-inline')" aria-label="Copy">⧉</button></div>
           </div>
           <div class="row" style="margin-top:8px">
-            <div class="addr"><small>ETH (ERC20)</small> <code id="eth-inline" class="vaddr mono">${walletCache.eth_addr}</code> <button class="icon-btn" onclick="copy('#eth-inline')" aria-label="Copy">⧉</button></div>
+            <div class="addr"><small>ETH (ERC20)</small> <code id="eth-inline" class="mono">${walletCache.eth_addr}</code> <button class="icon-btn" onclick="copy('#eth-inline')" aria-label="Copy">⧉</button></div>
             <div style="display:grid;place-items:center;border:1px dashed var(--line);border-radius:10px;padding:10px"><span class="muted">Tip: Use Deposit to generate QR & submit TX.</span></div>
           </div>
         </div>
@@ -235,28 +262,34 @@
           <div id="tx-table">Loading…</div>
         </div>`;
 
-      // Plans with “Start” buttons (open Deposit modal)
-      $('#plans').innerHTML = `
-        <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
-          <strong>Starter</strong>
-          <div class="muted">Range: $5 – $10 • Profit: 60% in 3h</div>
-          <div class="muted" style="font-size:12px">Example: $10 → $16 total after 3h.</div>
-          <button class="btn" onclick="startPlan('starter')">Start</button>
-        </div>
-        <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
-          <strong>Growth</strong>
-          <div class="muted">Range: $50 – $400 • Profit: 140% in 6h</div>
-          <div class="muted" style="font-size:12px">Example: $100 → $240 total after 6h.</div>
-          <button class="btn" onclick="startPlan('growth')">Start</button>
-        </div>
-        <div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">
-          <strong>Professional</strong>
-          <div class="muted">Range: $500 – $10,000 • Profit: 200% in 24h</div>
-          <div class="muted" style="font-size:12px">Example: $500 → $1,500 total after 24h.</div>
-          <button class="btn" onclick="startPlan('pro')">Start</button>
-        </div>
-        <p class="muted" style="font-size:12px">Examples are illustrative only. Investing involves risk of loss.</p>
-      `;
+      // Plans with calculators + “Start” (opens Deposit)
+      const planHtml = (id, name, min, max, rate, hours, exampleIn, exampleOut) => `
+        <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0">
+          <strong>${name}</strong>
+          <div class="muted">Range: $${min} – $${max} • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
+          <div class="muted" style="font-size:12px">Example: $${exampleIn} → $${exampleOut} total after ${hours}h.</div>
+          <div class="row" style="margin-top:8px">
+            <div>
+              <label class="muted">Enter amount (USD)</label>
+              <input id="${id}-amt" type="number" min="${min}" max="${max}" step="0.01" placeholder="${min}">
+            </div>
+            <div>
+              <label class="muted">Estimated return</label>
+              <div id="${id}-out" class="pill" style="display:inline-flex;margin-top:6px">$0.00 total (<span id="${id}-profit">$0.00</span> profit)</div>
+            </div>
+          </div>
+          <div style="height:8px"></div>
+          <button class="pill" style="background:var(--brand);color:#111827;border:0" onclick="startPlan('${id}')">Start</button>
+        </div>`;
+      $('#plans').innerHTML =
+        planHtml('starter','Starter',5,10,0.60,3,10,16) +
+        planHtml('growth','Growth',50,400,1.40,6,100,240) +
+        planHtml('pro','Professional',500,10000,2.00,24,500,1500);
+
+      // attach calculators
+      attachCalc('starter',0.60,5,10);
+      attachCalc('growth',1.40,50,400);
+      attachCalc('pro',2.00,500,10000);
 
       // TX table
       renderTransactionsTable('tx-table', 50);
@@ -265,8 +298,23 @@
       new TradingView.widget({ container_id:'tvchart', autosize:true, symbol:'OANDA:XAUUSD', interval:'60', theme:'dark', style:'1', locale:'en', enable_publishing:false, allow_symbol_change:true, withdateranges:true, studies:['Volume@tv-basicstudies'] });
     }
 
+    function attachCalc(id, rate, min, max){
+      const amt = document.getElementById(id+'-amt');
+      const out = document.getElementById(id+'-out');
+      const prof = document.getElementById(id+'-profit');
+      const update = ()=>{
+        let v = parseFloat(amt.value||'0');
+        if(!v){ out.textContent = '$0.00 total ($0.00 profit)'; return; }
+        if(v<min) v=min; if(v>max) v=max;
+        const profit = v*rate; const total = v+profit;
+        out.textContent = `$${total.toFixed(2)} total (${(profit).toFixed(2)} profit)`;
+      };
+      amt?.addEventListener('input', update);
+      update();
+    }
+
     // ----- Actions -----
-    function startPlan(id){ openDeposit(); } // open deposit modal directly
+    function startPlan(id){ openDeposit(); } // opens the Deposit modal
     function openDeposit(){
       currentCoin = 'BTC';
       document.querySelectorAll('#coin-tabs .tab').forEach(t=>t.classList.remove('active'));
@@ -278,10 +326,9 @@
 
     function fillDepositFor(coin){
       const addr = coinToAddr(coin) || '—';
-      const target = $('#dep-addr');
-      target.textContent = addr;
+      $('#dep-addr').textContent = addr;
       const depQr = $('#dep-qr'); depQr.innerHTML='';
-      if(addr && addr !== '—'){ new QRCode(depQr, { text: coinUri(coin, addr.replace(/\\s+/g,'')), width:96, height:96 }); }
+      if(addr && addr !== '—'){ new QRCode(depQr, { text: coinUri(coin, addr), width:96, height:96 }); }
     }
 
     // coin tab events
@@ -316,10 +363,10 @@
       const rows = (data.transactions||[]).slice(0, limit||50).map(t=>
         `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`
       ).join('');
-      target.innerHTML = `<table><thead><tr><th>Time</th><th>Type</th><th>Amount</th><th>Status</th><th>Ref</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted">No transactions yet</td></tr>'}</tbody></table>`;
+      target.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:10px;border-bottom:1px solid #172042">Time</th><th style="padding:10px;border-bottom:1px solid #172042">Type</th><th style="padding:10px;border-bottom:1px solid #172042">Amount</th><th style="padding:10px;border-bottom:1px solid #172042">Status</th><th style="padding:10px;border-bottom:1px solid #172042">Ref</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody></table>`;
     }
 
-    // Router (basic)
+    // Router
     const routes = {
       '#overview': renderOverview,
       '#wallet': ()=>{ openDeposit(); },
@@ -333,9 +380,6 @@
 
     // Topbar clock
     setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
-
-    // logout
-    document.getElementById('logout').addEventListener('click', async ()=>{ await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
     // boot
     navigate();
