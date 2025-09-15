@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sign Up — Cyrptonvest</title>
+<style>body{font-family:system-ui,Inter,Arial,sans-serif;display:grid;place-items:center;min-height:100vh;background:#0b0f19;color:#e6edf3}input,button{font:inherit}</style>
+<h1>Create account</h1>
+<form id="f" style="display:grid;gap:10px;min-width:300px">
+  <input id="e" type="email" placeholder="Email" required style="padding:10px;border-radius:8px;border:1px solid #334155;background:#0f1629;color:#e6edf3"/>
+  <input id="p" type="password" placeholder="Password (min 6)" required minlength="6" style="padding:10px;border-radius:8px;border:1px solid #334155;background:#0f1629;color:#e6edf3"/>
+  <button style="padding:10px;border-radius:999px;background:#f59e0b;color:#111827;border:0">Create account</button>
+  <a href="/login.html" style="color:#f59e0b">I have an account</a>
+</form>
+<script>
+  document.getElementById('f').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const email = document.getElementById('e').value.trim();
+    const password = document.getElementById('p').value;
+    const r = await fetch('/api/auth/signup', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})});
+    if(r.ok) location.href='/dashboard/'; else alert('Signup failed');
+  });
+</script>
