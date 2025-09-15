@@ -6,14 +6,14 @@
   <title>Dashboard — Cyrptonvest</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <meta name="description" content="Cyrptonvest dashboard: wallet, deposits, withdrawals, plans, and transactions." />
+  <meta name="x-build" content="cv-2025-09-16-02">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{
       --bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;
-      --brand:#f59e0b;--ok:#22c55e;--warn:#f97316;--ring:rgba(245,158,11,.35);
-      --glow: 0 10px 30px rgba(0,0,0,.18);
+      --brand:#f59e0b;--ok:#22c55e;--warn:#f97316;--ring:rgba(245,158,11,.35);--glow:0 10px 30px rgba(0,0,0,.18);
     }
     *{box-sizing:border-box}
     html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif}
@@ -57,16 +57,16 @@
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
     .field-warn{color:#fca5a5;font-size:12px;margin-top:6px}
     /* Hero */
-    .hero{background:radial-gradient(1200px 600px at 10% -10%, rgba(245,158,11,.12), transparent 60%), linear-gradient(180deg,#0e1530,#0c1226); display:grid; gap:12px; align-items:start;}
+    .hero{background:radial-gradient(1200px 600px at 10% -10%, rgba(245,158,11,.12), transparent 60%), linear-gradient(180deg,#0e1530,#0c1226); display:grid; gap:12px;}
     .hero h1{margin:0;font-size:28px}
     .hero p{margin:0}
     .hero .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
     .btn.secondary{background:#121a33;color:#e5e7eb;border:1px solid var(--line)}
+    /* Responsive */
+    @media(max-width:980px){.row{grid-template-columns:1fr}}
     /* Toasts */
     #toasts{position:fixed;bottom:14px;right:14px;display:grid;gap:8px;z-index:60}
     .toast{background:#0f1629;border:1px solid var(--line);padding:10px 12px;border-radius:10px}
-    /* Responsive */
-    @media(max-width:980px){.row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -119,7 +119,7 @@
   </div>
 
   <main class="content">
-    <!-- HERO CARD (new) -->
+    <!-- HERO CARD -->
     <section class="section">
       <div class="card hero">
         <h1>Invest Smart, Earn Big!</h1>
@@ -138,6 +138,7 @@
             <li>It’s fast, secure, and stress-free—you don’t need any trading experience! Join thousands of investors already earning with us.</li>
           </ul>
         </div>
+        <div style="font-size:12px;color:#7a879b;margin-top:8px">Build: cv-2025-09-16-02</div>
       </div>
     </section>
 
@@ -308,7 +309,7 @@
       document.getElementById('tab-tx').classList.toggle('active', !t);
     }
 
-    // Plans calculators with inline warnings (no clamping)
+    // Plans calculators (soft validation)
     function attachCalcSoft(id, rate, min, max){
       const amt = document.getElementById(id+'-amt');
       const warn = document.getElementById(id+'-warn');
@@ -331,7 +332,14 @@
       const input = document.getElementById(id+'-amt');
       const warn  = document.getElementById(id+'-warn');
       const v = parseFloat(input.value||'');
-      if(!(v>=min && v<=max)){ warn.style.display='block'; if(!input.value) warn.textContent='Enter an amount'; else if(isNaN(v)) warn.textContent='Not a number'; else if(v<min) warn.textContent=`Minimum is $${min}`; else warn.textContent=`Maximum is $${max}`; input.focus(); return; }
+      if(!(v>=min && v<=max)){
+        warn.style.display='block';
+        if(!input.value) warn.textContent='Enter an amount';
+        else if(isNaN(v)) warn.textContent='Not a number';
+        else if(v<min) warn.textContent=`Minimum is $${min}`;
+        else warn.textContent=`Maximum is $${max}`;
+        input.focus(); return;
+      }
       document.getElementById('dep-amount').value = v.toFixed(2);
       switchTop('deposit');
       document.querySelectorAll('.section .card')[1].scrollIntoView({behavior:'smooth', block:'start'});
@@ -417,7 +425,7 @@
       const profitsCents = computeTotalProfitsUsd();
       document.getElementById('total-profits').innerHTML = `$${(profitsCents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency||'USD'}</span>`;
 
-      // Plans (soft validation)
+      // Plans
       const planCard = (id, name, min, max, rate, hours) => `
         <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0">
           <strong>${name}</strong>
@@ -445,7 +453,7 @@
       attachCalcSoft('growth',1.40,50,400);
       attachCalcSoft('pro',2.00,500,10000);
 
-      // wire Start buttons (safer than inline)
+      // wire Start buttons
       document.getElementById('btn-starter-start').onclick = ()=>startPlan('starter',5,10);
       document.getElementById('btn-growth-start').onclick  = ()=>startPlan('growth',50,400);
       document.getElementById('btn-pro-start').onclick     = ()=>startPlan('pro',500,10000);
@@ -459,7 +467,7 @@
     document.getElementById('cta-start')?.addEventListener('click', ()=>{ switchTop('deposit'); window.scrollTo({top:document.body.scrollHeight*0.25, behavior:'smooth'}); });
     document.getElementById('cta-learn')?.addEventListener('click', ()=>{ switchBottom('plans'); document.getElementById('panel-plans').scrollIntoView({behavior:'smooth'}); });
 
-    // Bind action buttons robustly (fixes “inactive” click)
+    // Bind action buttons (withdraw fix)
     document.getElementById('btn-deposit')?.addEventListener('click', submitDeposit);
     document.getElementById('btn-wd-btc')?.addEventListener('click', ()=>submitWithdrawal('BTC','#wd-btc-addr'));
     document.getElementById('btn-wd-trc')?.addEventListener('click', ()=>submitWithdrawal('USDT-TRC20','#wd-trc-addr'));
