@@ -1,20 +1,48 @@
-<!doctype html>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Login — Cyrptonvest</title>
-<style>body{font-family:system-ui,Inter,Arial,sans-serif;display:grid;place-items:center;min-height:100vh;background:#0b0f19;color:#e6edf3}input,button{font:inherit}</style>
-<h1>Login</h1>
-<form id="f" style="display:grid;gap:10px;min-width:300px">
-  <input id="e" type="email" placeholder="Email" required style="padding:10px;border-radius:8px;border:1px solid #334155;background:#0f1629;color:#e6edf3"/>
-  <input id="p" type="password" placeholder="Password" required minlength="6" style="padding:10px;border-radius:8px;border:1px solid #334155;background:#0f1629;color:#e6edf3"/>
-  <button style="padding:10px;border-radius:999px;background:#f59e0b;color:#111827;border:0">Sign in</button>
-  <a href="/signup.html" style="color:#f59e0b">Create account</a>
-</form>
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log in — Cyrptonvest</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root{--bg:#0b0f19;--panel:#0f1629;--line:#1d2640;--text:#e6edf3;--brand:#f59e0b}
+  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,Inter,Arial}
+  .wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+  .card{max-width:420px;width:92%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .brand{display:flex;gap:10px;align-items:center;justify-content:center}
+  .brand img{width:28px;height:28px}
+  label{font-weight:600;font-size:13px} input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3}
+  .btn{width:100%;padding:12px;border-radius:999px;border:0;background:var(--brand);color:#111827;font-weight:700;cursor:pointer}
+  .err{display:none;background:#2a1220;border:1px solid #7f1d1d;color:#fecaca;padding:10px;border-radius:10px;margin:8px 0}
+  a{color:#f59e0b}
+</style>
+</head><body>
+<div class="wrap">
+  <div class="card">
+    <div class="brand"><img src="/assets/logo.svg" alt=""><strong>Cyrptonvest</strong></div>
+    <h2 style="text-align:center;margin:8px 0 14px">Welcome back</h2>
+    <div id="err" class="err"></div>
+    <form id="f">
+      <label>Email</label><input id="e" type="email" required>
+      <div style="height:8px"></div>
+      <label>Password</label><input id="p" type="password" required>
+      <div style="height:12px"></div>
+      <button class="btn">Sign in</button>
+    </form>
+    <p style="text-align:center;margin:10px 0 0"><a href="/signup.html">Create account</a></p>
+  </div>
+</div>
 <script>
-  document.getElementById('f').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const email = document.getElementById('e').value.trim();
-    const password = document.getElementById('p').value;
-    const r = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})});
-    if(r.ok) location.href='/dashboard/'; else alert('Login failed');
-  });
+async function post(url, body){
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error(await r.text()||'Login failed');
+  return r.json().catch(()=>({}));
+}
+const err=document.getElementById('err');
+document.getElementById('f').addEventListener('submit', async (e)=>{
+  e.preventDefault(); err.style.display='none'; err.textContent='';
+  try{
+    await post('/api/auth/login',{email:document.getElementById('e').value.trim(),password:document.getElementById('p').value});
+    location.href='/dashboard/';
+  }catch(ex){ err.textContent=ex.message; err.style.display='block'; }
+});
 </script>
+</body></html>
