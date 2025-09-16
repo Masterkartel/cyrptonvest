@@ -1,48 +1,94 @@
-<!doctype html><html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Log in — Cyrptonvest</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<style>
-  :root{--bg:#0b0f19;--panel:#0f1629;--line:#1d2640;--text:#e6edf3;--brand:#f59e0b}
-  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,Inter,Arial}
-  .wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
-  .card{max-width:420px;width:92%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
-  .brand{display:flex;gap:10px;align-items:center;justify-content:center}
-  .brand img{width:28px;height:28px}
-  label{font-weight:600;font-size:13px} input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3}
-  .btn{width:100%;padding:12px;border-radius:999px;border:0;background:var(--brand);color:#111827;font-weight:700;cursor:pointer}
-  .err{display:none;background:#2a1220;border:1px solid #7f1d1d;color:#fecaca;padding:10px;border-radius:10px;margin:8px 0}
-  a{color:#f59e0b}
-</style>
-</head><body>
-<div class="wrap">
-  <div class="card">
-    <div class="brand"><img src="/assets/logo.svg" alt=""><strong>Cyrptonvest</strong></div>
-    <h2 style="text-align:center;margin:8px 0 14px">Welcome back</h2>
-    <div id="err" class="err"></div>
-    <form id="f">
-      <label>Email</label><input id="e" type="email" required>
-      <div style="height:8px"></div>
-      <label>Password</label><input id="p" type="password" required>
-      <div style="height:12px"></div>
-      <button class="btn">Sign in</button>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Sign In — Cyrptonvest</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0b0f19;--panel:#0f1629;--line:#1d2640;--text:#e6edf3;--muted:#9aa4b2;--brand:#f59e0b;--ring:rgba(245,158,11,.35)}
+    *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,Segoe UI,Arial}
+    .wrap{min-height:100vh;display:grid;place-items:center;padding:20px}
+    .card{width:min(440px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+    h1{margin:0 0 6px} .muted{color:var(--muted)}
+    label{display:block;margin:10px 0 6px;color:#cbd5e1}
+    input{width:100%;padding:12px;border:1px solid var(--line);background:#0b1328;color:var(--text);border-radius:12px;outline:none}
+    input:focus{box-shadow:0 0 0 3px var(--ring)}
+    .btn{width:100%;margin-top:14px;padding:12px;border-radius:999px;border:0;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0b0f19;font-weight:800;cursor:pointer}
+    .err{display:none;margin-top:12px;background:#1a1320;border:1px solid #5b1d2a;color:#fecaca;border-radius:12px;padding:10px}
+    .row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+    a{color:#fbbf24;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <form class="card" id="login-form" novalidate>
+      <h1>Welcome back</h1>
+      <div class="muted">Sign in to your Cyrptonvest account</div>
+
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="username" required>
+
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+
+      <button class="btn" type="submit" id="btn">Sign in</button>
+      <div id="err" class="err"></div>
+
+      <div class="row">
+        <div class="muted">No account? <a href="/signup.html">Create one</a></div>
+        <a href="/">Back home</a>
+      </div>
     </form>
-    <p style="text-align:center;margin:10px 0 0"><a href="/signup.html">Create account</a></p>
   </div>
-</div>
-<script>
-async function post(url, body){
-  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!r.ok) throw new Error(await r.text()||'Login failed');
-  return r.json().catch(()=>({}));
-}
-const err=document.getElementById('err');
-document.getElementById('f').addEventListener('submit', async (e)=>{
-  e.preventDefault(); err.style.display='none'; err.textContent='';
-  try{
-    await post('/api/auth/login',{email:document.getElementById('e').value.trim(),password:document.getElementById('p').value});
-    location.href='/dashboard/';
-  }catch(ex){ err.textContent=ex.message; err.style.display='block'; }
-});
-</script>
-</body></html>
+
+  <script>
+    // Small helper that NEVER dumps raw HTML
+    async function postJSON(url, body){
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        credentials: 'include',
+        body: JSON.stringify(body)
+      });
+      const ct = r.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const data = await r.json();
+        if (!r.ok || data?.error) throw new Error(data?.error || `Request failed (${r.status})`);
+        return data;
+      } else {
+        // Response is HTML or something else → show a friendly message
+        throw new Error(r.status >= 500
+          ? 'Service temporarily unavailable. Please try again.'
+          : `Request failed (${r.status})`);
+      }
+    }
+
+    function showErr(msg){
+      const el = document.getElementById('err');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    document.getElementById('login-form')?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const err = document.getElementById('err');
+      err.style.display='none';
+      const btn = document.getElementById('btn'); btn.disabled = true; btn.textContent = 'Signing in…';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try{
+        await postJSON('/api/auth/login', { email, password });
+        location.href = '/dashboard/';
+      }catch(ex){
+        showErr(String(ex.message || ex));
+      }finally{
+        btn.disabled = false; btn.textContent = 'Sign in';
+      }
+    });
+  </script>
+</body>
+</html>
