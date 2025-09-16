@@ -1,103 +1,49 @@
 // functions/api/auth/forgot.ts
 import {
-  json, bad,
-  sendEmail, randomTokenHex,
-  sha256HexStr, db, getUserByEmail,
-  type Env
+  json, bad, db, getUserByEmail, sendEmail, randomTokenHex, type Env,
 } from "../../_utils";
 
-/**
- * POST /api/auth/forgot
- * Body: { email: string }
- *
- * Always returns 200 {ok:true} (to avoid email enumeration),
- * but only sends a real email if the user exists.
- */
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const { request, env } = ctx;
     const { email } = await request.json().catch(() => ({}));
+    if (!email || typeof email !== "string") return bad("Email required", 400);
 
-    if (!email || typeof email !== "string") {
-      // Still return ok to avoid enumeration
-      return json({ ok: true });
-    }
-
-    const norm = email.trim().toLowerCase();
-    const user = await getUserByEmail(env, norm);
-
-    // Always respond ok to the client, even if user not found
-    // (prevents attackers from discovering valid emails)
-    const okResponse = json({ ok: true });
-
-    if (!user) return okResponse;
-
-    // Ensure reset_tokens table exists
-    await ensureResetTable(env);
-
-    // Create a one-time token (store only the hash in DB)
-    const tokenPlain = randomTokenHex(32);
-    const tokenHash = await sha256HexStr(tokenPlain);
-
-    const now = Math.floor(Date.now() / 1000);
-    const expires = now + 60 * 30; // 30 minutes
-
-    const id = randomTokenHex(16);
+    const user = await getUserByEmail(env, email);
+    // Always act the same regardless of existence (no user enumeration)
+    const token = randomTokenHex(32);
+    const now = Date.now();
+    const expires = now + 1000 * 60 * 30; // 30 minutes
 
     await db(env)
       .prepare(
-        `INSERT INTO reset_tokens (id, email, token_hash, created_at, expires_at, used)
-         VALUES (?, ?, ?, ?, ?, 0)`
+        "INSERT INTO reset_tokens (email, token, expires_at, created_at) VALUES (?, ?, ?, ?)"
       )
-      .bind(id, norm, tokenHash, now, expires)
-      .run();
+      .bind(email.toLowerCase(), token, expires, now)
+      .run()
+      .catch(() => { /* swallow insert errors */ });
 
-    // Build reset link pointing to your frontend page (adjust filename/path if different)
-    // Example reset page: /reset.html which will POST to /api/auth/reset
+    // Build absolute reset link from request origin
     const origin = new URL(request.url).origin;
-    const link = `${origin}/reset.html?email=${encodeURIComponent(norm)}&token=${tokenPlain}`;
+    const link = `${origin}/reset.html?token=${encodeURIComponent(token)}`;
 
-    // Send email
-    const subject = "Reset your Cyrptonvest password";
+    // Send email (if RESEND configured, it will send; else logs to Functions)
     const html = `
-      <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto">
-        <h2 style="margin:0 0 10px;color:#111">Cyrptonvest</h2>
-        <p>We received a request to reset the password for <strong>${norm}</strong>.</p>
-        <p>This link will expire in <strong>30 minutes</strong>. If you didn’t request this, you can ignore this email.</p>
-        <p style="margin:22px 0">
-          <a href="${link}"
-             style="background:#111827;color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;display:inline-block">
-            Reset Password
-          </a>
-        </p>
-        <p style="font-size:12px;color:#555">Or copy and paste this URL into your browser:<br>
-          <span style="word-break:break-all;color:#0369a1">${link}</span>
-        </p>
+      <div style="font-family:Inter,system-ui,Segoe UI,Arial">
+        <h2>Reset your Cyrptonvest password</h2>
+        <p>We received a request to reset the password for <b>${email}</b>.</p>
+        <p>This link will expire in 30 minutes:</p>
+        <p><a href="${link}" style="display:inline-block;padding:10px 14px;background:#f59e0b;color:#0b0f19;border-radius:8px;text-decoration:none;font-weight:700">Reset Password</a></p>
+        <p>If you didn’t request this, you can ignore this email.</p>
+        <hr/>
+        <p style="color:#94a3b8">If the button doesn't work, copy and paste this URL:</p>
+        <p style="word-break:break-all">${link}</p>
       </div>
     `;
+    await sendEmail(env, email, "Reset your Cyrptonvest password", html);
 
-    await sendEmail(env, norm, subject, html);
-
-    return okResponse;
-  } catch (e) {
-    console.error("forgot error", e);
-    // Still return ok to the client
-    return json({ ok: true });
+    return json({ ok: true, message: "If that account exists, a reset link has been sent." });
+  } catch (e: any) {
+    return bad("Unable to process request", 500);
   }
 };
-
-// Create table if it doesn't exist
-async function ensureResetTable(env: Env) {
-  await db(env).exec(`
-    CREATE TABLE IF NOT EXISTS reset_tokens (
-      id TEXT PRIMARY KEY,
-      email TEXT NOT NULL,
-      token_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      expires_at INTEGER NOT NULL,
-      used INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE INDEX IF NOT EXISTS idx_reset_email ON reset_tokens(email);
-    CREATE INDEX IF NOT EXISTS idx_reset_expires ON reset_tokens(expires_at);
-  `);
-}
