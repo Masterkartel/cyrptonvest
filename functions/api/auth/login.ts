@@ -1,348 +1,86 @@
-// functions/_utils.ts
-// Shared helpers for Cloudflare Pages Functions
-// Provides all symbols referenced across your existing endpoints.
+// functions/api/auth/login.ts
+import { verifyPassword, cookieName, type Env } from "../../_utils";
 
-export type Env = {
-  DB: D1Database;
-  AUTH_COOKIE_SECRET: string;
-  ADMIN_EMAIL?: string;
-  ADMIN_PASSWORD?: string;
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Vary": "Origin",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "content-type, authorization",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+  };
+}
 
-  // Optional for email sending (Resend)
-  RESEND_API_KEY?: string;          // re_****************
-  MAIL_FROM?: string;               // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
-  REPLY_TO?: string;                // e.g. "support@cyrptonvest.com"
-};
-
-const COOKIE_NAME = "cv_session";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-
-/* ───────────────────────── Response helpers ──────────────────────────── */
-export function json(
-  data: unknown,
-  status: number = 200,
-  headers: HeadersInit = {}
-) {
+function json(data: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json", ...headers },
+    status: init.status ?? 200,
+    headers: { "Content-Type": "application/json", ...(init.headers || {}) },
   });
 }
-export function bad(message = "Bad request", status = 400) {
-  return json({ ok: false, error: message }, status);
+
+function bad(message: string, req: Request) {
+  return json({ ok: false, error: message }, { status: 400, headers: corsHeaders(req) });
 }
 
-/* ───────────────────────── Cookie helpers ────────────────────────────── */
-export function parseCookies(req: Request): Record<string, string> {
-  const raw = req.headers.get("cookie") || "";
-  const out: Record<string, string> = {};
-  raw.split(/;\s*/).forEach((p) => {
-    const i = p.indexOf("=");
-    if (i > -1) out[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
-  });
-  return out;
+function b64url(bytes: Uint8Array) {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
-export const cookieName = COOKIE_NAME;
 
-export function headerSetCookie(resOrHeaders: Response | Headers, value: string) {
-  if (resOrHeaders instanceof Response) {
-    resOrHeaders.headers.append("set-cookie", value);
-  } else {
-    resOrHeaders.append("set-cookie", value);
+export const onRequestPost: PagesFunction<Env> = async (ctx) => {
+  const { request, env } = ctx;
+
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders(request) });
   }
-}
 
-/* ───────────────────── Token (HMAC, URL-safe b64) ───────────────────── */
-function toBase64(u8: Uint8Array) {
-  let str = "";
-  u8.forEach((b) => (str += String.fromCharCode(b)));
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-function fromBase64(s: string) {
-  s = s.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = s.length % 4 ? 4 - (s.length % 4) : 0;
-  const bin = atob(s + "=".repeat(pad));
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-async function hmac(secret: string, msg: string) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
-  return toBase64(new Uint8Array(sig));
-}
-
-/* ───────────────────────────── Sessions ──────────────────────────────── */
-// Supports both:
-//  A) Stateless cookie (payload.signature) signed with AUTH_COOKIE_SECRET
-//  B) DB-backed session id stored in `sessions` (id,user_id,created_at,expires_at)
-export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
-
-export async function signSession(env: Env, session: Session) {
-  const payload = toBase64(new TextEncoder().encode(JSON.stringify(session)));
-  const sig = await hmac(env.AUTH_COOKIE_SECRET, payload);
-  return `${payload}.${sig}`;
-}
-export async function verifySession(env: Env, token: string): Promise<Session | null> {
-  const [payload, sig] = token.split(".");
-  if (!payload || !sig) return null;
-  const expSig = await hmac(env.AUTH_COOKIE_SECRET, payload);
-  if (sig !== expSig) return null;
+  let email = "";
+  let password = "";
   try {
-    const jsonStr = new TextDecoder().decode(fromBase64(payload));
-    const sess = JSON.parse(jsonStr) as Session;
-    if (!sess?.sub || !sess?.email || !sess?.role) return null;
-    return sess;
+    const body = await request.json<any>();
+    email = String(body?.email || "").trim().toLowerCase();
+    password = String(body?.password || "");
+    if (!email || !password) return bad("Email and password are required", request);
   } catch {
-    return null;
-  }
-}
-
-function buildCookie(token: string) {
-  return `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`;
-}
-
-export async function setCookie(res: Response, env: Env, session: Session) {
-  const token = await signSession(env, session);
-  headerSetCookie(res, buildCookie(token));
-}
-export function clearCookie(res: Response) {
-  headerSetCookie(res, `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
-}
-
-/** Back-compat name some files use */
-export async function createSession(env: Env, session: Session) {
-  const token = await signSession(env, session);
-  return buildCookie(token); // callers can headerSetCookie(this)
-}
-export function destroySession(res: Response) {
-  clearCookie(res);
-}
-
-/* ────────────────────── Auth guards / accessors ──────────────────────── */
-export async function getUserFromSession(req: Request, env: Env) {
-  const cookies = parseCookies(req);
-  const tokenOrSid = cookies[COOKIE_NAME];
-  if (!tokenOrSid) return null;
-
-  // Try stateless HMAC session first (has a dot)
-  if (tokenOrSid.includes(".")) {
-    const sess = await verifySession(env, tokenOrSid);
-    if (sess) return sess;
-    // fall-through to DB lookup if verify failed
+    return bad("Invalid JSON body", request);
   }
 
-  // DB session id path (created by /api/auth/login.ts)
   try {
+    const userRow = await env.DB.prepare(
+      `SELECT id, email, password_hash FROM users WHERE lower(email) = ? LIMIT 1`
+    ).bind(email).first<{ id: string; email: string; password_hash: string }>();
+
+    if (!userRow) return bad("Invalid credentials", request);
+
+    const ok = await verifyPassword(password, userRow.password_hash);
+    if (!ok) return bad("Invalid credentials", request);
+
+    // Create DB session using UNIX seconds
+    const sidBytes = new Uint8Array(32);
+    crypto.getRandomValues(sidBytes);
+    const sid = b64url(sidBytes);
+
     const nowSec = Math.floor(Date.now() / 1000);
-    const row = await env.DB.prepare(
-      `SELECT
-         s.id         AS sid,
-         s.user_id    AS user_id,
-         s.created_at AS created_at,
-         s.expires_at AS expires_at,
-         u.email      AS email
-       FROM sessions s
-       JOIN users u ON u.id = s.user_id
-       WHERE s.id = ?
-         AND (
-           -- expires_at stored as integer seconds
-           (typeof(s.expires_at) = 'integer' AND s.expires_at > ?)
-           OR
-           -- expires_at stored as text (ISO or SQLite DATETIME); convert to seconds
-           (typeof(s.expires_at) = 'text' AND CAST(strftime('%s', s.expires_at) AS INTEGER) > ?)
-         )
-       LIMIT 1`
-    ).bind(tokenOrSid, nowSec, nowSec).first<{
-      sid: string;
-      user_id: string;
-      created_at: string;
-      expires_at: number | string;
-      email: string;
-    }>();
+    const maxAge = 60 * 60 * 24 * 14; // 14 days
+    const expSec = nowSec + maxAge;
 
-    if (!row) return null;
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, user_id, created_at, expires_at)
+       VALUES (?, ?, datetime('now'), ?)`
+    ).bind(sid, userRow.id, expSec).run();
 
-    const role: "user" | "admin" =
-      env.ADMIN_EMAIL && row.email?.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
-        ? "admin"
-        : "user";
+    // Cookie
+    const cookie = `${cookieName}=${sid}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax; Secure`;
 
-    const iat =
-      Math.floor(new Date(row.created_at).getTime() / 1000) ||
-      Math.floor(Date.now() / 1000);
+    const headers = new Headers(corsHeaders(request));
+    headers.append("Set-Cookie", cookie);
 
-    return { sub: row.user_id, email: row.email, role, iat } as Session;
-  } catch {
-    return null;
+    return json({ ok: true, user: { id: userRow.id, email: userRow.email } }, { headers });
+  } catch (err: any) {
+    console.error("login error:", err?.message || err);
+    return json({ ok: false, error: "service_unavailable" }, { headers: corsHeaders(request), status: 503 });
   }
-}
-
-export async function requireAuth(req: Request, env: Env): Promise<Session> {
-  const sess = await getUserFromSession(req, env);
-  if (!sess) throw json({ error: "Unauthorized" }, 401);
-  return sess;
-}
-export async function requireUser(req: Request, env: Env) {
-  return getUserFromSession(req, env);
-}
-export async function requireAdmin(req: Request, env: Env) {
-  const sess = await getUserFromSession(req, env);
-  if (!sess || sess.role !== "admin") throw json({ error: "Forbidden" }, 403);
-  return sess;
-}
-
-/* ───────────────────── Password / hashing helpers ────────────────────── */
-
-// Constant-time compare to avoid timing leaks
-function tsc(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return out === 0;
-}
-
-// sha256 hex
-export async function sha256HexStr(s: string) {
-  const data = new TextEncoder().encode(s);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  const bytes = new Uint8Array(buf);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** Original (legacy) hash function: unsalted sha256$<hex> */
-export async function hashPassword(plain: string) {
-  const hex = await sha256HexStr(plain);
-  return `sha256$${hex}`;
-}
-
-/** Stronger salted hash used by reset flow if bcrypt isn't available */
-export async function hashPasswordS256(plain: string) {
-  const saltBytes = new Uint8Array(12);
-  crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2,"0")).join("");
-  const hex = await sha256HexStr(salt + plain);
-  return `s256:${salt}$${hex}`;
-}
-
-/**
- * Tries multiple formats:
- * - bcrypt: "$2a$" / "$2b$"  (only if bcryptjs present)
- * - salted sha256: "s256:<salt>$<hex>"
- * - legacy sha256: "sha256$<hex>"
- * - plain: "plain:<pw>" or bare match
- */
-export async function verifyPassword(plain: string, stored: string) {
-  if (!stored || !plain) return false;
-
-  try {
-    // bcrypt (optional if you later add bcryptjs dependency)
-    if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
-      // @ts-ignore
-      const bcrypt = (await import("bcryptjs")).default;
-      return await bcrypt.compare(plain, stored);
-    }
-
-    // salted s256
-    if (stored.startsWith("s256:")) {
-      const rest = stored.slice(5);
-      const [salt, hex] = rest.split("$");
-      if (!salt || !hex) return false;
-      const digest = await sha256HexStr(salt + plain);
-      return tsc(digest, hex);
-    }
-
-    // legacy unsalted sha256
-    if (stored.startsWith("sha256$")) {
-      const want = stored.slice(7);
-      const got = await sha256HexStr(plain);
-      return tsc(got, want);
-    }
-
-    // explicit plaintext
-    if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
-
-    // last-resort bare compare
-    return tsc(stored, plain);
-  } catch (e) {
-    console.error("verifyPassword error:", e);
-    return false;
-  }
-}
-
-/** Preferred hasher for resets: bcrypt if available; fallback to s256 */
-export async function hashPasswordBcrypt(plain: string) {
-  try {
-    // @ts-ignore
-    const bcrypt = (await import("bcryptjs")).default;
-    const salt = await bcrypt.genSalt(10);
-    return await bcrypt.hash(plain, salt);
-  } catch {
-    return await hashPasswordS256(plain);
-  }
-}
-
-/** Minimal password strength rule (tweak if you want) */
-export function isReasonablePassword(pw: string) {
-  return typeof pw === "string" && pw.length >= 8;
-}
-
-/* ───────────────────────── Email helper (Resend) ─────────────────────── */
-export async function sendEmail(env: Env, to: string, subject: string, html: string) {
-  // If RESEND is configured, send real email
-  if (env.RESEND_API_KEY && env.MAIL_FROM) {
-    const payload: Record<string, unknown> = {
-      from: env.MAIL_FROM,           // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
-      to: [to],
-      subject,
-      html,
-    };
-    if (env.REPLY_TO) payload.reply_to = env.REPLY_TO; // e.g. "support@cyrptonvest.com"
-
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      const text = await r.text().catch(() => "");
-      console.warn("sendEmail failed:", r.status, text);
-    }
-    return;
-  }
-  // Otherwise, log to Functions logs so you can grab the link during testing
-  console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
-}
-
-/* ─────────────────────────── D1 convenience ──────────────────────────── */
-export async function getUserByEmail(env: Env, email: string) {
-  return await env.DB.prepare(
-    `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
-  ).bind(email.toLowerCase()).first<{
-    id: string; email: string; password_hash: string; created_at: number;
-  }>();
-}
-
-/**
- * db – flexible export:
- *  - call like a function:   db(env).prepare("SELECT 1")
- *  - or legacy helper:       db.getUserByEmail(env, email)
- */
-export const db: any = (env: Env) => env.DB;
-db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
-
-/* ───────────────────────── Reset helpers (tokens) ────────────────────── */
-export function randomTokenHex(len = 32): string {
-  const a = new Uint8Array(len);
-  crypto.getRandomValues(a);
-  return Array.from(a).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+};
