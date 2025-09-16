@@ -60,31 +60,34 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* Address rows with marquee + actions (no overflow) */
+    /* COMPACT address rows with marquee + actions (no overflow) */
     .addr-wrap .label{margin:0 0 6px}
     .addr-row{
       width:100%;
       max-width:100%;
+      height:38px;                 /* compact height */
       overflow:hidden;
-      display:flex; align-items:center; gap:10px;
+      display:flex; align-items:center; gap:8px;
       border:1px solid var(--line); background:#0c1428;
-      border-radius:12px; padding:10px 12px;
+      border-radius:10px; padding:6px 8px;
       box-sizing:border-box;
       position:relative;
+      font-size:12px;              /* compact font */
     }
-    .addr-left{display:flex;align-items:center;gap:10px;flex:0 0 auto}
-    .addr-left .coin{font-weight:700}
+    .addr-left{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+    .addr-left .coin{font-weight:800;letter-spacing:.2px}
     .addr-text{
       flex:1 1 0%;
       min-width:0;
       overflow:hidden;
       position:relative;
-      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 48px), transparent 100%);
-              mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 48px), transparent 100%);
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 38px), transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 38px), transparent 100%);
+      line-height:1;
     }
     .addr-marquee{
-      display:inline-block; white-space:nowrap; padding-right:48px;
-      animation: addr-mar 24s linear infinite;
+      display:inline-block; white-space:nowrap; padding-right:36px;
+      animation: addr-mar 22s linear infinite;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       letter-spacing:.2px;
       will-change: transform;
@@ -92,11 +95,11 @@
     .addr-row:hover .addr-marquee{ animation-play-state: paused }
     @keyframes addr-mar{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
 
-    .addr-actions{display:flex;gap:8px;flex:0 0 auto}
+    .addr-actions{display:flex;gap:6px;flex:0 0 auto}
     .icon-btn{
-      width:40px;height:40px;border-radius:999px;border:1px solid var(--line);
+      width:32px;height:32px;border-radius:999px;border:1px solid var(--line);
       background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none;
-      flex:0 0 auto;
+      flex:0 0 auto;font-size:16px;line-height:1;
     }
     .icon-btn:active{transform:scale(.96)}
 
@@ -141,6 +144,7 @@
 
     @media (max-width:420px){
       .row{grid-template-columns:1fr}
+      .addr-marquee{ animation-duration:26s }
     }
   </style>
 </head>
@@ -246,7 +250,7 @@
         <div id="panel-deposit" class="panel" style="display:none">
           <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
 
-          <div class="addr-wrap" style="display:grid;gap:12px">
+          <div class="addr-wrap" style="display:grid;gap:10px">
             <div>
               <div class="label muted">Bitcoin (BTC)</div>
               <div class="addr-row">
@@ -318,11 +322,11 @@
           </div>
           <div style="height:8px"></div>
 
-          <div style="display:grid;gap:12px">
+          <div style="display:grid;gap:10px">
             <div>
               <label class="muted">BTC address</label>
               <div class="addr-row">
-                <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0;width:100%;color:var(--text)">
+                <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
               <button class="btn" onclick="submitWithdrawal('BTC','#wd-btc-addr')">Request BTC withdrawal</button>
@@ -331,7 +335,7 @@
             <div>
               <label class="muted">USDT-TRC20 address</label>
               <div class="addr-row">
-                <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0;width:100%;color:var(--text)">
+                <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
               <button class="btn" onclick="submitWithdrawal('USDT-TRC20','#wd-trc-addr')">Request USDT-TRC20 withdrawal</button>
@@ -340,7 +344,7 @@
             <div>
               <label class="muted">ETH-ERC20 address</label>
               <div class="addr-row">
-                <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0;width:100%;color:var(--text)">
+                <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
               <button class="btn" onclick="submitWithdrawal('ETH-ERC20','#wd-eth-addr')">Request ETH-ERC20 withdrawal</button>
@@ -409,7 +413,7 @@
     });
     $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
-    // Top tabs — explicit mapping so highlights work
+    // Top tabs
     const topPanels = { wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw' };
     const topTabs   = { wallet:'#tab-wallet',   deposit:'#tab-dep',      withdraw:'#tab-wd' };
     function switchTop(which){
