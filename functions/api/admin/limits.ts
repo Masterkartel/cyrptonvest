@@ -1,22 +1,29 @@
-import { json, requireAdmin, type Env } from "../../../_utils";
+// functions/api/admin/limits.ts
+import { json, requireAdmin, type Env } from "../../_utils";
 
-export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
-  const g = await requireAdmin(env, request);
+export const onRequestGet: PagesFunction<Env> = async (ctx) => {
+  const g = await requireAdmin(ctx.env, ctx.request);
   if (!g.ok) return g.res;
 
-  const { user_id, disallow_starter=0, disallow_growth=0, disallow_pro=0 } = await request.json().catch(() => ({}));
-  if (!user_id) return json({ error:"user_id required" }, 400);
-  const now = Date.now();
+  // Placeholder values; wire these to KV/D1 later if needed
+  return json({
+    ok: true,
+    limits: {
+      starterMin: 5,
+      starterMax: 10,
+      growthMin: 50,
+      growthMax: 400,
+      proMin: 500,
+      proMax: 10000,
+    },
+  });
+};
 
-  await env.DB.prepare(
-    `INSERT INTO user_limits (user_id,disallow_starter,disallow_growth,disallow_pro,updated_at)
-     VALUES (?,?,?,?,?)
-     ON CONFLICT(user_id) DO UPDATE SET
-       disallow_starter=excluded.disallow_starter,
-       disallow_growth =excluded.disallow_growth,
-       disallow_pro    =excluded.disallow_pro,
-       updated_at      =excluded.updated_at`
-  ).bind(user_id, disallow_starter?1:0, disallow_growth?1:0, disallow_pro?1:0, now).run();
+export const onRequestPost: PagesFunction<Env> = async (ctx) => {
+  const g = await requireAdmin(ctx.env, ctx.request);
+  if (!g.ok) return g.res;
 
-  return json({ ok:true });
+  // Accept payload but don’t persist yet (stub)
+  await ctx.request.json().catch(() => ({}));
+  return json({ ok: true, saved: false, message: "stub only" });
 };
