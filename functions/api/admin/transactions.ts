@@ -1,14 +1,12 @@
 import { json, requireAdmin, type Env } from "../../_utils";
 
-function normalizeStatus(status: string | null) {
-  const s = (status || "").toLowerCase();
-  if (["pending", "completed", "failed"].includes(s)) return s;
-  return "pending";
+function normStatus(s: string | null) {
+  s = (s || "").toLowerCase();
+  return ["pending", "completed", "failed"].includes(s) ? s : undefined;
 }
-function normalizeKind(kind: string | null) {
-  const k = (kind || "").toLowerCase();
-  if (["deposit", "withdraw"].includes(k)) return k;
-  return null; // all kinds
+function normKind(k: string | null) {
+  k = (k || "").toLowerCase();
+  return ["deposit", "withdraw", "plan_charge", "adjustment", "profit", "bonus"].includes(k) ? k : undefined;
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
@@ -16,19 +14,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   if (!gate.ok) return gate.res;
 
   const url = new URL(request.url);
-  const status = normalizeStatus(url.searchParams.get("status"));
-  const kind = normalizeKind(url.searchParams.get("kind"));
+  const status = normStatus(url.searchParams.get("status")) || "pending";
+  const kind = normKind(url.searchParams.get("kind"));
+  const limit = Math.min(100, Math.max(10, parseInt(url.searchParams.get("limit") || "50", 10)));
+  const cursor = parseInt(url.searchParams.get("cursor") || "0", 10); // created_at keyset
 
-  let sql =
-    `SELECT t.id, t.user_id, u.email AS user_email, t.kind, t.amount_cents, t.currency, t.ref, t.status, t.created_at
-       FROM transactions t JOIN users u ON u.id = t.user_id
-      WHERE t.status = ?`;
   const binds: any[] = [status];
-  if (kind) { sql += " AND t.kind = ?"; binds.push(kind); }
-  sql += " ORDER BY t.created_at DESC LIMIT 500";
+  let sql =
+    `SELECT t.id,t.user_id,u.email AS user_email,t.kind,t.amount_cents,t.currency,t.ref,t.status,t.created_at
+       FROM transactions t JOIN users u ON u.id=t.user_id
+      WHERE t.status=?`;
 
-  const rows = await env.DB.prepare(sql).bind(...binds).all();
-  return json({ transactions: rows.results || [] });
+  if (kind) { sql += " AND t.kind=?"; binds.push(kind); }
+  if (cursor > 0) { sql += " AND t.created_at < ?"; binds.push(cursor); } // keyset
+  sql += " ORDER BY t.created_at DESC LIMIT ?"; binds.push(limit);
+
+  const { results } = await env.DB.prepare(sql).bind(...binds).all<any>();
+  const rows = results || [];
+  const nextCursor = rows.length ? rows[rows.length - 1].created_at : null;
+
+  return json({ transactions: rows, nextCursor });
 };
 
 export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
@@ -36,37 +41,34 @@ export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
   if (!gate.ok) return gate.res;
 
   const body = await request.json().catch(() => ({}));
-  const id = body?.id as string;
-  const status = normalizeStatus(body?.status);
-  if (!id) return json({ error: "Missing id" }, 400);
+  const id = String(body?.id || "");
+  const status = normStatus(body?.status || "");
+  if (!id || !status) return json({ error: "id and valid status required" }, 400);
 
-  // fetch tx
   const tx = await env.DB.prepare(
     `SELECT id,user_id,kind,amount_cents,currency,status FROM transactions WHERE id=? LIMIT 1`
-  ).bind(id).first<{ id:string; user_id:string; kind:string; amount_cents:number; currency:string; status:string }>();
-
+  ).bind(id).first<any>();
   if (!tx) return json({ error: "Not found" }, 404);
   if (tx.status !== "pending") return json({ error: "Already processed" }, 400);
 
-  // simple balance update rules
   let delta = 0;
   if (status === "completed") {
     if (tx.kind === "deposit") delta = +tx.amount_cents;
     if (tx.kind === "withdraw") delta = -tx.amount_cents;
   }
-  const now = Date.now();
 
-  const tx1 = env.DB.prepare(`UPDATE transactions SET status=?, updated_at=? WHERE id=?`).bind(status, now, id);
+  const now = Date.now();
+  const q1 = env.DB.prepare(`UPDATE transactions SET status=?, updated_at=? WHERE id=?`).bind(status, now, id);
+
   if (delta !== 0) {
-    const w1 = env.DB.prepare(`
-      INSERT INTO wallets (user_id,balance_cents,currency)
-      VALUES (?, ?, ?)
-      ON CONFLICT(user_id) DO UPDATE SET balance_cents = wallets.balance_cents + excluded.balance_cents
-    `).bind(tx.user_id, delta, tx.currency || "USD");
-    const b = await env.DB.batch([tx1, w1]);
-    return json({ ok: true, updated: b.length });
+    const q2 = env.DB.prepare(
+      `INSERT INTO wallets (user_id,balance_cents,currency)
+       VALUES (?,?,?)
+       ON CONFLICT(user_id) DO UPDATE SET balance_cents = wallets.balance_cents + excluded.balance_cents`
+    ).bind(tx.user_id, delta, tx.currency || "USD");
+    await env.DB.batch([q1, q2]);
   } else {
-    const b = await env.DB.batch([tx1]);
-    return json({ ok: true, updated: b.length });
+    await q1.run();
   }
+  return json({ ok: true });
 };
