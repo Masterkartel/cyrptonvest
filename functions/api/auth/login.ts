@@ -1,41 +1,36 @@
-// functions/api/auth/login.ts
 import {
-  json, bad, verifyPassword, createSession, headerSetCookie, type Env,
+  json,
+  bad,
+  setCookie,
+  headerSetCookie,
+  createSession,
+  verifyPassword,
+  getUserByEmail,
+  type Env,
 } from "../../_utils";
 
-type Req = { email?: string; password?: string };
-
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
-    const { email, password } = (await request.json().catch(() => ({}))) as Req;
-    if (!email || !password) return bad("Missing email or password");
+    const { email, password } = await ctx.request.json().catch(() => ({} as any));
+    if (!email || !password) return bad("Email and password are required", 400);
 
-    const DB = env.DB as D1Database | undefined;
-    if (!DB) return json({ error: "DB binding missing" }, { status: 500 });
+    // Make sure the DB binding is present (avoids “Cannot read properties of undefined (reading 'prepare')”)
+    if (!ctx.env.DB) return bad("Service unavailable (DB not bound)", 503);
 
-    const row = await DB.prepare<{
-      id: string; email: string; password_hash: string; is_active: number;
-    }>(
-      `SELECT id, email, password_hash, COALESCE(is_active,1) AS is_active
-         FROM users
-        WHERE lower(email)=lower(?)
-        LIMIT 1`
-    ).bind(email).first();
+    // Look up user
+    const user = await getUserByEmail(email, ctx.env);
+    if (!user) return bad("Invalid credentials", 401);
 
-    if (!row) return bad("Invalid credentials");
-    if (!row.is_active) return bad("Account disabled");
-    const ok = await verifyPassword(password, row.password_hash);
-    if (!ok) return bad("Invalid credentials");
+    const ok = await verifyPassword(password, user.password_hash);
+    if (!ok) return bad("Invalid credentials", 401);
 
-    const { cookieValue, expires } = await createSession(env, row.id);
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: {
-        "content-type": "application/json",
-        "set-cookie": headerSetCookie(env, cookieValue, expires),
-      },
-    });
-  } catch (e: any) {
-    return json({ error: `Login failed: ${e?.message || e}` }, { status: 500 });
+    // Create session + cookie
+    const sid = await createSession(user.id, ctx.env);
+    const res = json({ ok: true, user: { id: user.id, email: user.email } });
+    res.headers.append("Set-Cookie", headerSetCookie(sid, ctx.env));
+    return res;
+  } catch (err: any) {
+    // Never leak stack traces to the UI
+    return bad("Service temporarily unavailable", 503);
   }
 };
