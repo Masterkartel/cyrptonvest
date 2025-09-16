@@ -16,29 +16,23 @@ function corsHeaders(req: Request) {
 }
 
 function json(data: unknown, init: ResponseInit = {}) {
-  const res = new Response(JSON.stringify(data), {
-    status: 200,
+  return new Response(JSON.stringify(data), {
+    status: init.status ?? 200,
     headers: { "Content-Type": "application/json", ...(init.headers || {}) },
   });
-  return res;
 }
 
 function bad(message: string, req: Request) {
-  return new Response(JSON.stringify({ ok: false, error: message }), {
-    status: 400,
-    headers: { "Content-Type": "application/json", ...corsHeaders(req) },
-  });
+  return json({ ok: false, error: message }, { status: 400, headers: corsHeaders(req) });
 }
 
 function b64url(bytes: Uint8Array) {
-  // URL-safe base64
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const { request, env } = ctx;
 
-  // Handle CORS preflight if any
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders(request) });
   }
@@ -55,48 +49,38 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   }
 
   try {
-    // 1) Fetch user by email
     const userRow = await env.DB.prepare(
       `SELECT id, email, password_hash FROM users WHERE lower(email) = ? LIMIT 1`
     ).bind(email).first<{ id: string; email: string; password_hash: string }>();
 
-    if (!userRow) {
-      return bad("Invalid credentials", request);
-    }
+    if (!userRow) return bad("Invalid credentials", request);
 
-    // 2) Verify password
     const ok = await verifyPassword(password, userRow.password_hash);
-    if (!ok) {
-      return bad("Invalid credentials", request);
-    }
+    if (!ok) return bad("Invalid credentials", request);
 
-    // 3) Create session
+    // Create DB session using UNIX seconds
     const sidBytes = new Uint8Array(32);
     crypto.getRandomValues(sidBytes);
     const sid = b64url(sidBytes);
-    const now = Math.floor(Date.now() / 1000);
+
+    const nowSec = Math.floor(Date.now() / 1000);
     const maxAge = 60 * 60 * 24 * 14; // 14 days
-    const expiresAt = new Date((now + maxAge) * 1000).toISOString();
+    const expSec = nowSec + maxAge;
 
     await env.DB.prepare(
-      `INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, datetime('now'), ?)`
-    ).bind(sid, userRow.id, expiresAt).run();
+      `INSERT INTO sessions (id, user_id, created_at, expires_at)
+       VALUES (?, ?, datetime('now'), ?)`
+    ).bind(sid, userRow.id, expSec).run();
 
-    // 4) Set cookie
-    const cookie =
-      `${cookieName}=${sid}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax; Secure`;
+    // Cookie
+    const cookie = `${cookieName}=${sid}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax; Secure`;
 
     const headers = new Headers(corsHeaders(request));
     headers.append("Set-Cookie", cookie);
 
-    return json(
-      { ok: true, user: { id: userRow.id, email: userRow.email } },
-      { headers }
-    );
+    return json({ ok: true, user: { id: userRow.id, email: userRow.email } }, { headers });
   } catch (err: any) {
-    // Log to CF logs for debugging
     console.error("login error:", err?.message || err);
-    // Never surface internals to client
-    return json({ ok: false, error: "service_unavailable" }, { headers: corsHeaders(request) });
+    return json({ ok: false, error: "service_unavailable" }, { headers: corsHeaders(request), status: 503 });
   }
 };
