@@ -44,7 +44,7 @@ export function headerSetCookie(resOrHeaders: Response | Headers, value: string)
   else resOrHeaders.append("set-cookie", value);
 }
 
-/* Optional: build a cookie string with domain heuristics for Pages */
+/* Build a cookie string with domain/secure heuristics for Pages */
 export function buildCookieFromSid(
   reqOrUrl: Request | string | URL | undefined,
   sid: string,
@@ -53,11 +53,18 @@ export function buildCookieFromSid(
   let domainAttr = "";
   let secureAttr = "; Secure";
   try {
-    const url = new URL(typeof reqOrUrl === "string" ? reqOrUrl : (reqOrUrl as Request | URL)?.toString() || "https://x.example");
+    const url =
+      typeof reqOrUrl === "string"
+        ? new URL(reqOrUrl)
+        : reqOrUrl instanceof URL
+        ? reqOrUrl
+        : new URL((reqOrUrl as Request)?.url || "https://x.example");
     const host = url.hostname;
     secureAttr = url.protocol === "https:" ? "; Secure" : "";
-    // Avoid Domain on *.pages.dev (CF sets hostnames)
-    if (!/\.pages\.dev$/i.test(host)) {
+    // Avoid Domain on *.pages.dev and localhost (host-only cookie)
+    const isPagesDev = /\.pages\.dev$/i.test(host);
+    const isLocal = host === "localhost" || /^[0-9.]+$/.test(host) || host.endsWith(".localhost");
+    if (!isPagesDev && !isLocal) {
       const parts = host.split(".");
       if (parts.length >= 2) {
         const registrable = parts.slice(-2).join(".");
@@ -68,6 +75,34 @@ export function buildCookieFromSid(
     // best-effort cookie if URL missing/invalid
   }
   return `${COOKIE_NAME}=${sid}; Path=/; Max-Age=${maxAgeSec}; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
+}
+
+/* Build an *expiring* cookie with matching attributes (for logout) */
+function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
+  let domainAttr = "";
+  let secureAttr = "; Secure";
+  try {
+    const url =
+      typeof reqOrUrl === "string"
+        ? new URL(reqOrUrl)
+        : reqOrUrl instanceof URL
+        ? reqOrUrl
+        : new URL((reqOrUrl as Request)?.url || "https://x.example");
+    const host = url.hostname;
+    secureAttr = url.protocol === "https:" ? "; Secure" : "";
+    const isPagesDev = /\.pages\.dev$/i.test(host);
+    const isLocal = host === "localhost" || /^[0-9.]+$/.test(host) || host.endsWith(".localhost");
+    if (!isPagesDev && !isLocal) {
+      const parts = host.split(".");
+      if (parts.length >= 2) {
+        const registrable = parts.slice(-2).join(".");
+        domainAttr = `; Domain=.${registrable}`;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
 /* ═════════════════ Password / hashing helpers ═════════════════ */
@@ -260,13 +295,16 @@ export async function requireAdmin(req: Request, env: Env) {
 /* ═════════ Back-compat shims so old imports keep working ═════════ */
 
 /**
- * createSession(env, session[, maxAgeSec])
+ * createSession(env, session[, reqOrUrl][, maxAgeSec])
  * - Generates a new SID, inserts into D1 sessions, and returns a cookie string.
- * - Old handlers typically call: `const cookie = await createSession(env, sess); headerSetCookie(res, cookie)`
+ * - Old handlers typically call:
+ *     const cookie = await createSession(env, sess, req);
+ *     headerSetCookie(res, cookie)
  */
 export async function createSession(
   env: Env,
   session: { sub: string; email: string; role: "user" | "admin" },
+  reqOrUrl?: Request | string | URL,
   maxAgeSec = 60 * 60 * 24 * 14
 ): Promise<string> {
   const sidBytes = new Uint8Array(32);
@@ -281,8 +319,8 @@ export async function createSession(
      VALUES (?, ?, datetime('now'), ?)`
   ).bind(sid, session.sub, expSec).run();
 
-  // Generic cookie string (no Domain attr). Callers may just set it.
-  return `${COOKIE_NAME}=${sid}; Path=/; Max-Age=${maxAgeSec}; HttpOnly; SameSite=Lax; Secure`;
+  // Return cookie with correct Domain/Secure for this request
+  return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
 
 /**
@@ -290,30 +328,52 @@ export async function createSession(
  * - Overloaded:
  *   1) setCookie(resOrHeaders, cookieString)
  *      -> appends Set-Cookie with provided string
- *   2) setCookie(resOrHeaders, env, session[, maxAgeSec])
- *      -> creates session cookie and appends it
+ *   2) setCookie(resOrHeaders, env, session[, reqOrUrl][, maxAgeSec])
+ *      -> creates session cookie (with proper Domain/Secure) and appends it
  */
 export function setCookie(
   resOrHeaders: Response | Headers,
   arg2: string | Env,
-  session?: { sub: string; email: string; role: "user" | "admin" },
-  maxAgeSec?: number
+  session?: { sub: string; email: string; role: "user" | "admin" } | Request | string | URL,
+  reqOrUrl?: Request | string | URL | number,
+  maybeMaxAge?: number
 ) {
   if (typeof arg2 === "string") {
     // Mode 1: direct cookie string
     headerSetCookie(resOrHeaders, arg2);
-  } else {
-    // Mode 2: create session + set cookie
-    const env = arg2 as Env;
-    if (!session) throw new Error("setCookie(env, session) requires a session object");
-    createSession(env, session, maxAgeSec).then((cookie) => headerSetCookie(resOrHeaders, cookie));
+    return;
   }
+
+  // Mode 2: (env, session[, reqOrUrl][, maxAge])
+  const env = arg2 as Env;
+
+  // detect parameter positions
+  let sess: { sub: string; email: string; role: "user" | "admin" } | undefined;
+  let urlLike: Request | string | URL | undefined;
+  let maxAge: number | undefined;
+
+  if (session && typeof (session as any).sub === "string") {
+    // session provided
+    sess = session as any;
+    if (typeof reqOrUrl === "number") {
+      maxAge = reqOrUrl as number;
+    } else {
+      urlLike = reqOrUrl as any;
+      maxAge = typeof maybeMaxAge === "number" ? maybeMaxAge : undefined;
+    }
+  } else {
+    // caller passed (env, reqOrUrl, maxAge) by mistake → ignore
+    console.warn("setCookie: expected a session object as 3rd argument");
+    return;
+  }
+
+  createSession(env, sess, urlLike, maxAge).then((cookie) => headerSetCookie(resOrHeaders, cookie));
 }
 
-/** destroySession(resOrHeaders) → clears the cookie on client */
-export function destroySession(resOrHeaders: Response | Headers) {
-  const cookie = `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`;
-  headerSetCookie(resOrHeaders, cookie);
+/** destroySession(resOrHeaders[, reqOrUrl]) → clears the cookie on client with matching attributes */
+export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
+  const expired = buildExpiredCookie(reqOrUrl);
+  headerSetCookie(resOrHeaders, expired);
 }
 
 /* ═════════ Reset helpers (tokens) ═════════ */
