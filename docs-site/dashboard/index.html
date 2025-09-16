@@ -60,19 +60,18 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* COMPACT address rows with marquee + actions (no overflow) */
+    /* ===== Address rows (compact, no overflow) ===== */
     .addr-wrap .label{margin:0 0 6px}
     .addr-row{
+      position:relative;                 /* for absolute actions */
       width:100%;
       max-width:100%;
-      height:38px;                 /* compact height */
+      height:38px;
       overflow:hidden;
       display:flex; align-items:center; gap:8px;
       border:1px solid var(--line); background:#0c1428;
       border-radius:10px; padding:6px 8px;
-      box-sizing:border-box;
-      position:relative;
-      font-size:12px;              /* compact font */
+      font-size:12px;
     }
     .addr-left{display:flex;align-items:center;gap:8px;flex:0 0 auto}
     .addr-left .coin{font-weight:800;letter-spacing:.2px}
@@ -80,7 +79,7 @@
       flex:1 1 0%;
       min-width:0;
       overflow:hidden;
-      position:relative;
+      padding-right:84px;                /* reserve room for buttons */
       -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 38px), transparent 100%);
               mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 38px), transparent 100%);
       line-height:1;
@@ -94,14 +93,20 @@
     }
     .addr-row:hover .addr-marquee{ animation-play-state: paused }
     @keyframes addr-mar{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
-
-    .addr-actions{display:flex;gap:6px;flex:0 0 auto}
+    .addr-actions{
+      position:absolute; right:6px; top:3px; display:flex; gap:6px; height:32px;
+    }
     .icon-btn{
       width:32px;height:32px;border-radius:999px;border:1px solid var(--line);
       background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none;
-      flex:0 0 auto;font-size:16px;line-height:1;
+      font-size:16px;line-height:1;
     }
     .icon-btn:active{transform:scale(.96)}
+    @media (max-width:360px){
+      .addr-row{height:34px}
+      .addr-text{padding-right:76px}
+      .icon-btn{width:28px;height:28px;font-size:14px}
+    }
 
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
 
@@ -132,11 +137,13 @@
     .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer}
     .hero-x:hover{background:#132043}
 
-    /* QR modal centered */
+    /* QR modal centered (smaller & crisp) */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
     .modal.show{display:grid}
     .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px;max-width:90vw;text-align:center}
-    .modal-card img{display:block;max-width:260px;width:80vw;height:auto;margin:0 auto;border-radius:12px;border:1px solid #1e2a4d}
+    .modal-card img{
+      display:block;max-width:160px;width:60vw;height:auto;margin:0 auto;border-radius:12px;border:1px solid #1e2a4d;
+    }
 
     /* Extra safety */
     body{overflow-x:hidden}
@@ -472,7 +479,7 @@
       document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // Deposit — copy/QR
+    // Deposit — addresses helpers
     function addrValue(kind){
       if(kind==='btc') return $('#addr-btc').textContent.trim();
       if(kind==='trc20') return $('#addr-trc20').textContent.trim();
@@ -488,9 +495,10 @@
       const v = addrValue(kind);
       if(!v){ toast('Address not available'); return; }
       const title = {btc:'Bitcoin (BTC)', trc20:'USDT — TRC20', eth:'Ethereum (ERC20)'}[kind] || 'Address';
-      const url = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(v);
+      // crisp SVG QR at small size
+      const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=140x140&margin=2&data=' + encodeURIComponent(v);
       $('#qr-title').textContent = title;
-      $('#qr-addr').textContent = v;
+      $('#qr-addr').textContent  = v;
       $('#qr-img').src = url;
       $('#qr-modal').classList.add('show');
     }
