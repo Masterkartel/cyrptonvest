@@ -17,7 +17,7 @@
     input:focus{box-shadow:0 0 0 3px var(--ring)}
     .btn{width:100%;margin-top:14px;padding:12px;border-radius:999px;border:0;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0b0f19;font-weight:800;cursor:pointer}
     .err{display:none;margin-top:12px;background:#1a1320;border:1px solid #5b1d2a;color:#fecaca;border-radius:12px;padding:10px}
-    .row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+    .row{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:10px}
     a{color:#fbbf24;text-decoration:none}
   </style>
 </head>
@@ -37,14 +37,16 @@
       <div id="err" class="err"></div>
 
       <div class="row">
-        <div class="muted">No account? <a href="/signup.html">Create one</a></div>
+        <div class="muted">
+          No account? <a href="/signup.html">Create one</a><br>
+          <a href="/forgot.html">Forgot password?</a>
+        </div>
         <a href="/">Back home</a>
       </div>
     </form>
   </div>
 
   <script>
-    // Small helper that NEVER dumps raw HTML
     async function postJSON(url, body){
       const r = await fetch(url, {
         method: 'POST',
@@ -58,7 +60,6 @@
         if (!r.ok || data?.error) throw new Error(data?.error || `Request failed (${r.status})`);
         return data;
       } else {
-        // Response is HTML or something else → show a friendly message
         throw new Error(r.status >= 500
           ? 'Service temporarily unavailable. Please try again.'
           : `Request failed (${r.status})`);
