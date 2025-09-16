@@ -3,13 +3,21 @@ import { ensureAdmin } from '../_guard';
 export const onRequestPost: PagesFunction<{DB:D1Database}> = async (c) => {
   const guard = ensureAdmin(c); if (guard) return guard;
   const body = await c.req.json();
-  const { user_id, amount_cents, kind, note } = body as {
-    user_id: string; amount_cents: number; kind?: string; note?: string;
+  let { user_id, email, amount_cents, kind, note } = body as {
+    user_id?: string; email?: string; amount_cents: number; kind?: string; note?: string;
   };
 
-  if (!user_id || !amount_cents) return c.json({ ok:false, error:'missing' }, 400);
-
+  if ((!user_id && !email) || !amount_cents) return c.json({ ok:false, error:'missing' }, 400);
   const db = c.env.DB;
+
+  // Resolve id by email if needed
+  if (!user_id && email) {
+    const u = await db.prepare(`SELECT id FROM users WHERE email = ?`).bind(email).first();
+    if (!u) return c.json({ ok:false, error:'user_not_found' }, 404);
+    // @ts-ignore
+    user_id = u.id;
+  }
+
   const id = crypto.randomUUID();
   const now = Date.now();
 
@@ -25,5 +33,5 @@ export const onRequestPost: PagesFunction<{DB:D1Database}> = async (c) => {
     )
   ]);
 
-  return c.json({ ok:true, id });
+  return c.json({ ok:true, id, user_id });
 };
