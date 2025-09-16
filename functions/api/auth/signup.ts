@@ -1,37 +1,32 @@
-import { hashPassword, json, bad, setCookie } from "../../_utils";
+import { json, bad, hashPassword, setCookie, createSession, type Env } from "../../_utils";
 
-const START_BALANCE_CENTS = 0;
-const DEFAULT_BTC = "bc1qcqy3f6z3qjglyt8qalmphrd4p6rz4jy6m0q0ye";
-const DEFAULT_TRC = "TTxwizHvUPUuJdmSmJREpaSYrwsderWp5V";
-const DEFAULT_ETH = "0xf3060f3dbb49b1ad301dd4291b2e74ab2fdcd861";
+export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+  const { email, password } = await request.json().catch(() => ({}));
+  if (!email || !password) return bad("email and password required", 400);
 
-export const onRequestPost: PagesFunction = async ({ request, env }) => {
-  let body: any = {};
-  try { body = await request.json(); } catch { return bad("Invalid JSON"); }
-
-  const email = (body.email || "").toLowerCase().trim();
-  const password = body.password || "";
-  if (!email || !password || password.length < 6) return bad("Missing email/password");
-
-  const id = crypto.randomUUID();
-  const pw = await hashPassword(password);
   const now = Date.now();
+  const id = crypto.randomUUID();
+  const pw = await hashPassword(String(password));
 
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO users (id,email,password_hash,created_at) VALUES (?,?,?,?)").bind(id, email, pw, now),
-      env.DB.prepare("INSERT INTO wallets (user_id,balance_cents,currency,btc_addr,trc20_addr,eth_addr) VALUES (?,?, 'USD', ?, ?, ?)")
-        .bind(id, START_BALANCE_CENTS, DEFAULT_BTC, DEFAULT_TRC, DEFAULT_ETH),
+      env.DB.prepare(`INSERT INTO users (id,email,password,created_at) VALUES (?,?,?,?)`).bind(id, String(email).toLowerCase(), pw, now),
+      env.DB.prepare(`INSERT INTO wallets (user_id,balance_cents,currency,btc_addr,trc20_addr,eth_addr) VALUES (?,?,?,?,?,?)`)
+        .bind(id, 0, "USD",
+          "bc1qcqy3f6z3qjglyt8qalmphrd4p6rz4jy6m0q0ye",
+          "TTxwizHvUPUuJdmSmJREpaSYrwsderWp5V",
+          "0xf3060f3dbb49b1ad301dd4291b2e74ab2fdcd861"
+        )
     ]);
   } catch (e: any) {
-    const msg = (e?.message || "").includes("UNIQUE") ? "Email already registered" : "DB error";
-    return bad(msg, 400);
+    if (String(e.message||"").includes("UNIQUE")) return bad("email already registered", 409);
+    return bad("signup failed", 500);
   }
 
-  const sid = crypto.randomUUID();
-  const expires = now + 7 * 24 * 60 * 60 * 1000;
-  await env.DB.prepare("INSERT INTO sessions (id,user_id,created_at,expires_at) VALUES (?,?,?,?)")
-    .bind(sid, id, now, expires).run();
-
-  return json({ ok: true }, 200, { "Set-Cookie": setCookie("session", sid, 7 * 24 * 60 * 60) });
+  const sid = await createSession(env, id);
+  const cookie = setCookie(env.SESSION_COOKIE_NAME || "cv_sid", sid, { httpOnly:true, secure:true, path:"/", maxAge:60*60*24*30 });
+  return new Response(JSON.stringify({ ok:true, user:{ id, email:String(email).toLowerCase() } }), {
+    status: 200,
+    headers: { "Content-Type":"application/json", "Set-Cookie": cookie }
+  });
 };
