@@ -6,8 +6,6 @@
   <title>Dashboard — Cyrptonvest</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <meta name="description" content="Cyrptonvest dashboard: wallet, deposits, withdrawals, plans, and transactions." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -60,34 +58,35 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* ===== Address rows (compact, non-overflowing) ===== */
+    /* ===== Address rows (compact width, readable size) ===== */
     .addr-wrap .label{margin:0 0 6px}
     .addr-row{
-      position:relative;                 /* for absolute actions */
-      width:100%;
-      max-width:100%;
-      height:32px;                       /* smaller */
+      position:relative;
+      width:100%; max-width:100%;
+      height:40px;                        /* back to taller */
       overflow:hidden;
-      display:flex; align-items:center; gap:6px;
+      display:flex; align-items:center; gap:8px;
       border:1px solid var(--line); background:#0c1428;
-      border-radius:10px; padding:5px 8px;
-      font-size:11px; line-height:1;
+      border-radius:12px; padding:8px 10px;
+      font-size:13px; line-height:1;
     }
-    .addr-left{display:flex;align-items:center;gap:6px;flex:0 0 auto}
-    .addr-left .coin{font-weight:800;letter-spacing:.2px;font-size:11px}
+    .addr-left{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+    .addr-left .coin{font-weight:800;letter-spacing:.2px}
 
-    /* keep text short; reserve area for buttons */
+    /* Keep text SHORT horizontally; reserve space for buttons */
     .addr-text{
       flex:1 1 0%;
       min-width:0;
       overflow:hidden;
-      padding-right:70px;                /* room for 2 buttons */
-      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 32px), transparent 100%);
-              mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 32px), transparent 100%);
+      padding-right:74px;                 /* room for Copy + QR buttons */
+      /* fade edges so trimmed area looks nice */
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 36px), transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 36px), transparent 100%);
     }
-    /* quarter-length visible by reducing font + speed and clipping area */
+
+    /* Scrolling address */
     .addr-marquee{
-      display:inline-block; white-space:nowrap; padding-right:36px;
+      display:inline-block; white-space:nowrap; padding-right:40px;
       animation: addr-mar 24s linear infinite;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       letter-spacing:.2px;
@@ -96,10 +95,8 @@
     .addr-row:hover .addr-marquee{ animation-play-state: paused }
     @keyframes addr-mar{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
 
-    /* buttons pinned right so they are always visible */
-    .addr-actions{
-      position:absolute; right:6px; top:2px; display:flex; gap:6px; height:28px;
-    }
+    /* Buttons pinned right so always visible */
+    .addr-actions{ position:absolute; right:6px; top:6px; display:flex; gap:8px; height:28px; }
     .icon-btn{
       width:28px;height:28px;border-radius:999px;border:1px solid var(--line);
       background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none;
@@ -107,14 +104,16 @@
     }
     .icon-btn:active{transform:scale(.96)}
 
-    /* On very small screens, strictly limit text area width so buttons never squeeze out */
+    /* On phones, cap text width harder (shorten horizontally) */
     @media (max-width:420px){
       .row{grid-template-columns:1fr}
-      .addr-text{max-width:60%}
+      .addr-text{max-width:52%}           /* was ~full; now much shorter */
     }
-    @media (max-width:360px){
-      .addr-text{max-width:55%;padding-right:64px}
-      .icon-btn{width:26px;height:26px;font-size:13px}
+    @media (max-width:380px){
+      .addr-text{max-width:48%;padding-right:70px}
+    }
+    @media (max-width:340px){
+      .addr-text{max-width:44%}
     }
 
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
@@ -146,13 +145,17 @@
     .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer}
     .hero-x:hover{background:#132043}
 
-    /* QR modal: compact SVG with corner guards */
+    /* QR modal: perfectly centered inside guards */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
     .modal.show{display:grid}
     .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px 18px;max-width:90vw;text-align:center}
     .qr-title{margin:0 0 10px}
-    .qr-frame{position:relative;display:inline-block;padding:10px;border-radius:12px;background:#0b1328;border:1px solid #223055}
-    .qr-frame img{display:block;max-width:160px;width:60vw;height:auto}
+    .qr-frame{
+      position:relative;display:flex;align-items:center;justify-content:center;
+      width:min(70vw, 180px);height:min(70vw, 180px);
+      border-radius:12px;background:#0b1328;border:1px solid #223055;margin:0 auto;
+    }
+    .qr-frame img{display:block;width:70%;height:auto}
     .corner{position:absolute;width:18px;height:18px;border:2px solid #4f9cff}
     .corner.tl{top:6px;left:6px;border-right:none;border-bottom:none}
     .corner.tr{top:6px;right:6px;border-left:none;border-bottom:none}
@@ -160,7 +163,6 @@
     .corner.br{bottom:6px;right:6px;border-left:none;border-top:none}
 
     body{overflow-x:hidden}
-    .tradingview-widget-container iframe{pointer-events:auto}
   </style>
 </head>
 <body>
@@ -184,7 +186,7 @@
   </header>
 
   <!-- TradingView ticker -->
-  <div class="ticker-wrap" style="border-bottom:1px solid var(--line)">
+  <div style="border-bottom:1px solid var(--line)">
     <div class="tradingview-widget-container">
       <div class="tradingview-widget-container__widget"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
@@ -410,7 +412,6 @@
 
   <script>
     const $ = (s)=>document.querySelector(s);
-
     function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(), 3200); }
     async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
 
@@ -429,7 +430,7 @@
     });
     $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
-    // Top tabs
+    // Tabs (top)
     const topPanels = { wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw' };
     const topTabs   = { wallet:'#tab-wallet',   deposit:'#tab-dep',      withdraw:'#tab-wd' };
     function switchTop(which){
@@ -452,7 +453,7 @@
       });
     }
 
-    // Plan calculators (soft validation)
+    // Plan calculators
     function attachCalcSoft(id, rate, min, max){
       const amt = document.getElementById(id+'-amt');
       const warn = document.getElementById(id+'-warn');
@@ -488,7 +489,7 @@
       document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // Deposit — addresses helpers
+    // Deposit helpers
     function addrValue(kind){
       if(kind==='btc') return $('#addr-btc').textContent.trim();
       if(kind==='trc20') return $('#addr-trc20').textContent.trim();
@@ -504,7 +505,7 @@
       const v = addrValue(kind);
       if(!v){ toast('Address not available'); return; }
       const title = {btc:'Bitcoin (BTC)', trc20:'USDT — TRC20', eth:'Ethereum (ERC20)'}[kind] || 'Address';
-      const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=140x140&margin=2&data=' + encodeURIComponent(v);
+      const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=200x200&margin=2&data=' + encodeURIComponent(v);
       document.getElementById('qr-title').textContent = title;
       document.getElementById('qr-img').src = url;
       document.getElementById('qr-modal').classList.add('show');
@@ -563,7 +564,6 @@
       </tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody></table>`;
     }
 
-    // Profit total from API (best-effort if endpoint exists)
     async function fetchTotals(){
       try{
         const data = await api('/api/transactions');
@@ -584,12 +584,10 @@
 
       const totals = await fetchTotals();
 
-      // totals & balances
       $('#total-assets').innerHTML = `$${(totals.balance/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#total-profits').innerHTML = `$${(totals.profits/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#wd-balance').textContent = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
 
-      // addresses (hidden full + visible marquee)
       const a = totals.addrs;
       $('#addr-btc').textContent   = a.btc_addr   || '';
       $('#addr-trc20').textContent = a.trc20_addr || '';
@@ -603,7 +601,6 @@
 
       await renderTransactionsTable('tx-table', 50);
 
-      // plans
       const planCard = (id, name, min, max, rate, hours) => `
         <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0">
           <strong>${name}</strong>
