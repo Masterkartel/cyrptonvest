@@ -10,7 +10,7 @@ export type Env = {
 
   // Optional for email sending (Resend)
   RESEND_API_KEY?: string;          // re_****************
-  MAIL_FROM?: string;               // e.g. "Cryptonvest <noreply@cyrptonvest.com>"
+  MAIL_FROM?: string;               // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
   REPLY_TO?: string;                // e.g. "support@cyrptonvest.com"
 };
 
@@ -172,7 +172,7 @@ export async function hashPassword(plain: string) {
 export async function hashPasswordS256(plain: string) {
   const saltBytes = new Uint8Array(12);
   crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const salt = Array.from(saltBytes).map(b => b.toString(16).padStart(2,"0")).join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
 }
@@ -248,7 +248,7 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
   // If RESEND is configured, send real email
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const payload: Record<string, unknown> = {
-      from: env.MAIL_FROM,    // e.g. "Cryptonvest <noreply@cyrptonvest.com>"
+      from: env.MAIL_FROM,           // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
       to: [to],
       subject,
       html,
