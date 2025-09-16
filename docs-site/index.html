@@ -2,263 +2,310 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cyrptonvest — Alternative Investments, Reimagined</title>
-  <meta name="description" content="Cyrptonvest provides clear, transparent alternative-investment access with live market visibility. Not financial advice. Capital at risk." />
-  <meta property="og:title" content="Cyrptonvest — Alternative Investments, Reimagined" />
-  <meta property="og:description" content="Transparent access, live charts, and a disciplined risk-first approach." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://docs.cyrptonvest.com/" />
-  <meta property="og:image" content="/favicon.svg" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cyrptonvest — AI-Powered Investing</title>
+  <meta name="description" content="Cyrptonvest uses algorithmic strategies and 24/7 AI trading bots to grow your capital. Choose a plan, deposit crypto, and track results in real time." />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
     :root{
-      --bg:#0b0f19; --card:#0f1629; --muted:#9aa4b2; --text:#e6edf3; --line:#1d2640;
-      --brand:#f59e0b; --accent:#22c55e;
+      --bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;
+      --brand:#f59e0b;--ok:#22c55e;--ring:rgba(245,158,11,.3);
     }
     *{box-sizing:border-box}
-    html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif;scroll-behavior:smooth}
+    html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif}
     a{color:var(--brand);text-decoration:none}
-    a:hover{text-decoration:underline}
-    .container{max-width:1200px;margin:0 auto;padding:0 16px}
-    .nav{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0c1223,rgba(12,18,35,.4));backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid #11162b}
-    .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
+    .content{max-width:1200px;margin:0 auto;padding:0 16px}
+
+    /* Top bar */
+    .topbar{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0e152f,transparent);
+      border-bottom:1px solid var(--line)}
+    .tb-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
     .brand{display:flex;align-items:center;gap:10px;font-weight:800}
-    .brand img{width:28px;height:28px}
-    .menu{display:flex;gap:18px}
-    .menu a{color:var(--text);opacity:.92}
-    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 16px;font-weight:700}
-    .btn-outline{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:10px 16px;color:var(--text);background:#121a33}
-    header.hero{padding:80px 0 36px;background:radial-gradient(1200px 600px at 50% -200px,#1a2444,transparent)}
-    .title{font-size:44px;line-height:1.15;margin:0 0 10px;text-wrap:balance}
-    .subtitle{color:var(--muted);max-width:880px;margin:0 auto 20px}
-    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px auto 10px;max-width:960px}
-    .pill{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}
-    .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0e1426}
-    section{padding:48px 0;border-top:1px solid #0f1630}
-    .section-title{font-size:28px;margin:0 0 12px}
-    .grid2{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
-    .note{font-size:13px;color:var(--muted)}
-    .faq details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
-    .faq summary{cursor:pointer;font-weight:600}
-    footer{border-top:1px solid var(--line);padding:30px 0 60px;color:var(--muted);text-align:center}
-    @media (max-width: 1000px){
-      .kpis{grid-template-columns:1fr 1fr}
-      .grid2{grid-template-columns:1fr}
-      .title{font-size:34px}
-      .menu{display:none}
-    }
+    .brand img{width:22px;height:22px}
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;
+      padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
+    .tb-cta{display:flex;gap:10px;align-items:center}
+    .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:10px 14px;
+      font-weight:700;cursor:pointer}
+    .btn-primary{background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827}
+    .btn-ghost{background:#121a33;border:1px solid var(--line);color:#d1d5db}
+    .btn-ghost:hover{background:#162044}
+
+    /* Ticker strip */
+    .ticker-wrap{border-bottom:1px solid var(--line)}
+
+    /* Sections / cards */
+    .section{padding:24px 0}
+    .hero{background:
+      radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
+      radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.18), transparent 55%),
+      linear-gradient(180deg,#101934,#0c1226);
+      border:1px solid #27335a;border-radius:18px;padding:22px;position:relative;
+      box-shadow:0 20px 60px rgba(0,0,0,.28)}
+    .hero h1{margin:0 0 10px;font-size:34px;line-height:1.15}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:13px}
+    .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+    .muted{color:var(--muted)}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+    @media (max-width:900px){ .grid-3{grid-template-columns:1fr 1fr} }
+    @media (max-width:640px){ .grid-3,.grid-2{grid-template-columns:1fr} .hero h1{font-size:28px} }
+
+    .feat{display:flex;gap:12px}
+    .feat .ic{width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:#101a34;display:grid;place-items:center;font-size:20px}
+
+    /* Plan cards + soft calculators (same feel as dashboard) */
+    .plan{border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+    .plan h3{margin:0}
+    input,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
+    input:focus{box-shadow:0 0 0 3px var(--ring)}
+    .field-warn{color:#fca5a5;font-size:12px;margin-top:6px}
+
+    /* FAQ */
+    details{border:1px solid var(--line);border-radius:12px;padding:10px;background:#0f1629}
+    summary{cursor:pointer;font-weight:700}
+    details + details{margin-top:10px}
+
+    /* Footer */
+    footer{padding:24px 0;border-top:1px solid var(--line);color:#aab3c2}
+    .links{display:flex;gap:14px;flex-wrap:wrap}
   </style>
 </head>
 <body>
-  <!-- NAV -->
-  <nav class="nav">
-    <div class="container nav-inner">
-      <div class="brand"><img src="/assets/logo.svg" alt="Cyrptonvest logo" /> <span>Cyrptonvest</span></div>
-      <div class="menu" role="navigation" aria-label="Primary">
-        <a href="#live">Live Charts</a>
-        <a href="#approach">Approach</a>
-        <a href="#faq">FAQ</a>
-        <a href="#contact">Contact</a>
-      </div>
-      <div style="display:flex;gap:8px">
-        <a class="btn-outline" href="/login.html">Log in</a>
-        <a class="btn" href="/signup.html">Get Started</a>
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="content tb-inner">
+      <div class="brand"><img src="/assets/logo.svg" alt="logo"> Cyrptonvest</div>
+      <div class="tb-cta">
+        <span class="pill">UTC <span id="clock" style="margin-left:6px">--:--:--</span></span>
+        <a class="btn btn-ghost" href="/login.html">Log in</a>
+        <a class="btn btn-primary" href="/signup.html">Sign up</a>
       </div>
     </div>
-  </nav>
+  </div>
 
-  <!-- HERO -->
-  <header class="hero">
-    <div class="container" style="text-align:center">
-      <h1 class="title">Alternative investment access — with live market visibility</h1>
-      <p class="subtitle">Transparent access, clearly stated fees, and a disciplined, risk-first approach. Monitor key markets in real-time and manage everything from your secure dashboard.</p>
-      <div class="kpis">
-        <div class="pill">Fast onboarding • Email login</div>
-        <div class="pill">Wallet: balance • deposit • withdraw</div>
-        <div class="pill">Plans managed in dashboard</div>
-      </div>
-      <div style="margin-top:12px">
-        <a class="btn" href="/signup.html">Create account</a>
-        <span style="display:inline-block;width:8px"></span>
-        <a class="btn-outline" href="/login.html">I have an account</a>
-      </div>
-    </div>
-  </header>
-
-  <!-- TICKER (TradingView) -->
-  <div class="ticker">
-    <div class="container">
-      <div class="tradingview-widget-container">
+  <!-- Ticker -->
+  <div class="ticker-wrap">
+    <div class="content">
+      <div class="tradingview-widget-container" style="height:44px">
         <div class="tradingview-widget-container__widget"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
         {
           "symbols": [
-            {"proName": "OANDA:XAUUSD", "title": "Gold"},
-            {"proName": "OANDA:XAGUSD", "title": "Silver"},
-            {"proName": "BITSTAMP:BTCUSD", "title": "Bitcoin"},
-            {"proName": "FOREXCOM:EURUSD", "title": "EUR/USD"},
-            {"proName": "OANDA:USDKES", "title": "USD/KES"}
+            {"proName": "BITSTAMP:BTCUSD", "title": "BTC/USD"},
+            {"proName": "BITSTAMP:ETHUSD", "title": "ETH/USD"},
+            {"proName": "OANDA:XAUUSD",   "title": "Gold"},
+            {"proName": "OANDA:XAGUSD",   "title": "Silver"},
+            {"proName": "TVC:USOIL",      "title": "Oil"},
+            {"proName": "FX:EURUSD",      "title": "EUR/USD"},
+            {"proName": "FX:USDJPY",      "title": "USD/JPY"},
+            {"proName": "FX:GBPUSD",      "title": "GBP/USD"},
+            {"proName": "FX:AUDUSD",      "title": "AUD/USD"}
           ],
           "showSymbolLogo": true,
           "isTransparent": true,
           "displayMode": "adaptive",
-          "colorTheme": "dark"
+          "colorTheme": "dark",
+          "locale": "en"
         }
         </script>
       </div>
     </div>
   </div>
 
-  <!-- LIVE CHARTS + MARKET OVERVIEW -->
-  <section id="live">
-    <div class="container grid2">
-      <div class="card">
-        <h2 class="section-title">Live Advanced Chart</h2>
-        <div class="tradingview-widget-container" style="height:520px">
-          <div id="tvchart" style="height:500px"></div>
+  <!-- Hero -->
+  <section class="section">
+    <div class="content">
+      <div class="hero">
+        <h1>AI-powered trading. Smart bots. Real results.</h1>
+        <div class="chips">
+          <span class="chip">🤖 AI Bots</span>
+          <span class="chip">📊 Auto-Execution</span>
+          <span class="chip">⚙️ 24/7</span>
         </div>
-        <p class="note">Tip: use the symbol box to switch instruments (e.g., <code>BTCUSD</code>, <code>XAUUSD</code>, <code>EURUSD</code>, <code>USDKES</code>).</p>
-      </div>
-      <div class="card">
-        <h2 class="section-title">Market Overview</h2>
-        <div class="tradingview-widget-container">
-          <div class="tradingview-widget-container__widget"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
-          {
-            "colorTheme": "dark",
-            "dateRange": "12M",
-            "showChart": true,
-            "locale": "en",
-            "width": "100%",
-            "height": "520",
-            "tabs": [
-              {
-                "title": "FX",
-                "symbols": [
-                  {"s":"FOREXCOM:EURUSD"},
-                  {"s":"OANDA:USDKES"},
-                  {"s":"FOREXCOM:GBPUSD"},
-                  {"s":"FOREXCOM:USDJPY"}
-                ]
-              },
-              {
-                "title": "Metals & Crypto",
-                "symbols": [
-                  {"s":"OANDA:XAUUSD"},
-                  {"s":"OANDA:XAGUSD"},
-                  {"s":"BITSTAMP:BTCUSD"},
-                  {"s":"COINBASE:ETHUSD"}
-                ]
-              }
-            ]
-          }
-          </script>
+        <p class="muted">
+          Put your money to work while you sleep. Our algorithmic strategies scan crypto, forex, and commodities
+          24/7 to capture high-probability moves. Choose a plan, deposit crypto, and track your growth in real time.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/dashboard/#plans">Get started</a>
+          <a class="btn btn-ghost" href="#how">How it works</a>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- APPROACH -->
-  <section id="approach">
-    <div class="container grid2">
-      <div class="card">
-        <h2 class="section-title">Our approach</h2>
-        <p>We prioritize downside protection and clarity. Allocation rules, maximum drawdown thresholds, and de-risk triggers are documented and reviewed regularly. Execution uses reputable venues with strict custody standards.</p>
-        <ul>
-          <li>Risk-first allocation &amp; drawdown caps</li>
-          <li>Independent pricing &amp; reconciliations</li>
-          <li>Clear fees; no hidden charges</li>
-        </ul>
+  <!-- How it works -->
+  <section id="how" class="section">
+    <div class="content">
+      <div class="grid-3">
+        <div class="card feat">
+          <div class="ic">🧭</div>
+          <div>
+            <h3 style="margin:0 0 6px">Pick a plan</h3>
+            <p class="muted">Starter, Growth, or Professional — each with a defined range and timeframe.</p>
+          </div>
+        </div>
+        <div class="card feat">
+          <div class="ic">💸</div>
+          <div>
+            <h3 style="margin:0 0 6px">Deposit crypto</h3>
+            <p class="muted">Send BTC, USDT-TRC20, or ETH. Funds are credited after network confirmations.</p>
+          </div>
+        </div>
+        <div class="card feat">
+          <div class="ic">📈</div>
+          <div>
+            <h3 style="margin:0 0 6px">Track & withdraw</h3>
+            <p class="muted">Watch performance in your dashboard and withdraw securely when ready.</p>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <h2 class="section-title">Get started</h2>
-        <p>Open an account to access your wallet (balance, deposit, withdraw), manage plans, and view your full transaction history.</p>
-        <p>
-          <a class="btn" href="/signup.html">Create account</a>
-          <span style="display:inline-block;width:8px"></span>
-          <a class="btn-outline" href="/login.html">Log in</a>
-        </p>
-        <p class="note">Already funded? Deposits, withdrawals, and plan subscriptions are available inside your dashboard.</p>
-        <ul>
-          <li><a href="/policies/terms.html">Terms of Use</a></li>
-          <li><a href="/policies/privacy.html">Privacy Policy</a></li>
-          <li><a href="/policies/risk-disclosure.html">Risk Disclosure</a></li>
-        </ul>
+    </div>
+  </section>
+
+  <!-- Plans (with mini calculators) -->
+  <section class="section">
+    <div class="content">
+      <h2 style="margin:0 0 12px">Plans</h2>
+      <div class="grid-3">
+        <div class="card plan" id="p-starter">
+          <h3>Starter</h3>
+          <div class="muted">Range: $5–$10 • Profit: <strong>60%</strong> in 3h</div>
+          <label class="muted">Enter amount (USD)</label>
+          <input id="st-amt" type="number" step="0.01" placeholder="5" />
+          <div id="st-warn" class="field-warn" style="display:none"></div>
+          <div class="muted">Estimated return: <span id="st-out">—</span></div>
+          <a class="btn btn-primary" href="/dashboard/#plans" onclick="prefill( 'st-amt', 5,10,0.60 )">Start</a>
+        </div>
+
+        <div class="card plan" id="p-growth">
+          <h3>Growth</h3>
+          <div class="muted">Range: $50–$400 • Profit: <strong>140%</strong> in 6h</div>
+          <label class="muted">Enter amount (USD)</label>
+          <input id="gr-amt" type="number" step="0.01" placeholder="50" />
+          <div id="gr-warn" class="field-warn" style="display:none"></div>
+          <div class="muted">Estimated return: <span id="gr-out">—</span></div>
+          <a class="btn btn-primary" href="/dashboard/#plans" onclick="prefill( 'gr-amt', 50,400,1.40 )">Start</a>
+        </div>
+
+        <div class="card plan" id="p-pro">
+          <h3>Professional</h3>
+          <div class="muted">Range: $500–$10,000 • Profit: <strong>200%</strong> in 24h</div>
+          <label class="muted">Enter amount (USD)</label>
+          <input id="pr-amt" type="number" step="0.01" placeholder="500" />
+          <div id="pr-warn" class="field-warn" style="display:none"></div>
+          <div class="muted">Estimated return: <span id="pr-out">—</span></div>
+          <a class="btn btn-primary" href="/dashboard/#plans" onclick="prefill( 'pr-amt', 500,10000,2.00 )">Start</a>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:10px">Calculator is illustrative; ranges are enforced inside the dashboard when you fund a plan.</p>
+    </div>
+  </section>
+
+  <!-- Why section -->
+  <section class="section">
+    <div class="content">
+      <h2 style="margin:0 0 12px">Why Cyrptonvest</h2>
+      <div class="grid-3">
+        <div class="card"><strong>Institutional-style risk controls</strong><p class="muted">Position sizing, stop logic, and venue selection built into strategies.</p></div>
+        <div class="card"><strong>Global edge</strong><p class="muted">We monitor crypto, FX, and commodities around the clock.</p></div>
+        <div class="card"><strong>Fast, secure payouts</strong><p class="muted">Withdraw to BTC, USDT-TRC20, or ETH with clear status tracking.</p></div>
       </div>
     </div>
   </section>
 
   <!-- FAQ -->
-  <section id="faq">
-    <div class="container">
-      <h2 class="section-title">Frequently asked questions</h2>
-      <div class="faq">
-        <details><summary>Is Cyrptonvest regulated?</summary>
-          <p>Licensing depends on your exact services and jurisdictions. Consult your local regulator (e.g., CMA in Kenya) and obtain approvals before marketing or onboarding clients.</p>
-        </details>
-        <details><summary>How are funds held?</summary>
-          <p>Use reputable custodians and segregated accounts where applicable. Document your process in your onboarding pack.</p>
-        </details>
-        <details><summary>What are the fees?</summary>
-          <p>Publish a simple fee schedule with examples (management + performance, or flat tiers). Avoid hidden charges.</p>
-        </details>
+  <section class="section">
+    <div class="content">
+      <h2 style="margin:0 0 12px">FAQ</h2>
+      <div class="grid-2">
+        <div>
+          <details open>
+            <summary>How quickly are deposits credited?</summary>
+            <p class="muted">After required network confirmations and an automated review, you'll see it in your wallet balance.</p>
+          </details>
+          <details>
+            <summary>Which assets do you support?</summary>
+            <p class="muted">Deposits: BTC, USDT-TRC20, ETH. We also track XAUUSD, XAGUSD, Oil and major FX pairs in the dashboard.</p>
+          </details>
+        </div>
+        <div>
+          <details>
+            <summary>Can I withdraw anytime?</summary>
+            <p class="muted">You can request withdrawals from your wallet balance at any time. Plan-locked funds become available after the plan completes.</p>
+          </details>
+          <details>
+            <summary>Where can I read the policies?</summary>
+            <p class="muted"><a href="/policies/terms.html">Terms</a> • <a href="/policies/privacy.html">Privacy</a> • <a href="/policies/risk.html">Risk Disclosure</a></p>
+          </details>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- CONTACT -->
-  <section id="contact">
-    <div class="container grid2">
-      <div class="card">
-        <h2 class="section-title">Contact</h2>
-        <p>Email: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p>
-        <p>Office: Add your physical address and hours.</p>
-        <p class="note">For security, never send sensitive information over plain email. We will never ask for your password or one-time codes.</p>
-      </div>
-      <div class="card">
-        <h2 class="section-title">Stay informed</h2>
-        <p>Get monthly updates on strategy and risk. No spam.</p>
-        <form onsubmit="event.preventDefault(); window.location.href='mailto:support@cyrptonvest.com?subject=Subscribe&body=Please%20subscribe%20me%20to%20updates.';">
-          <input type="email" required placeholder="you@example.com" aria-label="Email address"
-                 style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:var(--text)">
-          <div style="height:10px"></div>
-          <button class="btn" type="submit">Subscribe</button>
-        </form>
+  <!-- Contact -->
+  <section class="section">
+    <div class="content">
+      <div class="card" style="display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center">
+        <div>
+          <h3 style="margin:0 0 6px">Need help?</h3>
+          <p class="muted" style="margin:0">Email us at <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p>
+        </div>
+        <div>
+          <a class="btn btn-ghost" href="/login.html">Log in</a>
+          <a class="btn btn-primary" href="/signup.html">Create account</a>
+        </div>
       </div>
     </div>
   </section>
 
+  <!-- Footer -->
   <footer>
-    <div class="container">
-      <p>© <span id="y"></span> Cyrptonvest • All rights reserved.</p>
-      <p class="note">Nothing on this website constitutes investment advice. Investing involves risk of loss. Past performance does not guarantee future results.</p>
+    <div class="content" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>© <span id="yr"></span> Cyrptonvest. All rights reserved.</div>
+      <div class="links">
+        <a href="/policies/terms.html">Terms</a>
+        <a href="/policies/privacy.html">Privacy</a>
+        <a href="/policies/risk.html">Risk</a>
+      </div>
     </div>
   </footer>
 
-  <!-- TradingView Advanced Chart -->
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script>
-    document.getElementById('y').textContent = new Date().getFullYear();
-    new TradingView.widget({
-      container_id: "tvchart",
-      autosize: true,
-      symbol: "OANDA:XAUUSD",
-      interval: "60",
-      theme: "dark",
-      style: "1",
-      locale: "en",
-      enable_publishing: false,
-      allow_symbol_change: true,
-      hide_side_toolbar: false,
-      withdateranges: true,
-      calendar: true,
-      studies: ["Volume@tv-basicstudies"]
-    });
+    // UTC clock
+    setInterval(()=>{ const d=new Date(); document.getElementById('clock').textContent=d.toISOString().slice(11,19); },1000);
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    // Soft calculators (same logic/tone as dashboard)
+    function attachCalcSoft(inpId, outId, warnId, rate, min, max){
+      const amt=document.getElementById(inpId), out=document.getElementById(outId), warn=document.getElementById(warnId);
+      const update=()=>{
+        const raw=amt.value.trim(); const v=parseFloat(raw);
+        if(!raw){ warn.style.display='block'; warn.textContent='Enter an amount'; out.textContent='—'; return; }
+        if(isNaN(v)){ warn.style.display='block'; warn.textContent='Not a number'; out.textContent='—'; return; }
+        if(v<min){ warn.style.display='block'; warn.textContent=`Minimum is $${min}`; out.textContent='—'; return; }
+        if(v>max){ warn.style.display='block'; warn.textContent=`Maximum is $${max}`; out.textContent='—'; return; }
+        warn.style.display='none';
+        const profit=v*rate, total=v+profit; out.textContent=`$${total.toFixed(2)} total ($${profit.toFixed(2)} profit)`;
+      };
+      amt.addEventListener('input', update); update();
+    }
+    attachCalcSoft('st-amt','st-out','st-warn',0.60,5,10);
+    attachCalcSoft('gr-amt','gr-out','gr-warn',1.40,50,400);
+    attachCalcSoft('pr-amt','pr-out','pr-warn',2.00,500,10000);
+
+    // When user clicks "Start" on a plan, we just navigate to dashboard plans.
+    // (If you later want to prefill an amount, you can store in localStorage.)
+    function prefill(id,min,max,rate){
+      const v = parseFloat((document.getElementById(id)?.value||'').trim());
+      if(!(v>=min && v<=max)) return; // soft check only; dashboard enforces again
+      try{ localStorage.setItem('cv_prefill_amount', String(v)); }catch{}
+    }
   </script>
 </body>
 </html>
