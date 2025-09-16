@@ -1,6 +1,5 @@
 // functions/_utils.ts
 // Shared helpers for Cloudflare Pages Functions
-// Provides all symbols referenced across your existing endpoints.
 
 export type Env = {
   DB: D1Database;
@@ -8,7 +7,7 @@ export type Env = {
   ADMIN_EMAIL?: string;
   ADMIN_PASSWORD?: string;
 
-  // Optional for email sending (Resend)
+  // Email (Resend)
   RESEND_API_KEY?: string;          // re_****************
   MAIL_FROM?: string;               // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
   REPLY_TO?: string;                // e.g. "support@cyrptonvest.com"
@@ -78,10 +77,8 @@ async function hmac(secret: string, msg: string) {
   return toBase64(new Uint8Array(sig));
 }
 
-/* ───────────────────────────── Sessions ──────────────────────────────── */
-// Supports both:
-//  A) Stateless cookie (payload.signature) signed with AUTH_COOKIE_SECRET
-//  B) DB-backed session id stored in `sessions` (id,user_id,created_at,expires_at)
+/* ───────────────────────── Sessions (two formats) ────────────────────── */
+// 1) Legacy signed cookie (payload.signature)
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
 export async function signSession(env: Env, session: Session) {
@@ -103,11 +100,9 @@ export async function verifySession(env: Env, token: string): Promise<Session | 
     return null;
   }
 }
-
 function buildCookie(token: string) {
   return `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`;
 }
-
 export async function setCookie(res: Response, env: Env, session: Session) {
   const token = await signSession(env, session);
   headerSetCookie(res, buildCookie(token));
@@ -115,72 +110,71 @@ export async function setCookie(res: Response, env: Env, session: Session) {
 export function clearCookie(res: Response) {
   headerSetCookie(res, `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
 }
-
-/** Back-compat name some files use */
 export async function createSession(env: Env, session: Session) {
   const token = await signSession(env, session);
-  return buildCookie(token); // callers can headerSetCookie(this)
+  return buildCookie(token);
 }
 export function destroySession(res: Response) {
   clearCookie(res);
 }
 
-/* ────────────────────── Auth guards / accessors ──────────────────────── */
-export async function getUserFromSession(req: Request, env: Env) {
-  const cookies = parseCookies(req);
-  const tokenOrSid = cookies[COOKIE_NAME];
-  if (!tokenOrSid) return null;
+// 2) New DB session cookie (opaque SID stored in D1 `sessions`)
+type DbSessionRow = {
+  id: string;          // SID
+  user_id: string;
+  expires_at: string;  // ISO
+};
+type DbUserRow = {
+  id: string;
+  email: string;
+  password_hash: string | null;
+  role?: string | null; // optional role column
+};
 
-  // Try stateless HMAC session first (has a dot)
-  if (tokenOrSid.includes(".")) {
-    const sess = await verifySession(env, tokenOrSid);
-    if (sess) return sess;
-    // fall-through to DB lookup if verify failed
+/** Look up SID in D1 and join user */
+async function loadSessionFromDB(env: Env, sid: string): Promise<Session | null> {
+  const row = await env.DB.prepare(
+    `SELECT id, user_id, expires_at FROM sessions WHERE id = ? LIMIT 1`
+  ).bind(sid).first<DbSessionRow | null>();
+
+  if (!row) return null;
+  // Expiry check (defensive; DB may already purge)
+  if (row.expires_at) {
+    const expMs = Date.parse(row.expires_at);
+    if (Number.isFinite(expMs) && Date.now() > expMs) return null;
   }
 
-  // DB session id path (created by /api/auth/login.ts)
-  try {
-    const nowSec = Math.floor(Date.now() / 1000);
-    const row = await env.DB.prepare(
-      `SELECT
-         s.id         AS sid,
-         s.user_id    AS user_id,
-         s.created_at AS created_at,
-         s.expires_at AS expires_at,
-         u.email      AS email
-       FROM sessions s
-       JOIN users u ON u.id = s.user_id
-       WHERE s.id = ?
-         AND (
-           -- expires_at stored as integer seconds
-           (typeof(s.expires_at) = 'integer' AND s.expires_at > ?)
-           OR
-           -- expires_at stored as text (ISO or SQLite DATETIME); convert to seconds
-           (typeof(s.expires_at) = 'text' AND CAST(strftime('%s', s.expires_at) AS INTEGER) > ?)
-         )
-       LIMIT 1`
-    ).bind(tokenOrSid, nowSec, nowSec).first<{
-      sid: string;
-      user_id: string;
-      created_at: string;
-      expires_at: number | string;
-      email: string;
-    }>();
+  const user = await env.DB.prepare(
+    `SELECT id, email, password_hash, COALESCE(role,'user') AS role FROM users WHERE id = ? LIMIT 1`
+  ).bind(row.user_id).first<DbUserRow | null>();
 
-    if (!row) return null;
+  if (!user) return null;
 
-    const role: "user" | "admin" =
-      env.ADMIN_EMAIL && row.email?.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
-        ? "admin"
-        : "user";
+  // Build Session shape expected by the app
+  return {
+    sub: user.id,
+    email: user.email,
+    role: (user.role === "admin" ? "admin" : "user"),
+    iat: Math.floor(Date.now() / 1000),
+  };
+}
 
-    const iat =
-      Math.floor(new Date(row.created_at).getTime() / 1000) ||
-      Math.floor(Date.now() / 1000);
+/* ────────────────────── Auth guards / accessors ──────────────────────── */
+/**
+ * Accepts BOTH:
+ *  - legacy token (contains a ".") → verifySession
+ *  - DB SID (opaque, no ".") → lookup in D1 `sessions` and `users`
+ */
+export async function getUserFromSession(req: Request, env: Env) {
+  const sidOrToken = parseCookies(req)[COOKIE_NAME];
+  if (!sidOrToken) return null;
 
-    return { sub: row.user_id, email: row.email, role, iat } as Session;
-  } catch {
-    return null;
+  if (sidOrToken.includes(".")) {
+    // legacy signed cookie
+    return await verifySession(env, sidOrToken);
+  } else {
+    // new DB session id
+    return await loadSessionFromDB(env, sidOrToken);
   }
 }
 
@@ -199,57 +193,37 @@ export async function requireAdmin(req: Request, env: Env) {
 }
 
 /* ───────────────────── Password / hashing helpers ────────────────────── */
-
-// Constant-time compare to avoid timing leaks
 function tsc(a: string, b: string) {
   if (a.length !== b.length) return false;
   let out = 0;
   for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
-
-// sha256 hex
 export async function sha256HexStr(s: string) {
   const data = new TextEncoder().encode(s);
   const buf = await crypto.subtle.digest("SHA-256", data);
   const bytes = new Uint8Array(buf);
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-
-/** Original (legacy) hash function: unsalted sha256$<hex> */
 export async function hashPassword(plain: string) {
   const hex = await sha256HexStr(plain);
   return `sha256$${hex}`;
 }
-
-/** Stronger salted hash used by reset flow if bcrypt isn't available */
 export async function hashPasswordS256(plain: string) {
   const saltBytes = new Uint8Array(12);
   crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2,"0")).join("");
+  const salt = Array.from(saltBytes).map(b => b.toString(16).padStart(2,"0")).join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
 }
-
-/**
- * Tries multiple formats:
- * - bcrypt: "$2a$" / "$2b$"  (only if bcryptjs present)
- * - salted sha256: "s256:<salt>$<hex>"
- * - legacy sha256: "sha256$<hex>"
- * - plain: "plain:<pw>" or bare match
- */
 export async function verifyPassword(plain: string, stored: string) {
   if (!stored || !plain) return false;
-
   try {
-    // bcrypt (optional if you later add bcryptjs dependency)
     if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
       // @ts-ignore
       const bcrypt = (await import("bcryptjs")).default;
       return await bcrypt.compare(plain, stored);
     }
-
-    // salted s256
     if (stored.startsWith("s256:")) {
       const rest = stored.slice(5);
       const [salt, hex] = rest.split("$");
@@ -257,26 +231,18 @@ export async function verifyPassword(plain: string, stored: string) {
       const digest = await sha256HexStr(salt + plain);
       return tsc(digest, hex);
     }
-
-    // legacy unsalted sha256
     if (stored.startsWith("sha256$")) {
       const want = stored.slice(7);
       const got = await sha256HexStr(plain);
       return tsc(got, want);
     }
-
-    // explicit plaintext
     if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
-
-    // last-resort bare compare
     return tsc(stored, plain);
   } catch (e) {
     console.error("verifyPassword error:", e);
     return false;
   }
 }
-
-/** Preferred hasher for resets: bcrypt if available; fallback to s256 */
 export async function hashPasswordBcrypt(plain: string) {
   try {
     // @ts-ignore
@@ -287,23 +253,20 @@ export async function hashPasswordBcrypt(plain: string) {
     return await hashPasswordS256(plain);
   }
 }
-
-/** Minimal password strength rule (tweak if you want) */
 export function isReasonablePassword(pw: string) {
   return typeof pw === "string" && pw.length >= 8;
 }
 
 /* ───────────────────────── Email helper (Resend) ─────────────────────── */
 export async function sendEmail(env: Env, to: string, subject: string, html: string) {
-  // If RESEND is configured, send real email
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const payload: Record<string, unknown> = {
-      from: env.MAIL_FROM,           // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
+      from: env.MAIL_FROM,
       to: [to],
       subject,
       html,
     };
-    if (env.REPLY_TO) payload.reply_to = env.REPLY_TO; // e.g. "support@cyrptonvest.com"
+    if (env.REPLY_TO) payload.reply_to = env.REPLY_TO;
 
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -319,11 +282,10 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
     }
     return;
   }
-  // Otherwise, log to Functions logs so you can grab the link during testing
   console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
 }
 
-/* ─────────────────────────── D1 convenience ──────────────────────────── */
+/* ─────────────────────────── D1 helpers ──────────────────────────────── */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
     `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
@@ -331,12 +293,6 @@ export async function getUserByEmail(env: Env, email: string) {
     id: string; email: string; password_hash: string; created_at: number;
   }>();
 }
-
-/**
- * db – flexible export:
- *  - call like a function:   db(env).prepare("SELECT 1")
- *  - or legacy helper:       db.getUserByEmail(env, email)
- */
 export const db: any = (env: Env) => env.DB;
 db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
