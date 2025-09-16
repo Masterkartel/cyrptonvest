@@ -1,42 +1,60 @@
 // functions/api/auth/signup.ts
 import {
-  json, bad, hashPassword, createSession, headerSetCookie, type Env,
+  json,
+  bad,
+  setCookie,
+  hashPasswordBcrypt,
+  getUserByEmail,
+  randomTokenHex,
+  type Env
 } from "../../_utils";
 
-type Req = { email?: string; password?: string };
-
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
-    const { email, password } = (await request.json().catch(() => ({}))) as Req;
-    if (!email || !password) return bad("Missing email or password");
+    const { env, request } = ctx;
 
-    const DB = env.DB as D1Database | undefined;
-    if (!DB) return json({ error: "DB binding missing" }, { status: 500 });
+    // 1) Parse body (and defend against non-JSON)
+    let body: any = {};
+    try {
+      body = await request.json();
+    } catch {
+      return bad("Invalid JSON body", 400);
+    }
 
-    // already exists?
-    const exists = await DB.prepare(`SELECT 1 FROM users WHERE lower(email)=lower(?) LIMIT 1`)
-      .bind(email).first();
-    if (exists) return bad("Email already registered");
+    const emailRaw = (body.email || "").trim();
+    const password = String(body.password || "");
 
-    const hash = await hashPassword(password);
-    const id = crypto.randomUUID();
-    await DB.batch([
-      DB.prepare(`INSERT INTO users (id, email, password_hash, is_active, created_at)
-                  VALUES (?1, ?2, ?3, 1, CURRENT_TIMESTAMP)`).bind(id, email, hash),
-      // optional: wallets row
-      DB.prepare(`INSERT OR IGNORE INTO wallets (user_id, balance_cents) VALUES (?1, 0)`)
-        .bind(id),
-    ]);
+    // 2) Basic validation
+    const email = emailRaw.toLowerCase();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailOk) return bad("Enter a valid email address", 400);
+    if (password.length < 8) return bad("Password must be at least 8 characters", 400);
 
-    const { cookieValue, expires } = await createSession(env, id);
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: {
-        "content-type": "application/json",
-        "set-cookie": headerSetCookie(env, cookieValue, expires),
-      },
-    });
-  } catch (e: any) {
-    return json({ error: `Signup failed: ${e?.message || e}` }, { status: 500 });
+    // 3) Already registered?
+    const existing = await getUserByEmail(env, email);
+    if (existing) return bad("Email is already registered", 409);
+
+    // 4) Hash password and insert
+    const id = randomTokenHex(16);
+    const hash = await hashPasswordBcrypt(password);
+    const created_at = Math.floor(Date.now() / 1000);
+
+    const stmt = env.DB.prepare(
+      `INSERT INTO users (id, email, password_hash, created_at)
+       VALUES (?, ?, ?, ?)`
+    ).bind(id, email, hash, created_at);
+
+    await stmt.run();
+
+    // 5) Create session cookie (admin role if matches ADMIN_EMAIL)
+    const role = email === (env.ADMIN_EMAIL || "").toLowerCase() ? "admin" : "user";
+    const res = json({ ok: true, user: { id, email, role } });
+    await setCookie(res, env, { sub: id, email, role, iat: Math.floor(Date.now() / 1000) });
+
+    return res;
+  } catch (err: any) {
+    // If something explodes, never leak HTML — return JSON error
+    console.error("signup error:", err);
+    return bad("Could not create account. Please try again.", 500);
   }
 };
