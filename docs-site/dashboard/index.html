@@ -58,63 +58,30 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* ===== Address rows (compact width, readable size) ===== */
-    .addr-wrap .label{margin:0 0 6px}
-    .addr-row{
-      position:relative;
-      width:100%; max-width:100%;
-      height:40px;                        /* back to taller */
-      overflow:hidden;
-      display:flex; align-items:center; gap:8px;
-      border:1px solid var(--line); background:#0c1428;
-      border-radius:12px; padding:8px 10px;
-      font-size:13px; line-height:1;
+    /* ===== NEW: Address lines (no big pill) ===== */
+    .addr-group{display:grid;gap:10px}
+    .addr-line{
+      display:flex;align-items:center;gap:10px;border-bottom:1px dashed #203054;padding:6px 0;
     }
-    .addr-left{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-    .addr-left .coin{font-weight:800;letter-spacing:.2px}
-
-    /* Keep text SHORT horizontally; reserve space for buttons */
+    .chip{display:inline-flex;align-items:center;gap:6px;background:#0f1a36;border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-weight:800;flex:0 0 auto}
     .addr-text{
-      flex:1 1 0%;
-      min-width:0;
-      overflow:hidden;
-      padding-right:74px;                 /* room for Copy + QR buttons */
-      /* fade edges so trimmed area looks nice */
-      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 36px), transparent 100%);
-              mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 36px), transparent 100%);
+      flex:1 1 auto; min-width:0; position:relative; height:22px; /* compact height */
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 40px), transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 40px), transparent 100%);
     }
-
-    /* Scrolling address */
-    .addr-marquee{
-      display:inline-block; white-space:nowrap; padding-right:40px;
-      animation: addr-mar 24s linear infinite;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      letter-spacing:.2px;
-      will-change: transform;
+    .addr-scroll{
+      position:absolute; left:0; top:0; white-space:nowrap;
+      animation:mar 22s linear infinite; font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing:.2px;
     }
-    .addr-row:hover .addr-marquee{ animation-play-state: paused }
-    @keyframes addr-mar{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
-
-    /* Buttons pinned right so always visible */
-    .addr-actions{ position:absolute; right:6px; top:6px; display:flex; gap:8px; height:28px; }
-    .icon-btn{
-      width:28px;height:28px;border-radius:999px;border:1px solid var(--line);
-      background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none;
-      font-size:14px;line-height:1;
-    }
+    .addr-text:hover .addr-scroll{animation-play-state:paused}
+    @keyframes mar{from{transform:translateX(0)} to{transform:translateX(-100%)}}
+    .addr-actions{flex:0 0 auto; display:flex; gap:6px}
+    .icon-btn{width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer}
     .icon-btn:active{transform:scale(.96)}
-
-    /* On phones, cap text width harder (shorten horizontally) */
-    @media (max-width:420px){
-      .row{grid-template-columns:1fr}
-      .addr-text{max-width:52%}           /* was ~full; now much shorter */
-    }
-    @media (max-width:380px){
-      .addr-text{max-width:48%;padding-right:70px}
-    }
-    @media (max-width:340px){
-      .addr-text{max-width:44%}
-    }
+    /* make sure the text area is shorter on small screens so buttons never get pushed */
+    @media (max-width:420px){ .addr-text{ max-width:55% } }
+    @media (max-width:380px){ .addr-text{ max-width:50% } }
+    @media (max-width:340px){ .addr-text{ max-width:46% } }
 
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
 
@@ -131,7 +98,7 @@
     .tab-panel{display:none}
     .tab-panel.active{display:block}
 
-    /* Hero card */
+    /* Hero */
     .hero{
       background:
         radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
@@ -145,22 +112,23 @@
     .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer}
     .hero-x:hover{background:#132043}
 
-    /* QR modal: perfectly centered inside guards */
+    /* ===== Reverted QR modal (QR + full address) ===== */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
     .modal.show{display:grid}
-    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px 18px;max-width:90vw;text-align:center}
+    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px 18px;max-width:min(92vw,460px);text-align:center}
     .qr-title{margin:0 0 10px}
     .qr-frame{
       position:relative;display:flex;align-items:center;justify-content:center;
-      width:min(70vw, 180px);height:min(70vw, 180px);
-      border-radius:12px;background:#0b1328;border:1px solid #223055;margin:0 auto;
+      width:min(80vw, 220px);height:min(80vw, 220px);
+      border-radius:12px;background:#0b1328;border:1px solid #223055;margin:0 auto 12px;
     }
-    .qr-frame img{display:block;width:70%;height:auto}
+    .qr-frame img{display:block;width:84%;height:auto}
     .corner{position:absolute;width:18px;height:18px;border:2px solid #4f9cff}
     .corner.tl{top:6px;left:6px;border-right:none;border-bottom:none}
     .corner.tr{top:6px;right:6px;border-left:none;border-bottom:none}
     .corner.bl{bottom:6px;left:6px;border-right:none;border-top:none}
     .corner.br{bottom:6px;right:6px;border-left:none;border-top:none}
+    .qr-address{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;color:#cbd5e1;word-break:break-all;background:#0b1328;border:1px solid #223055;border-radius:10px;padding:8px}
 
     body{overflow-x:hidden}
   </style>
@@ -267,44 +235,35 @@
         <div id="panel-deposit" class="panel" style="display:none">
           <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
 
-          <div class="addr-wrap" style="display:grid;gap:10px">
-            <div>
-              <div class="label muted">Bitcoin (BTC)</div>
-              <div class="addr-row">
-                <div class="addr-left"><span class="coin">BTC</span></div>
-                <div class="addr-text"><span id="addr-btc-vis" class="addr-marquee"></span></div>
-                <div class="addr-actions">
-                  <button class="icon-btn" aria-label="Copy BTC" onclick="copyAddr('btc')">⧉</button>
-                  <button class="icon-btn" aria-label="QR BTC"   onclick="showQr('btc')">▦</button>
-                </div>
-                <span id="addr-btc" hidden></span>
-              </div>
+          <div class="addr-group">
+            <div class="addr-line">
+              <span class="chip">BTC</span>
+              <span class="addr-text" title="Bitcoin address"><span id="addr-btc-vis" class="addr-scroll"></span></span>
+              <span class="addr-actions">
+                <button class="icon-btn" aria-label="Copy BTC" onclick="copyAddr('btc')">⧉</button>
+                <button class="icon-btn" aria-label="QR BTC"   onclick="showQr('btc')">▦</button>
+              </span>
+              <span id="addr-btc" hidden></span>
             </div>
 
-            <div>
-              <div class="label muted">USDT — TRON (TRC20)</div>
-              <div class="addr-row">
-                <div class="addr-left"><span class="coin">USDT-TRC20</span></div>
-                <div class="addr-text"><span id="addr-trc20-vis" class="addr-marquee"></span></div>
-                <div class="addr-actions">
-                  <button class="icon-btn" aria-label="Copy TRC20" onclick="copyAddr('trc20')">⧉</button>
-                  <button class="icon-btn" aria-label="QR TRC20"   onclick="showQr('trc20')">▦</button>
-                </div>
-                <span id="addr-trc20" hidden></span>
-              </div>
+            <div class="addr-line">
+              <span class="chip">USDT-TRC20</span>
+              <span class="addr-text" title="USDT TRC20 address"><span id="addr-trc20-vis" class="addr-scroll"></span></span>
+              <span class="addr-actions">
+                <button class="icon-btn" aria-label="Copy TRC20" onclick="copyAddr('trc20')">⧉</button>
+                <button class="icon-btn" aria-label="QR TRC20"   onclick="showQr('trc20')">▦</button>
+              </span>
+              <span id="addr-trc20" hidden></span>
             </div>
 
-            <div>
-              <div class="label muted">Ethereum (ERC20)</div>
-              <div class="addr-row">
-                <div class="addr-left"><span class="coin">ETH-ERC20</span></div>
-                <div class="addr-text"><span id="addr-eth-vis" class="addr-marquee"></span></div>
-                <div class="addr-actions">
-                  <button class="icon-btn" aria-label="Copy ERC20" onclick="copyAddr('eth')">⧉</button>
-                  <button class="icon-btn" aria-label="QR ERC20"   onclick="showQr('eth')">▦</button>
-                </div>
-                <span id="addr-eth" hidden></span>
-              </div>
+            <div class="addr-line">
+              <span class="chip">ETH-ERC20</span>
+              <span class="addr-text" title="ETH ERC20 address"><span id="addr-eth-vis" class="addr-scroll"></span></span>
+              <span class="addr-actions">
+                <button class="icon-btn" aria-label="Copy ERC20" onclick="copyAddr('eth')">⧉</button>
+                <button class="icon-btn" aria-label="QR ERC20"   onclick="showQr('eth')">▦</button>
+              </span>
+              <span id="addr-eth" hidden></span>
             </div>
           </div>
 
@@ -342,7 +301,7 @@
           <div style="display:grid;gap:10px">
             <div>
               <label class="muted">BTC address</label>
-              <div class="addr-row">
+              <div class="addr-line">
                 <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
@@ -351,7 +310,7 @@
 
             <div>
               <label class="muted">USDT-TRC20 address</label>
-              <div class="addr-row">
+              <div class="addr-line">
                 <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
@@ -360,7 +319,7 @@
 
             <div>
               <label class="muted">ETH-ERC20 address</label>
-              <div class="addr-row">
+              <div class="addr-line">
                 <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
@@ -398,7 +357,7 @@
   <!-- Toasts -->
   <div id="toasts" style="position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:99"></div>
 
-  <!-- QR Modal -->
+  <!-- QR Modal (reverted: includes address) -->
   <div id="qr-modal" class="modal" onclick="closeQr(event)">
     <div class="modal-card">
       <div class="qr-title muted" id="qr-title">Address</div>
@@ -407,6 +366,7 @@
         <span class="corner bl"></span><span class="corner br"></span>
         <img id="qr-img" alt="QR code" />
       </div>
+      <div id="qr-addr" class="qr-address"></div>
     </div>
   </div>
 
@@ -505,9 +465,10 @@
       const v = addrValue(kind);
       if(!v){ toast('Address not available'); return; }
       const title = {btc:'Bitcoin (BTC)', trc20:'USDT — TRC20', eth:'Ethereum (ERC20)'}[kind] || 'Address';
-      const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=200x200&margin=2&data=' + encodeURIComponent(v);
+      const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=240x240&margin=2&data=' + encodeURIComponent(v);
       document.getElementById('qr-title').textContent = title;
       document.getElementById('qr-img').src = url;
+      document.getElementById('qr-addr').textContent = v;
       document.getElementById('qr-modal').classList.add('show');
     }
     function closeQr(e){ if(e.target.id==='qr-modal') document.getElementById('qr-modal').classList.remove('show'); }
