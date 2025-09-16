@@ -1,298 +1,622 @@
-// functions/_utils.ts
-// Shared helpers for Cloudflare Pages Functions
-// Provides all symbols referenced across your existing endpoints.
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dashboard — Cyrptonvest</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <meta name="description" content="Cyrptonvest dashboard: wallet, deposits, withdrawals, plans, and transactions."/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0b0f19;--panel:#0f1629;--panel-2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;--brand:#f59e0b;--ok:#22c55e;--warn:#f97316;--ring:rgba(245,158,11,.35)}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif}
+    a{color:var(--brand);text-decoration:none}
 
-export type Env = {
-  DB: D1Database;
-  AUTH_COOKIE_SECRET: string;
-  ADMIN_EMAIL?: string;
-  ADMIN_PASSWORD?: string;
+    .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e152f,transparent)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .brand img{width:22px;height:22px}
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
+    .content{max-width:1200px;margin:0 auto}
 
-  // Optional for email sending (Resend)
-  RESEND_API_KEY?: string;          // re_****************
-  MAIL_FROM?: string;               // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
-  REPLY_TO?: string;                // e.g. "support@cyrptonvest.com"
-};
+    .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer;transition:transform .2s ease}
+    .avatar:hover{transform:translateY(-1px)}
+    .dropdown{position:absolute;top:56px;right:16px;background:#0f1629;border:1px solid var(--line);border-radius:12px;min-width:240px;display:none;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .dropdown.show{display:block}
+    .dropdown .hd{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700}
+    .dropdown a{display:block;color:#e6edf3;padding:10px 12px;text-decoration:none;transition:background .2s ease}
+    .dropdown a:hover{background:#121d3a}
 
-const COOKIE_NAME = "cv_session";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+    .section{padding:16px}
+    .card{
+      background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden;
+      transform:translateY(8px);opacity:0;animation:cardIn .6s cubic-bezier(.16,1,.3,1) forwards;
+      transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;
+    }
+    .section .card:nth-of-type(1){animation-delay:.02s}
+    .section .card:nth-of-type(2){animation-delay:.08s}
+    .section .card:nth-of-type(3){animation-delay:.14s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(0,0,0,.28)}
+    @keyframes cardIn{to{transform:translateY(0);opacity:1}}
+    .card h2{margin:0 0 12px}
+    .muted{color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
-/* ───────────────────────── Response helpers ──────────────────────────── */
-export function json(
-  data: unknown,
-  status: number = 200,
-  headers: HeadersInit = {}
-) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json", ...headers },
-  });
-}
-export function bad(message = "Bad request", status = 400) {
-  return json({ ok: false, error: message }, status);
-}
+    .switch{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+    .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700;transition:background .2s ease,transform .15s ease}
+    .switch button:active{transform:scale(.98)}
+    .switch button.active{background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0b0f19;box-shadow:0 0 0 2px rgba(251,191,36,.25) inset;position:relative}
+    .switch button.active::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 120% at 50% -20%,rgba(255,255,255,.25),transparent 60%);pointer-events:none;mix-blend-mode:overlay;animation:activeSheen 2.5s linear infinite}
+    @keyframes activeSheen{0%{opacity:.25}50%{opacity:.05}100%{opacity:.25}}
+    .panel{border:1px solid var(--line);background:#0d1530;border-radius:12px;padding:12px;position:relative;z-index:1}
 
-/* ───────────────────────── Cookie helpers ────────────────────────────── */
-export function parseCookies(req: Request): Record<string, string> {
-  const raw = req.headers.get("cookie") || "";
-  const out: Record<string, string> = {};
-  raw.split(/;\s*/).forEach((p) => {
-    const i = p.indexOf("=");
-    if (i > -1) out[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
-  });
-  return out;
-}
-export const cookieName = COOKIE_NAME;
+    .topcard{background:
+        radial-gradient(1200px 600px at -10% -20%, rgba(245,158,11,.20), transparent 60%),
+        radial-gradient(900px 500px at 120% -10%, rgba(34,197,94,.18), transparent 55%),
+        linear-gradient(180deg,#0f1629 0%,#0b1226 100%);border-color:#243055}
+    .topcard .panel{background:rgba(10,16,34,.75);backdrop-filter:blur(2px)}
 
-export function headerSetCookie(resOrHeaders: Response | Headers, value: string) {
-  if (resOrHeaders instanceof Response) {
-    resOrHeaders.headers.append("set-cookie", value);
-  } else {
-    resOrHeaders.append("set-cookie", value);
-  }
-}
+    .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
+    .kpi:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(0,0,0,.24);border-color:#2a3761}
+    .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-/* ───────────────────── Token (HMAC, URL-safe b64) ───────────────────── */
-function toBase64(u8: Uint8Array) {
-  let str = "";
-  u8.forEach((b) => (str += String.fromCharCode(b)));
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-function fromBase64(s: string) {
-  s = s.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = s.length % 4 ? 4 - (s.length % 4) : 0;
-  const bin = atob(s + "=".repeat(pad));
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-async function hmac(secret: string, msg: string) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
-  return toBase64(new Uint8Array(sig));
-}
+    .addr-group{display:grid;gap:10px}
+    .addr-line{display:flex;align-items:center;gap:10px;border-bottom:1px dashed #203054;padding:6px 0;transition:background .2s ease,border-color .2s ease}
+    .addr-line:hover{background:rgba(17,29,55,.3);border-color:#2a3a66}
+    .chip{display:inline-flex;align-items:center;gap:6px;background:#0f1a36;border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-weight:800;flex:0 0 auto}
+    .addr-text{flex:1 1 auto;min-width:0;position:relative;height:22px;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 40px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 40px),transparent 100%)}
+    .addr-scroll{position:absolute;left:0;top:0;white-space:nowrap;animation:mar 22s linear infinite;font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2px}
+    .addr-text:hover .addr-scroll{animation-play-state:paused}
+    @keyframes mar{from{transform:translateX(0)} to{transform:translateX(-100%)}}
+    .addr-actions{flex:0 0 auto;display:flex;gap:6px}
+    .icon-btn{width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;transition:transform .1s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease}
+    .icon-btn:hover{box-shadow:0 6px 14px rgba(0,0,0,.25);border-color:#2a3a66;background:#112049}
+    .icon-btn:active{transform:scale(.94)}
 
-/* ───────────────────────────── Sessions ──────────────────────────────── */
-// Stateless cookie session, signed with AUTH_COOKIE_SECRET
-export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,.15);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,158,11,.22)}
+    .btn:active{transform:translateY(0);filter:saturate(.96)}
 
-export async function signSession(env: Env, session: Session) {
-  const payload = toBase64(new TextEncoder().encode(JSON.stringify(session)));
-  const sig = await hmac(env.AUTH_COOKIE_SECRET, payload);
-  return `${payload}.${sig}`;
-}
-export async function verifySession(env: Env, token: string): Promise<Session | null> {
-  const [payload, sig] = token.split(".");
-  if (!payload || !sig) return null;
-  const expSig = await hmac(env.AUTH_COOKIE_SECRET, payload);
-  if (sig !== expSig) return null;
-  try {
-    const jsonStr = new TextDecoder().decode(fromBase64(payload));
-    const sess = JSON.parse(jsonStr) as Session;
-    if (!sess?.sub || !sess?.email || !sess?.role) return null;
-    return sess;
-  } catch {
-    return null;
-  }
-}
+    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none;pointer-events:auto;position:relative;z-index:2;transition:box-shadow .2s ease,border-color .2s ease}
+    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring);animation:focusPulse 1.2s ease-out 1;border-color:#314077}
+    @keyframes focusPulse{0%{box-shadow:0 0 0 0 var(--ring)}100%{box-shadow:0 0 0 3px var(--ring)}}
+    .field-warn{color:#fca5a5;font-size:12px;margin-top:6px}
+    input.input-error{box-shadow:0 0 0 3px rgba(239,68,68,.25);border-color:#ef4444}
 
-function buildCookie(token: string) {
-  return `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`;
-}
+    .tabs-2 .switch{grid-template-columns:1fr 1fr}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
 
-export async function setCookie(res: Response, env: Env, session: Session) {
-  const token = await signSession(env, session);
-  headerSetCookie(res, buildCookie(token));
-}
-export function clearCookie(res: Response) {
-  headerSetCookie(res, `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
-}
+    .hero{background:
+        radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
+        radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.18), transparent 55%),
+        linear-gradient(180deg,#101934,#0c1226);border-color:#27335a;position:relative}
+    .hero h1{margin:0 0 8px;font-size:28px;line-height:1.15}
+    .hero h1 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:13px;margin-left:8px}
+    .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+    .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer;transition:transform .2s ease,background .2s ease}
+    .hero-x:hover{background:#132043;transform:rotate(4deg)}
 
-/** Back-compat name some files use */
-export async function createSession(env: Env, session: Session) {
-  const token = await signSession(env, session);
-  return buildCookie(token); // callers can headerSetCookie(this)
-}
-export function destroySession(res: Response) {
-  clearCookie(res);
-}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
+    .modal.show .modal-card{animation:modalIn .28s ease-out both}
+    @keyframes modalIn{from{transform:translateY(12px) scale(.98);opacity:0} to{transform:translateY(0) scale(1);opacity:1}}
+    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px 18px;max-width:min(92vw,460px);text-align:center}
+    .qr-title{margin:0 0 10px}
+    .qr-frame{position:relative;display:flex;align-items:center;justify-content:center;width:min(80vw,220px);height:min(80vw,220px);border-radius:12px;background:#0b1328;border:1px solid #223055;margin:0 auto 12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .qr-frame img{display:block;width:84%;height:auto}
+    .corner{position:absolute;width:18px;height:18px;border:2px solid #4f9cff}
+    .corner.tl{top:6px;left:6px;border-right:none;border-bottom:none}
+    .corner.tr{top:6px;right:6px;border-left:none;border-bottom:none}
+    .corner.bl{bottom:6px;left:6px;border-right:none;border-top:none}
+    .corner.br{bottom:6px;right:6px;border-left:none;border-top:none}
+    .qr-address{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;color:#cbd5e1;word-break:break-all;background:#0b1328;border:1px solid #223055;border-radius:10px;padding:8px}
 
-/* ────────────────────── Auth guards / accessors ──────────────────────── */
-export async function getUserFromSession(req: Request, env: Env) {
-  const token = parseCookies(req)[COOKIE_NAME];
-  if (!token) return null;
-  return await verifySession(env, token);
-}
+    body{overflow-x:hidden}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="/assets/logo.svg" alt="logo"> Cyrptonvest</div>
+    <div style="display:flex;align-items:center;gap:10px;position:relative">
+      <div class="pill">UTC <span id="clock" style="margin-left:6px">--:--:--</span></div>
+      <div id="avatar" class="avatar" title="Menu">?</div>
+      <nav id="dropdown" class="dropdown">
+        <div class="hd" id="dd-email">—</div>
+        <a href="#overview" data-nav>Overview</a>
+        <a href="#wallet" data-nav>Wallet</a>
+        <a href="#plans" data-nav>Plans</a>
+        <a href="#history" data-nav>Transactions</a>
+        <a href="#settings" data-nav>Settings</a>
+        <a href="#support" data-nav>Support</a>
+        <a href="#" id="menu-logout">Log out</a>
+      </nav>
+    </div>
+  </header>
 
-export async function requireAuth(req: Request, env: Env): Promise<Session> {
-  const sess = await getUserFromSession(req, env);
-  if (!sess) throw json({ error: "Unauthorized" }, 401);
-  return sess;
-}
-export async function requireUser(req: Request, env: Env) {
-  return getUserFromSession(req, env);
-}
-export async function requireAdmin(req: Request, env: Env) {
-  const sess = await getUserFromSession(req, env);
-  if (!sess || sess.role !== "admin") throw json({ error: "Forbidden" }, 403);
-  return sess;
-}
+  <!-- Ticker -->
+  <div style="border-bottom:1px solid var(--line)">
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+      {
+        "symbols":[
+          {"proName":"BITSTAMP:BTCUSD","title":"BTC/USD"},
+          {"proName":"BITSTAMP:ETHUSD","title":"ETH/USD"},
+          {"proName":"OANDA:XAUUSD","title":"Gold"},
+          {"proName":"OANDA:XAGUSD","title":"Silver"},
+          {"proName":"TVC:USOIL","title":"Oil"},
+          {"proName":"FX:EURUSD","title":"EUR/USD"},
+          {"proName":"FX:USDJPY","title":"USD/JPY"},
+          {"proName":"FX:GBPUSD","title":"GBP/USD"},
+          {"proName":"FX:AUDUSD","title":"AUD/USD"}
+        ],
+        "showSymbolLogo":true,"isTransparent":true,"displayMode":"adaptive","colorTheme":"dark","locale":"en"
+      }
+      </script>
+    </div>
+  </div>
 
-/* ───────────────────── Password / hashing helpers ────────────────────── */
+  <!-- Hero -->
+  <section id="hero-wrap" class="section">
+    <div class="card hero">
+      <button class="hero-x" aria-label="Dismiss" onclick="dismissHero()">✕</button>
+      <h1>
+        AI-powered trading. Smart bots. Real results.
+        <span class="chip">🤖 AI Bots</span>
+        <span class="chip">📊 Auto-Execution</span>
+        <span class="chip">⚙️ 24/7</span>
+      </h1>
+      <p class="muted"><strong>Cyrptonvest</strong> uses algorithmic strategies and automated trade execution
+      to work the markets 24/7. Choose a plan, deposit crypto, and let our bots go to work.
+      Track your growth in real time and withdraw securely once your plan completes.</p>
+      <div class="hero-actions">
+        <button class="btn" onclick="startInvesting()">Start Investing</button>
+      </div>
+    </div>
+  </section>
 
-// Constant-time compare to avoid timing leaks
-function tsc(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return out === 0;
-}
+  <main class="content">
+    <!-- Wallet / Deposit / Withdraw -->
+    <section id="section-main" class="section">
+      <div class="card topcard">
+        <div class="switch" style="grid-template-columns:1fr 1fr 1fr">
+          <button id="tab-wallet" class="active" onclick="switchTop('wallet')">Wallet</button>
+          <button id="tab-dep" onclick="switchTop('deposit')">Deposit</button>
+          <button id="tab-wd" onclick="switchTop('withdraw')">Withdraw</button>
+        </div>
 
-// sha256 hex
-export async function sha256HexStr(s: string) {
-  const data = new TextEncoder().encode(s);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  const bytes = new Uint8Array(buf);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+        <div id="panel-wallet" class="panel">
+          <div class="row">
+            <div class="kpi">
+              <div class="wallet-icon">💼</div>
+              <div><div class="muted">Total assets</div>
+                <div id="total-assets" style="font-size:28px;font-weight:800">$0.00 <span class="muted" style="font-size:14px">USD</span></div>
+              </div>
+            </div>
+            <div class="kpi">
+              <div class="wallet-icon">📈</div>
+              <div><div class="muted">Total profits</div>
+                <div id="total-profits" style="font-size:28px;font-weight:800">$0.00 <span class="muted" style="font-size:14px">USD</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-/** Original (legacy) hash function: unsalted sha256$<hex> */
-export async function hashPassword(plain: string) {
-  const hex = await sha256HexStr(plain);
-  return `sha256$${hex}`;
-}
+        <div id="panel-deposit" class="panel" style="display:none">
+          <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
+          <div class="addr-group">
+            <div class="addr-line">
+              <span class="chip">BTC</span>
+              <span class="addr-text" title="Bitcoin address"><span id="addr-btc-vis" class="addr-scroll"></span></span>
+              <span class="addr-actions">
+                <button class="icon-btn" aria-label="Copy BTC" onclick="copyAddr('btc')">⧉</button>
+                <button class="icon-btn" aria-label="QR BTC" onclick="showQr('btc')">▦</button>
+              </span>
+              <span id="addr-btc" hidden></span>
+            </div>
+            <div class="addr-line">
+              <span class="chip">USDT-TRC20</span>
+              <span class="addr-text" title="USDT TRC20 address"><span id="addr-trc20-vis" class="addr-scroll"></span></span>
+              <span class="addr-actions">
+                <button class="icon-btn" aria-label="Copy TRC20" onclick="copyAddr('trc20')">⧉</button>
+                <button class="icon-btn" aria-label="QR TRC20" onclick="showQr('trc20')">▦</button>
+              </span>
+              <span id="addr-trc20" hidden></span>
+            </div>
+            <div class="addr-line">
+              <span class="chip">ETH-ERC20</span>
+              <span class="addr-text" title="ETH ERC20 address"><span id="addr-eth-vis" class="addr-scroll"></span></span>
+              <span class="addr-actions">
+                <button class="icon-btn" aria-label="Copy ERC20" onclick="copyAddr('eth')">⧉</button>
+                <button class="icon-btn" aria-label="QR ERC20" onclick="showQr('eth')">▦</button>
+              </span>
+              <span id="addr-eth" hidden></span>
+            </div>
+          </div>
 
-/** Stronger salted hash used by reset flow if bcrypt isn't available */
-export async function hashPasswordS256(plain: string) {
-  const saltBytes = new Uint8Array(12);
-  crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map(b => b.toString(16).padStart(2,"0")).join("");
-  const hex = await sha256HexStr(salt + plain);
-  return `s256:${salt}$${hex}`;
-}
+          <div style="height:10px"></div>
+          <div class="row">
+            <div>
+              <label class="muted">TXID / Hash <span style="color:#ef4444">*</span></label>
+              <input id="dep-txid" placeholder="Paste TXID here"/>
+              <div id="dep-warn" class="field-warn" style="display:none">Enter BOTH TXID and Amount.</div>
+            </div>
+            <div>
+              <label class="muted">Amount (USD) <span style="color:#ef4444">*</span></label>
+              <input id="dep-amount" type="number" step="0.01" placeholder="100.00"/>
+            </div>
+          </div>
+          <div style="height:10px"></div>
+          <button class="btn" onclick="submitDeposit()">I sent funds</button>
+          <p class="muted" style="font-size:12px;margin-top:6px">We credit after network confirmations and review.</p>
+        </div>
 
-/**
- * Tries multiple formats:
- * - bcrypt: "$2a$" / "$2b$"  (only if bcryptjs present)
- * - salted sha256: "s256:<salt>$<hex>"
- * - legacy sha256: "sha256$<hex>"
- * - plain: "plain:<pw>" or bare match
- */
-export async function verifyPassword(plain: string, stored: string) {
-  if (!stored || !plain) return false;
+        <div id="panel-withdraw" class="panel" style="display:none">
+          <div class="row">
+            <div><div class="muted">Balance</div><div id="wd-balance" style="font-weight:800;font-size:20px">$0.00 USD</div></div>
+            <div><label class="muted">Amount (USD)</label><input id="wd-amount" type="number" step="0.01" placeholder="50.00"/></div>
+          </div>
+          <div style="height:8px"></div>
 
-  try {
-    // bcrypt (optional if you later add bcryptjs dependency)
-    if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
-      // dynamic import so build doesn’t fail if not installed
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      const bcrypt = (await import("bcryptjs")).default;
-      return await bcrypt.compare(plain, stored);
+          <div style="display:grid;gap:10px">
+            <div>
+              <label class="muted">BTC address</label>
+              <div class="addr-line"><input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px"></div>
+              <div style="height:8px"></div>
+              <button class="btn" onclick="submitWithdrawal('BTC','#wd-btc-addr')">Request BTC withdrawal</button>
+            </div>
+            <div>
+              <label class="muted">USDT-TRC20 address</label>
+              <div class="addr-line"><input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px"></div>
+              <div style="height:8px"></div>
+              <button class="btn" onclick="submitWithdrawal('USDT-TRC20','#wd-trc-addr')">Request USDT-TRC20 withdrawal</button>
+            </div>
+            <div>
+              <label class="muted">ETH-ERC20 address</label>
+              <div class="addr-line"><input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px"></div>
+              <div style="height:8px"></div>
+              <button class="btn" onclick="submitWithdrawal('ETH-ERC20','#wd-eth-addr')">Request ETH-ERC20 withdrawal</button>
+            </div>
+          </div>
+          <p class="muted" style="font-size:12px;margin:10px 0 0"><strong style="color:var(--warn)">⚠ Confirm the destination address carefully.</strong> Blockchain transactions are irreversible once sent.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Plans / Transactions -->
+    <section id="section-bottom" class="section">
+      <div class="card">
+        <div class="switch tabs-2">
+          <button id="tab-plans" class="active" data-target="panel-plans">Plans</button>
+          <button id="tab-tx" data-target="panel-tx">Transactions</button>
+        </div>
+        <div id="panel-plans" class="panel tab-panel active"><div id="plans"></div></div>
+        <div id="panel-tx" class="panel tab-panel"><div id="tx-table">Loading…</div></div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="section-settings" class="section hidden">
+      <div class="card">
+        <h2>Settings</h2>
+        <p class="muted">Manage your account.</p>
+        <div class="row">
+          <div>
+            <label class="muted">Email</label>
+            <input id="set-email" value="" readonly>
+            <div class="field-warn">Email is read-only. Contact support to change it.</div>
+          </div>
+          <div>
+            <label class="muted">Password</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input value="********" readonly>
+              <a class="btn" href="/forgot.html">Reset password</a>
+            </div>
+          </div>
+        </div>
+        <div style="height:12px"></div>
+        <button class="btn" id="btn-logout-2">Log out</button>
+      </div>
+    </section>
+
+    <!-- Support -->
+    <section id="section-support" class="section hidden">
+      <div class="card">
+        <h2>Support</h2>
+        <p class="muted">We’re here to help. Reach us anytime.</p>
+        <div class="panel">
+          <p>Email: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p>
+          <p>For password issues, use <a href="/forgot.html">Forgot Password</a>.</p>
+          <p>Include your registered email and any relevant TXIDs when contacting us.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toasts" style="position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:99"></div>
+
+  <div id="qr-modal" class="modal" onclick="closeQr(event)">
+    <div class="modal-card">
+      <div class="qr-title muted" id="qr-title">Address</div>
+      <div class="qr-frame">
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner bl"></span><span class="corner br"></span>
+        <img id="qr-img" alt="QR code"/>
+      </div>
+      <div id="qr-addr" class="qr-address"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (s)=>document.querySelector(s);
+    function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200); }
+
+    async function api(path, opts){
+      const r = await fetch(path, {credentials:'include', ...opts});
+      if (r.status === 401) throw new Error('unauthorized');
+      const ct = r.headers.get('Content-Type')||'';
+      return ct.includes('application/json') ? r.json() : r.text();
     }
 
-    // salted s256
-    if (stored.startsWith("s256:")) {
-      const rest = stored.slice(5);
-      const [salt, hex] = rest.split("$");
-      if (!salt || !hex) return false;
-      const digest = await sha256HexStr(salt + plain);
-      return tsc(digest, hex);
+    // Session bootstrap — ensure auth BEFORE rendering anything that needs it
+    let SESSION = null;
+    async function ensureAuth(){
+      try{
+        const me = await api('/api/me');
+        SESSION = me.user || null;
+        const email = (SESSION && SESSION.email) ? SESSION.email : '';
+        $('#avatar').textContent = (email ? email[0] : '?').toUpperCase();
+        $('#dd-email').textContent = email || '(not signed in)';
+        $('#set-email') && ($('#set-email').value = email || '');
+        return true;
+      }catch(e){
+        location.href = '/login.html';
+        return false;
+      }
     }
 
-    // legacy unsalted sha256
-    if (stored.startsWith("sha256$")) {
-      const want = stored.slice(7);
-      const got = await sha256HexStr(plain);
-      return tsc(got, want);
-    }
+    // UI helpers
+    function startInvesting(){ switchTop('deposit'); document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'}); }
+    function dismissHero(){ const el = $('#hero-wrap'); if(el) el.style.display = 'none'; }
 
-    // explicit plaintext
-    if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
-
-    // last-resort bare compare
-    return tsc(stored, plain);
-  } catch (e) {
-    console.error("verifyPassword error:", e);
-    return false;
-  }
-}
-
-/** Preferred hasher for resets: bcrypt if available; fallback to s256 */
-export async function hashPasswordBcrypt(plain: string) {
-  try {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const bcrypt = (await import("bcryptjs")).default;
-    const salt = await bcrypt.genSalt(10);
-    return await bcrypt.hash(plain, salt);
-  } catch {
-    // No bcrypt dependency? fallback to salted sha256
-    return await hashPasswordS256(plain);
-  }
-}
-
-/** Minimal password strength rule (tweak if you want) */
-export function isReasonablePassword(pw: string) {
-  return typeof pw === "string" && pw.length >= 8;
-}
-
-/* ───────────────────────── Email helper (Resend) ─────────────────────── */
-export async function sendEmail(env: Env, to: string, subject: string, html: string) {
-  // If RESEND is configured, send real email
-  if (env.RESEND_API_KEY && env.MAIL_FROM) {
-    const payload: Record<string, unknown> = {
-      from: env.MAIL_FROM,           // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
-      to: [to],
-      subject,
-      html,
-    };
-    if (env.REPLY_TO) payload.reply_to = env.REPLY_TO; // e.g. "support@cyrptonvest.com"
-
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    // Avatar dropdown
+    document.addEventListener('click',(e)=>{
+      const dd = $('#dropdown'); const av = $('#avatar');
+      if(av.contains(e.target)){ dd.classList.toggle('show'); return; }
+      if(!dd.contains(e.target)) dd.classList.remove('show');
     });
-    if (!r.ok) {
-      const text = await r.text().catch(() => "");
-      console.warn("sendEmail failed:", r.status, text);
+    document.querySelectorAll('[data-nav]').forEach(a=>{
+      a.addEventListener('click',(e)=>{ e.preventDefault(); location.hash = e.currentTarget.getAttribute('href'); $('#dropdown').classList.remove('show'); });
+    });
+    $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
+    $('#btn-logout-2')?.addEventListener('click', async ()=>{ await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
+
+    // Tabs (top)
+    const topPanels = { wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw' };
+    const topTabs   = { wallet:'#tab-wallet',   deposit:'#tab-dep',      withdraw:'#tab-wd' };
+    function switchTop(which){
+      Object.keys(topPanels).forEach(k=>{
+        document.querySelector(topPanels[k]).style.display = (k===which)?'block':'none';
+        document.querySelector(topTabs[k]).classList.toggle('active', k===which);
+      });
     }
-    return;
-  }
-  // Otherwise, log to Functions logs so you can grab the link during testing
-  console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
-}
 
-/* ─────────────────────────── D1 convenience ──────────────────────────── */
-export async function getUserByEmail(env: Env, email: string) {
-  return await env.DB.prepare(
-    `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
-  ).bind(email.toLowerCase()).first<{
-    id: string; email: string; password_hash: string; created_at: number;
-  }>();
-}
+    // Bottom tabs
+    function initBottomTabs(){
+      const tabs = [$('#tab-plans'), $('#tab-tx')];
+      tabs.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          tabs.forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+          $('#'+btn.dataset.target).classList.add('active');
+        });
+      });
+    }
 
-/**
- * db – flexible export:
- *  - call like a function:   db(env).prepare("SELECT 1")
- *  - or legacy helper:       db.getUserByEmail(env, email)
- */
-export const db: any = (env: Env) => env.DB;
-db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
+    // Calculators
+    function attachCalcSoft(id, rate, min, max){
+      const amt = $('#'+id+'-amt');
+      const warn = $('#'+id+'-warn');
+      const out  = $('#'+id+'-out');
+      const update = ()=>{
+        const raw = amt.value.trim();
+        const v = parseFloat(raw);
+        if(!raw){ warn.textContent='Enter an amount'; warn.style.display='block'; out.textContent='—'; return; }
+        if(isNaN(v)){ warn.textContent='Not a number'; warn.style.display='block'; out.textContent='—'; return; }
+        if(v<min){ warn.textContent=`Minimum is $${min}`; warn.style.display='block'; out.textContent='—'; return; }
+        if(v>max){ warn.textContent=`Maximum is $${max}`; warn.style.display='block'; out.textContent='—'; return; }
+        warn.style.display='none';
+        const profit = v*rate, total = v+profit;
+        out.textContent = `$${total.toFixed(2)} total ($${profit.toFixed(2)} profit)`;
+      };
+      amt?.addEventListener('input', update);
+      update();
+    }
+    function startPlan(id, min, max){
+      const input = $('#'+id+'-amt');
+      const warn  = $('#'+id+'-warn');
+      const v = parseFloat(input.value||'');
+      if(!(v>=min && v<=max)){
+        warn.style.display='block';
+        if(!input.value) warn.textContent='Enter an amount';
+        else if(isNaN(v)) warn.textContent='Not a number';
+        else if(v<min) warn.textContent=`Minimum is $${min}`;
+        else warn.textContent=`Maximum is $${max}`;
+        input.focus(); return;
+      }
+      $('#dep-amount').value = v.toFixed(2);
+      switchTop('deposit');
+      document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
+    }
 
-/* ───────────────────────── Reset helpers (tokens) ────────────────────── */
-export function randomTokenHex(len = 32): string {
-  const a = new Uint8Array(len);
-  crypto.getRandomValues(a);
-  return Array.from(a).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+    // Deposit / Withdraw
+    function addrValue(kind){
+      if(kind==='btc') return $('#addr-btc').textContent.trim();
+      if(kind==='trc20') return $('#addr-trc20').textContent.trim();
+      if(kind==='eth') return $('#addr-eth').textContent.trim();
+      return '';
+    }
+    function copyAddr(kind){
+      const v = addrValue(kind);
+      if(!v){ toast('Address not available'); return; }
+      navigator.clipboard.writeText(v).then(()=>toast('Address copied'), ()=>{ prompt('Copy manually:', v); });
+    }
+    function showQr(kind){
+      const v = addrValue(kind);
+      if(!v){ toast('Address not available'); return; }
+      const title = {btc:'Bitcoin (BTC)', trc20:'USDT — TRC20', eth:'Ethereum (ERC20)'}[kind] || 'Address';
+      const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=240x240&margin=2&data=' + encodeURIComponent(v);
+      $('#qr-title').textContent = title;
+      $('#qr-img').src = url;
+      $('#qr-addr').textContent = v;
+      $('#qr-modal').classList.add('show');
+    }
+    function closeQr(e){ if(e.target.id==='qr-modal') $('#qr-modal').classList.remove('show'); }
+
+    function markDepositErrors(badTx, badAmt){
+      const tx=$('#dep-txid'), amt=$('#dep-amount'), warn=$('#dep-warn');
+      tx.classList.toggle('input-error', badTx);
+      amt.classList.toggle('input-error', badAmt);
+      warn.style.display = (badTx || badAmt)?'block':'none';
+    }
+    async function submitDeposit(){
+      const tx = $('#dep-txid').value.trim();
+      const amtV = parseFloat($('#dep-amount').value||'0');
+      const badTx = !tx, badAmt = !amtV;
+      if(badTx || badAmt){ markDepositErrors(badTx,badAmt); return; }
+      markDepositErrors(false,false);
+      const res = await api('/api/wallet/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ amount_cents:Math.round(amtV*100), currency:'USD', network:'manual', address:'', txid:tx })});
+      if(res?.ok){ toast('Deposit submitted'); $('#dep-txid').value=''; $('#dep-amount').value=''; renderEverything(); }
+      else toast('Failed to submit');
+    }
+    async function submitWithdrawal(network, selector){
+      const amount = parseFloat($('#wd-amount').value||'0');
+      const address = $(selector).value.trim();
+      if(!amount){ toast('Enter withdrawal amount'); return; }
+      if(!address){ toast(`Enter ${network} address`); return; }
+      const res = await api('/api/wallet/withdraw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ amount_cents:Math.round(amount*100), currency:'USD', network, address })});
+      if(res?.ok){ toast('Withdrawal requested'); $(selector).value=''; renderEverything(); }
+      else toast('Failed to request');
+    }
+
+    async function renderTransactionsTable(targetId, limit){
+      const target = document.getElementById(targetId);
+      const data = await api('/api/transactions');
+      const txs = data.transactions || [];
+      const rows = txs.slice(0,limit||50).map(t=>`<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`).join('');
+      target.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr>
+        <th style="text-align:left;padding:10px;border-bottom:1px solid #172042">Time</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Type</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Amount</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Status</th>
+        <th style="padding:10px;border-bottom:1px solid #172042">Ref</th>
+      </tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody></table>`;
+    }
+
+    async function fetchTotals(){
+      try{
+        const data = await api('/api/transactions');
+        const profitKinds = new Set(['profit','plan_payout','interest','bonus']);
+        let cents = 0, bal = await api('/api/wallet/balance');
+        (data.transactions||[]).forEach(t=>{
+          if(profitKinds.has(t.kind) && (t.status==='cleared'||t.status==='completed'||t.status==='success')) cents += t.amount_cents||0;
+        });
+        return {profits:cents, balance:(bal.wallet?.balance_cents||0), currency:(bal.wallet?.currency||'USD'), addrs:bal.wallet||{}};
+      }catch{ return {profits:0,balance:0,currency:'USD',addrs:{}}; }
+    }
+
+    async function renderEverything(){
+      // SESSION already set by ensureAuth()
+      const email = (SESSION && SESSION.email) ? SESSION.email : '';
+      $('#avatar').textContent = (email ? email[0] : '?').toUpperCase();
+      $('#dd-email').textContent = email || '(not signed in)';
+      $('#set-email') && ($('#set-email').value = email || '');
+
+      const totals = await fetchTotals();
+      $('#total-assets').innerHTML  = `$${(totals.balance/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
+      $('#total-profits').innerHTML = `$${(totals.profits/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
+      $('#wd-balance').textContent  = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
+
+      const a = totals.addrs;
+      $('#addr-btc').textContent   = a.btc_addr   || '';
+      $('#addr-trc20').textContent = a.trc20_addr || '';
+      $('#addr-eth').textContent   = a.eth_addr   || '';
+      $('#addr-btc-vis').textContent   = a.btc_addr   || '—';
+      $('#addr-trc20-vis').textContent = a.trc20_addr || '—';
+      $('#addr-eth-vis').textContent   = a.eth_addr   || '—';
+      $('#addr-btc-vis').title   = a.btc_addr   || '';
+      $('#addr-trc20-vis').title = a.trc20_addr || '';
+      $('#addr-eth-vis').title   = a.eth_addr   || '';
+
+      await renderTransactionsTable('tx-table', 50);
+
+      const planCard = (id, name, min, max, rate, hours)=>`
+        <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;transition:transform .25s ease, box-shadow .25s ease">
+          <strong>${name}</strong>
+          <div class="muted">Range: $${min} – $${max} • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
+          <div class="row" style="margin-top:8px">
+            <div>
+              <label class="muted">Enter amount (USD)</label>
+              <input id="${id}-amt" type="number" step="0.01" placeholder="${min}">
+              <div id="${id}-warn" class="field-warn" style="display:none"></div>
+            </div>
+            <div>
+              <label class="muted">Estimated return</label>
+              <div id="${id}-out" class="pill" style="display:inline-flex;margin-top:6px">—</div>
+            </div>
+          </div>
+          <div style="height:8px"></div>
+          <button class="btn" onclick="startPlan('${id}', ${min}, ${max})">Start</button>
+        </div>`;
+      $('#plans').innerHTML =
+        planCard('starter','Starter',5,10,0.60,3) +
+        planCard('growth','Growth',50,400,1.40,6) +
+        planCard('pro','Professional',500,10000,2.00,24);
+
+      Array.from(document.querySelectorAll('#plans > div')).forEach(el=>{
+        el.addEventListener('mouseenter',()=>{ el.style.transform='translateY(-2px)'; el.style.boxShadow='0 12px 26px rgba(0,0,0,.24)';});
+        el.addEventListener('mouseleave',()=>{ el.style.transform=''; el.style.boxShadow='';});
+      });
+
+      attachCalcSoft('starter',0.60,5,10);
+      attachCalcSoft('growth',1.40,50,400);
+      attachCalcSoft('pro',2.00,500,10000);
+
+      switchTop('wallet');
+    }
+
+    // Simple section router
+    function showSection(id){
+      ['section-main','section-bottom','section-settings','section-support'].forEach(sec=>{
+        document.getElementById(sec).classList.toggle('hidden', sec!==id && !(id==='section-main' && sec==='section-bottom'));
+      });
+      // When showing main, we want both main & bottom visible:
+      if(id==='section-main'){ document.getElementById('section-bottom').classList.remove('hidden'); }
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    const routes = {
+      '#overview':()=>{ showSection('section-main'); renderEverything(); },
+      '#wallet':  ()=>{ showSection('section-main'); renderEverything(); setTimeout(()=>switchTop('wallet'), 50); },
+      '#plans':   ()=>{ showSection('section-main'); renderEverything(); setTimeout(()=>$('#tab-plans').click(), 50); },
+      '#history': ()=>{ showSection('section-main'); renderEverything(); setTimeout(()=>$('#tab-tx').click(), 50); },
+      '#settings':()=>{ showSection('section-settings'); },
+      '#support': ()=>{ showSection('section-support'); }
+    };
+    function navigate(){ (routes[location.hash]||routes['#overview'])(); }
+    window.addEventListener('hashchange', navigate);
+
+    // Clock
+    setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
+
+    // Boot: confirm session first; then wire UI & render
+    (async ()=>{
+      if(await ensureAuth()){
+        initBottomTabs();
+        navigate();
+      }
+    })();
+  </script>
+</body>
+</html>
