@@ -35,7 +35,7 @@
 
     /* Layout */
     .section{padding:16px}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden}
     .card h2{margin:0 0 12px}
     .muted{color:var(--muted)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -44,7 +44,7 @@
     .switch{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
     .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700}
     .switch button.active{background: linear-gradient(180deg, #fbbf24, #f59e0b); color:#0b0f19; box-shadow: 0 0 0 2px rgba(251,191,36,.25) inset;}
-    .panel{border:1px solid var(--line);background:#0d1530;border-radius:12px;padding:12px}
+    .panel{border:1px solid var(--line);background:#0d1530;border-radius:12px;padding:12px;position:relative;z-index:1}
 
     /* Topcard gradient */
     .topcard{
@@ -60,35 +60,52 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* Address rows with marquee + actions */
+    /* Address rows with marquee + actions (no overflow) */
     .addr-wrap .label{margin:0 0 6px}
     .addr-row{
       width:100%;
+      max-width:100%;
+      overflow:hidden;
       display:flex; align-items:center; gap:10px;
       border:1px solid var(--line); background:#0c1428;
       border-radius:12px; padding:10px 12px;
+      box-sizing:border-box;
+      position:relative;
     }
-    .addr-left{display:flex;align-items:center;gap:10px}
+    .addr-left{display:flex;align-items:center;gap:10px;flex:0 0 auto}
     .addr-left .coin{font-weight:700}
-    .addr-text{flex:1 1 auto; min-width:0; overflow:hidden; position:relative}
+    .addr-text{
+      flex:1 1 0%;
+      min-width:0;
+      overflow:hidden;
+      position:relative;
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 48px), transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 48px), transparent 100%);
+    }
     .addr-marquee{
       display:inline-block; white-space:nowrap; padding-right:48px;
-      animation: addr-mar 18s linear infinite;
+      animation: addr-mar 24s linear infinite;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       letter-spacing:.2px;
+      will-change: transform;
     }
     .addr-row:hover .addr-marquee{ animation-play-state: paused }
     @keyframes addr-mar{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
-    @media (prefers-reduced-motion: reduce){ .addr-marquee{ animation:none } }
 
-    .addr-actions{display:flex;gap:8px}
+    .addr-actions{display:flex;gap:8px;flex:0 0 auto}
     .icon-btn{
       width:40px;height:40px;border-radius:999px;border:1px solid var(--line);
-      background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none
+      background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none;
+      flex:0 0 auto;
     }
     .icon-btn:active{transform:scale(.96)}
+
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
-    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
+
+    input,select,textarea{
+      width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none;
+      pointer-events:auto; position:relative; z-index:2;
+    }
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
     .field-warn{color:#fca5a5;font-size:12px;margin-top:6px}
     input.input-error{ box-shadow:0 0 0 3px rgba(239,68,68,.25); border-color:#ef4444 }
@@ -117,6 +134,10 @@
     .modal.show{display:grid}
     .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px;max-width:90vw;text-align:center}
     .modal-card img{display:block;max-width:260px;width:80vw;height:auto;margin:0 auto;border-radius:12px;border:1px solid #1e2a4d}
+
+    /* Extra safety */
+    body{overflow-x:hidden}
+    .tradingview-widget-container iframe{pointer-events:auto}
 
     @media (max-width:420px){
       .row{grid-template-columns:1fr}
@@ -388,7 +409,7 @@
     });
     $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
-    // Top tabs — explicit mapping so highlights work for Deposit/Withdraw too
+    // Top tabs — explicit mapping so highlights work
     const topPanels = { wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw' };
     const topTabs   = { wallet:'#tab-wallet',   deposit:'#tab-dep',      withdraw:'#tab-wd' };
     function switchTop(which){
