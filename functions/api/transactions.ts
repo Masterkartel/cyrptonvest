@@ -1,11 +1,13 @@
-import { json } from "../_utils";
+import { json, requireAuth, type Env } from "../_utils";
 
-export const onRequestGet: PagesFunction = async ({ data, env }) => {
-  if (!data.user) return new Response("Unauthorized", { status: 401 });
+export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
+  const g = await requireAuth(env, request);
+  if (!g.ok) return g.res;
 
-  const rows = await env.DB.prepare(
-    "SELECT id, kind, amount_cents, currency, ref, status, meta, created_at FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 200"
-  ).bind(data.user.id).all();
+  const { results } = await env.DB.prepare(
+    `SELECT id,kind,amount_cents,currency,ref,status,created_at
+       FROM transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 200`
+  ).bind(g.user.id).all<any>();
 
-  return json({ transactions: rows.results || [] });
+  return json({ transactions: results || [] });
 };
