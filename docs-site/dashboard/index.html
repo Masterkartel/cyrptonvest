@@ -60,26 +60,23 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* Address rows — no pill, always fit */
+    /* Address rows (no visible address; only buttons) */
     .addr-wrap .label{margin:0 0 6px}
     .addr-row{
       width:100%;
-      display:flex; align-items:center; gap:10px;
+      display:flex; align-items:center; justify-content:space-between;
       border:1px solid var(--line); background:#0c1428;
-      border-radius:12px; padding:12px;
+      border-radius:12px; padding:10px 10px 10px 12px;
+      gap:10px;
     }
-    .addr-text{
-      flex:1 1 auto; min-width:0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
+    .addr-left{display:flex;align-items:center;gap:10px}
+    .addr-left .coin{font-weight:700}
+    .addr-actions{display:flex;gap:8px}
     .icon-btn{
-      flex:0 0 40px; min-width:40px; width:40px; height:40px;
-      border-radius:999px; border:1px solid var(--line);
-      background:#0f1a36; color:#e6edf3; display:grid; place-items:center; cursor:pointer;
+      width:40px;height:40px;border-radius:999px;border:1px solid var(--line);
+      background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none
     }
-    .icon-btn:hover{background:#132043}
-
+    .icon-btn:active{transform:scale(.96)}
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
@@ -91,29 +88,27 @@
     .tab-panel{display:none}
     .tab-panel.active{display:block}
 
-    /* Hero card (with subtle symbols) */
+    /* Hero card with chips */
     .hero{
       background:
         radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
         radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.18), transparent 55%),
         linear-gradient(180deg,#101934,#0c1226);
-      border-color:#27335a;
-      position:relative;
+      border-color:#27335a; position:relative;
     }
     .hero h1{margin:0 0 8px;font-size:28px;line-height:1.15}
     .hero h1 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:13px;margin-left:8px}
     .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
-    .hero-x{
-      position:absolute; top:10px; right:10px;
-      background:#0f1a36; border:1px solid var(--line); color:#cbd5e1;
-      width:32px; height:32px; border-radius:999px; cursor:pointer;
-    }
+    .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer}
     .hero-x:hover{background:#132043}
 
-    /* Tighten on very small phones */
+    /* QR modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
+    .modal.show{display:grid}
+    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px;max-width:90vw}
+    .modal-card img{display:block;max-width:260px;width:80vw;height:auto;border-radius:12px;border:1px solid #1e2a4d}
+
     @media (max-width:420px){
-      .panel{padding:10px}
-      .addr-row{padding:10px}
       .row{grid-template-columns:1fr}
     }
   </style>
@@ -138,7 +133,7 @@
     </div>
   </header>
 
-  <!-- TradingView ticker (supported symbols only) -->
+  <!-- TradingView ticker -->
   <div class="ticker-wrap" style="border-bottom:1px solid var(--line)">
     <div class="tradingview-widget-container">
       <div class="tradingview-widget-container__widget"></div>
@@ -165,7 +160,7 @@
     </div>
   </div>
 
-  <!-- Hero / Info card (dismiss returns on refresh) -->
+  <!-- Hero -->
   <section id="hero-wrap" class="section">
     <div class="card hero">
       <button class="hero-x" aria-label="Dismiss" onclick="dismissHero()">✕</button>
@@ -224,24 +219,36 @@
             <div>
               <div class="label muted">Bitcoin (BTC)</div>
               <div class="addr-row">
-                <span class="addr-text" id="dep-btc" title=""></span>
-                <button class="icon-btn" onclick="copy('#dep-btc')" aria-label="Copy">⧉</button>
+                <div class="addr-left"><span class="coin">BTC</span></div>
+                <div class="addr-actions">
+                  <button class="icon-btn" aria-label="Copy BTC" onclick="copyAddr('btc')">⧉</button>
+                  <button class="icon-btn" aria-label="QR BTC" onclick="showQr('btc')">▦</button>
+                </div>
+                <span id="addr-btc" hidden></span>
               </div>
             </div>
 
             <div>
               <div class="label muted">USDT — TRON (TRC20)</div>
               <div class="addr-row">
-                <span class="addr-text" id="dep-trc20" title=""></span>
-                <button class="icon-btn" onclick="copy('#dep-trc20')" aria-label="Copy">⧉</button>
+                <div class="addr-left"><span class="coin">USDT-TRC20</span></div>
+                <div class="addr-actions">
+                  <button class="icon-btn" aria-label="Copy TRC20" onclick="copyAddr('trc20')">⧉</button>
+                  <button class="icon-btn" aria-label="QR TRC20" onclick="showQr('trc20')">▦</button>
+                </div>
+                <span id="addr-trc20" hidden></span>
               </div>
             </div>
 
             <div>
               <div class="label muted">Ethereum (ERC20)</div>
               <div class="addr-row">
-                <span class="addr-text" id="dep-eth" title=""></span>
-                <button class="icon-btn" onclick="copy('#dep-eth')" aria-label="Copy">⧉</button>
+                <div class="addr-left"><span class="coin">ETH-ERC20</span></div>
+                <div class="addr-actions">
+                  <button class="icon-btn" aria-label="Copy ERC20" onclick="copyAddr('eth')">⧉</button>
+                  <button class="icon-btn" aria-label="QR ERC20" onclick="showQr('eth')">▦</button>
+                </div>
+                <span id="addr-eth" hidden></span>
               </div>
             </div>
           </div>
@@ -322,12 +329,10 @@
           <button id="tab-tx" data-target="panel-tx">Transactions</button>
         </div>
 
-        <!-- Plans panel (default) -->
         <div id="panel-plans" class="panel tab-panel active">
           <div id="plans"></div>
         </div>
 
-        <!-- Transactions panel -->
         <div id="panel-tx" class="panel tab-panel">
           <div id="tx-table">Loading…</div>
         </div>
@@ -336,19 +341,26 @@
   </main>
 
   <!-- Toasts -->
-  <div id="toasts"></div>
+  <div id="toasts" style="position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:99"></div>
+
+  <!-- QR Modal -->
+  <div id="qr-modal" class="modal" onclick="closeQr(event)">
+    <div class="modal-card">
+      <div class="muted" id="qr-title" style="margin-bottom:8px">Address</div>
+      <img id="qr-img" alt="QR code" />
+      <div class="muted" id="qr-addr" style="margin-top:10px;word-break:break-all"></div>
+    </div>
+  </div>
 
   <script>
     const $ = (s)=>document.querySelector(s);
     let walletCache = null;
     let txCache = [];
 
-    function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(), 3200); }
-    function alertCopy(){ alert('Copied'); }
+    function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(), 3200); }
     async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
-    function copy(sel){ const txt=document.querySelector(sel).textContent.trim(); navigator.clipboard.writeText(txt).then(alertCopy,()=>prompt('Copy manually:',txt)); }
 
-    // Hero helpers (no persistence; returns on refresh)
+    // Hero helpers
     function startInvesting(){ switchTop('deposit'); document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'}); }
     function dismissHero(){ const el = document.getElementById('hero-wrap'); if(el) el.style.display = 'none'; }
 
@@ -385,7 +397,7 @@
       });
     }
 
-    // Plans calculators (soft validation)
+    // Plan calculators (soft validation)
     function attachCalcSoft(id, rate, min, max){
       const amt = document.getElementById(id+'-amt');
       const warn = document.getElementById(id+'-warn');
@@ -421,7 +433,30 @@
       document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // Deposit / Withdraw actions
+    // Deposit helpers
+    function addrValue(kind){
+      if(kind==='btc') return $('#addr-btc').textContent.trim();
+      if(kind==='trc20') return $('#addr-trc20').textContent.trim();
+      if(kind==='eth') return $('#addr-eth').textContent.trim();
+      return '';
+    }
+    function copyAddr(kind){
+      const v = addrValue(kind);
+      if(!v){ toast('Address not available'); return; }
+      navigator.clipboard.writeText(v).then(()=>toast('Address copied'), ()=>{ prompt('Copy manually:', v); });
+    }
+    function showQr(kind){
+      const v = addrValue(kind);
+      if(!v){ toast('Address not available'); return; }
+      const title = {btc:'Bitcoin (BTC)', trc20:'USDT — TRC20', eth:'Ethereum (ERC20)'}[kind] || 'Address';
+      const url = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(v);
+      $('#qr-title').textContent = title;
+      $('#qr-addr').textContent = v;
+      $('#qr-img').src = url;
+      $('#qr-modal').classList.add('show');
+    }
+    function closeQr(e){ if(e.target.id==='qr-modal') $('#qr-modal').classList.remove('show'); }
+
     function markDepositErrors(badTx, badAmt){
       const tx=$('#dep-txid'), amt=$('#dep-amount'), warn=$('#dep-warn');
       tx.classList.toggle('input-error', badTx);
@@ -442,6 +477,8 @@
       if(res?.ok){ toast('Deposit submitted'); $('#dep-txid').value=''; $('#dep-amount').value=''; renderEverything(); }
       else toast('Failed to submit');
     }
+
+    // Withdraw
     async function submitWithdrawal(network, selector){
       const amount = parseFloat($('#wd-amount').value||'0');
       const address = $(selector).value.trim();
@@ -497,13 +534,10 @@
       $('#total-assets').innerHTML = `$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency||'USD'}</span>`;
       $('#wd-balance').textContent = `$${(walletCache.balance_cents/100).toFixed(2)} ${walletCache.currency||'USD'}`;
 
-      // deposit addresses + titles
-      $('#dep-btc').textContent   = walletCache.btc_addr || '—';
-      $('#dep-trc20').textContent = walletCache.trc20_addr || '—';
-      $('#dep-eth').textContent   = walletCache.eth_addr || '—';
-      $('#dep-btc').title   = walletCache.btc_addr || '';
-      $('#dep-trc20').title = walletCache.trc20_addr || '';
-      $('#dep-eth').title   = walletCache.eth_addr || '';
+      // deposit addresses (hidden spans for copy/QR)
+      $('#addr-btc').textContent   = walletCache.btc_addr || '';
+      $('#addr-trc20').textContent = walletCache.trc20_addr || '';
+      $('#addr-eth').textContent   = walletCache.eth_addr || '';
 
       // transactions & profits
       await renderTransactionsTable('tx-table', 50);
@@ -538,7 +572,6 @@
       attachCalcSoft('growth',1.40,50,400);
       attachCalcSoft('pro',2.00,500,10000);
 
-      // defaults
       switchTop('wallet');
     }
 
