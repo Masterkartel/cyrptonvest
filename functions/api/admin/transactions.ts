@@ -1,69 +1,19 @@
 import { json, requireAdmin, type Env } from "../../_utils";
 
-function normStatus(s: string | null) {
-  s = (s || "").toLowerCase();
-  return ["pending","completed","failed"].includes(s) ? s : undefined;
-}
-function normKind(k: string | null) {
-  k = (k || "").toLowerCase();
-  return ["deposit","withdraw","plan_charge","adjustment","profit","bonus"].includes(k) ? k : undefined;
-}
-
-export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
-  const g = await requireAdmin(env, request);
+export const onRequestGet: PagesFunction<Env> = async (ctx) => {
+  const g = await requireAdmin(ctx.env, ctx.request);
   if (!g.ok) return g.res;
 
-  const url = new URL(request.url);
-  const status = normStatus(url.searchParams.get("status")) || "pending";
-  const kind = normKind(url.searchParams.get("kind"));
-  const limit = Math.min(100, Math.max(10, parseInt(url.searchParams.get("limit") || "50", 10)));
-  const cursor = parseInt(url.searchParams.get("cursor") || "0", 10);
+  const url = new URL(ctx.request.url);
+  const status = (url.searchParams.get("status") || "pending").toLowerCase();
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "100", 10), 300);
 
-  const binds: any[] = [status];
-  let sql = `SELECT t.id,t.user_id,u.email AS user_email,t.kind,t.amount_cents,t.currency,t.ref,t.status,t.created_at
-               FROM transactions t JOIN users u ON u.id=t.user_id
-              WHERE t.status=?`;
-  if (kind) { sql += " AND t.kind=?"; binds.push(kind); }
-  if (cursor > 0) { sql += " AND t.created_at < ?"; binds.push(cursor); }
-  sql += " ORDER BY t.created_at DESC LIMIT ?"; binds.push(limit);
+  const rs = await ctx.env.DB.prepare(
+    `SELECT t.id, t.user_id, u.email, t.kind, t.amount_cents, t.currency, t.status, t.ref, t.created_at
+       FROM transactions t JOIN users u ON u.id=t.user_id
+      WHERE t.status = ?
+      ORDER BY t.created_at DESC LIMIT ?`
+  ).bind(status, limit).all();
 
-  const { results } = await env.DB.prepare(sql).bind(...binds).all<any>();
-  const rows = results || [];
-  const nextCursor = rows.length ? rows[rows.length-1].created_at : null;
-  return json({ transactions: rows, nextCursor });
-};
-
-export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
-  const g = await requireAdmin(env, request);
-  if (!g.ok) return g.res;
-
-  const { id, status } = await request.json().catch(() => ({}));
-  const s = normStatus(status || "");
-  if (!id || !s) return json({ error:"id and valid status required" }, 400);
-
-  const tx = await env.DB.prepare(`SELECT id,user_id,kind,amount_cents,currency,status FROM transactions WHERE id=? LIMIT 1`)
-    .bind(id).first<any>();
-  if (!tx) return json({ error:"not found" }, 404);
-  if (tx.status !== "pending") return json({ error:"already processed" }, 400);
-
-  let delta = 0;
-  if (s === "completed") {
-    if (tx.kind === "deposit") delta = +tx.amount_cents;
-    if (tx.kind === "withdraw") delta = -tx.amount_cents;
-  }
-
-  const now = Date.now();
-  const upd = env.DB.prepare(`UPDATE transactions SET status=?, updated_at=? WHERE id=?`).bind(s, now, id);
-
-  if (delta !== 0) {
-    const wal = env.DB.prepare(
-      `INSERT INTO wallets (user_id,balance_cents,currency)
-       VALUES (?,?,?)
-       ON CONFLICT(user_id) DO UPDATE SET balance_cents = wallets.balance_cents + excluded.balance_cents`
-    ).bind(tx.user_id, delta, tx.currency || "USD");
-    await env.DB.batch([upd, wal]);
-  } else {
-    await upd.run();
-  }
-  return json({ ok:true });
+  return json({ ok: true, transactions: rs.results || [] });
 };
