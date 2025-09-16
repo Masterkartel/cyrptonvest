@@ -60,52 +60,61 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* ===== Address rows (compact, no overflow) ===== */
+    /* ===== Address rows (compact, non-overflowing) ===== */
     .addr-wrap .label{margin:0 0 6px}
     .addr-row{
       position:relative;                 /* for absolute actions */
       width:100%;
       max-width:100%;
-      height:38px;
+      height:32px;                       /* smaller */
       overflow:hidden;
-      display:flex; align-items:center; gap:8px;
+      display:flex; align-items:center; gap:6px;
       border:1px solid var(--line); background:#0c1428;
-      border-radius:10px; padding:6px 8px;
-      font-size:12px;
+      border-radius:10px; padding:5px 8px;
+      font-size:11px; line-height:1;
     }
-    .addr-left{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-    .addr-left .coin{font-weight:800;letter-spacing:.2px}
+    .addr-left{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+    .addr-left .coin{font-weight:800;letter-spacing:.2px;font-size:11px}
+
+    /* keep text short; reserve area for buttons */
     .addr-text{
       flex:1 1 0%;
       min-width:0;
       overflow:hidden;
-      padding-right:84px;                /* reserve room for buttons */
-      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 38px), transparent 100%);
-              mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 38px), transparent 100%);
-      line-height:1;
+      padding-right:70px;                /* room for 2 buttons */
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 32px), transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 32px), transparent 100%);
     }
+    /* quarter-length visible by reducing font + speed and clipping area */
     .addr-marquee{
       display:inline-block; white-space:nowrap; padding-right:36px;
-      animation: addr-mar 22s linear infinite;
+      animation: addr-mar 24s linear infinite;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       letter-spacing:.2px;
       will-change: transform;
     }
     .addr-row:hover .addr-marquee{ animation-play-state: paused }
     @keyframes addr-mar{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
+
+    /* buttons pinned right so they are always visible */
     .addr-actions{
-      position:absolute; right:6px; top:3px; display:flex; gap:6px; height:32px;
+      position:absolute; right:6px; top:2px; display:flex; gap:6px; height:28px;
     }
     .icon-btn{
-      width:32px;height:32px;border-radius:999px;border:1px solid var(--line);
+      width:28px;height:28px;border-radius:999px;border:1px solid var(--line);
       background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;user-select:none;
-      font-size:16px;line-height:1;
+      font-size:14px;line-height:1;
     }
     .icon-btn:active{transform:scale(.96)}
+
+    /* On very small screens, strictly limit text area width so buttons never squeeze out */
+    @media (max-width:420px){
+      .row{grid-template-columns:1fr}
+      .addr-text{max-width:60%}
+    }
     @media (max-width:360px){
-      .addr-row{height:34px}
-      .addr-text{padding-right:76px}
-      .icon-btn{width:28px;height:28px;font-size:14px}
+      .addr-text{max-width:55%;padding-right:64px}
+      .icon-btn{width:26px;height:26px;font-size:13px}
     }
 
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
@@ -137,22 +146,21 @@
     .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer}
     .hero-x:hover{background:#132043}
 
-    /* QR modal centered (smaller & crisp) */
+    /* QR modal: compact SVG with corner guards */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
     .modal.show{display:grid}
-    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px;max-width:90vw;text-align:center}
-    .modal-card img{
-      display:block;max-width:160px;width:60vw;height:auto;margin:0 auto;border-radius:12px;border:1px solid #1e2a4d;
-    }
+    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px 18px;max-width:90vw;text-align:center}
+    .qr-title{margin:0 0 10px}
+    .qr-frame{position:relative;display:inline-block;padding:10px;border-radius:12px;background:#0b1328;border:1px solid #223055}
+    .qr-frame img{display:block;max-width:160px;width:60vw;height:auto}
+    .corner{position:absolute;width:18px;height:18px;border:2px solid #4f9cff}
+    .corner.tl{top:6px;left:6px;border-right:none;border-bottom:none}
+    .corner.tr{top:6px;right:6px;border-left:none;border-bottom:none}
+    .corner.bl{bottom:6px;left:6px;border-right:none;border-top:none}
+    .corner.br{bottom:6px;right:6px;border-left:none;border-top:none}
 
-    /* Extra safety */
     body{overflow-x:hidden}
     .tradingview-widget-container iframe{pointer-events:auto}
-
-    @media (max-width:420px){
-      .row{grid-template-columns:1fr}
-      .addr-marquee{ animation-duration:26s }
-    }
   </style>
 </head>
 <body>
@@ -391,16 +399,17 @@
   <!-- QR Modal -->
   <div id="qr-modal" class="modal" onclick="closeQr(event)">
     <div class="modal-card">
-      <div class="muted" id="qr-title" style="margin-bottom:8px">Address</div>
-      <img id="qr-img" alt="QR code" />
-      <div class="muted" id="qr-addr" style="margin-top:10px;word-break:break-all"></div>
+      <div class="qr-title muted" id="qr-title">Address</div>
+      <div class="qr-frame">
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner bl"></span><span class="corner br"></span>
+        <img id="qr-img" alt="QR code" />
+      </div>
     </div>
   </div>
 
   <script>
     const $ = (s)=>document.querySelector(s);
-    let walletCache = null;
-    let txCache = [];
 
     function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(), 3200); }
     async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
@@ -495,14 +504,12 @@
       const v = addrValue(kind);
       if(!v){ toast('Address not available'); return; }
       const title = {btc:'Bitcoin (BTC)', trc20:'USDT — TRC20', eth:'Ethereum (ERC20)'}[kind] || 'Address';
-      // crisp SVG QR at small size
       const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=140x140&margin=2&data=' + encodeURIComponent(v);
-      $('#qr-title').textContent = title;
-      $('#qr-addr').textContent  = v;
-      $('#qr-img').src = url;
-      $('#qr-modal').classList.add('show');
+      document.getElementById('qr-title').textContent = title;
+      document.getElementById('qr-img').src = url;
+      document.getElementById('qr-modal').classList.add('show');
     }
-    function closeQr(e){ if(e.target.id==='qr-modal') $('#qr-modal').classList.remove('show'); }
+    function closeQr(e){ if(e.target.id==='qr-modal') document.getElementById('qr-modal').classList.remove('show'); }
 
     function markDepositErrors(badTx, badAmt){
       const tx=$('#dep-txid'), amt=$('#dep-amount'), warn=$('#dep-warn');
@@ -543,8 +550,8 @@
     async function renderTransactionsTable(targetId, limit){
       const target = document.getElementById(targetId);
       const data = await api('/api/transactions');
-      txCache = data.transactions || [];
-      const rows = txCache.slice(0, limit||50).map(t=>
+      const txs = data.transactions || [];
+      const rows = txs.slice(0, limit||50).map(t=>
         `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.kind}</td><td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td><td>${t.status}</td><td>${t.ref||''}</td></tr>`
       ).join('');
       target.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr>
@@ -556,48 +563,45 @@
       </tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody></table>`;
     }
 
-    function computeTotalProfitsUsd(){
-      const profitKinds = new Set(['profit','plan_payout','interest','bonus']);
-      let cents = 0;
-      for(const t of txCache){
-        if(profitKinds.has(t.kind) && (t.status==='cleared' || t.status==='completed' || t.status==='success')){
-          cents += t.amount_cents || 0;
-        }
-      }
-      return cents;
+    // Profit total from API (best-effort if endpoint exists)
+    async function fetchTotals(){
+      try{
+        const data = await api('/api/transactions');
+        const profitKinds = new Set(['profit','plan_payout','interest','bonus']);
+        let cents = 0, bal = await api('/api/wallet/balance');
+        (data.transactions||[]).forEach(t=>{
+          if(profitKinds.has(t.kind) && (t.status==='cleared'||t.status==='completed'||t.status==='success')) cents += t.amount_cents||0;
+        });
+        return {profits:cents, balance:(bal.wallet?.balance_cents||0), currency:(bal.wallet?.currency||'USD'), addrs:bal.wallet||{}};
+      }catch{ return {profits:0,balance:0,currency:'USD',addrs:{}}; }
     }
 
-    // Render all
     async function renderEverything(){
       const me = await api('/api/me');
       const email = me.user.email || "user";
       $('#avatar').textContent = email.slice(0,1).toUpperCase();
       $('#dd-email').textContent = email;
 
-      const bal = await api('/api/wallet/balance');
-      walletCache = bal.wallet || { balance_cents:0, currency:'USD', btc_addr:'', trc20_addr:'', eth_addr:'' };
+      const totals = await fetchTotals();
 
-      // totals
-      $('#total-assets').innerHTML = `$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency||'USD'}</span>`;
-      $('#wd-balance').textContent = `$${(walletCache.balance_cents/100).toFixed(2)} ${walletCache.currency||'USD'}`;
+      // totals & balances
+      $('#total-assets').innerHTML = `$${(totals.balance/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
+      $('#total-profits').innerHTML = `$${(totals.profits/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
+      $('#wd-balance').textContent = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
 
-      // deposit addresses (hidden + visible marquee)
-      $('#addr-btc').textContent   = walletCache.btc_addr || '';
-      $('#addr-trc20').textContent = walletCache.trc20_addr || '';
-      $('#addr-eth').textContent   = walletCache.eth_addr || '';
+      // addresses (hidden full + visible marquee)
+      const a = totals.addrs;
+      $('#addr-btc').textContent   = a.btc_addr   || '';
+      $('#addr-trc20').textContent = a.trc20_addr || '';
+      $('#addr-eth').textContent   = a.eth_addr   || '';
+      $('#addr-btc-vis').textContent   = a.btc_addr   || '—';
+      $('#addr-trc20-vis').textContent = a.trc20_addr || '—';
+      $('#addr-eth-vis').textContent   = a.eth_addr   || '—';
+      $('#addr-btc-vis').title   = a.btc_addr   || '';
+      $('#addr-trc20-vis').title = a.trc20_addr || '';
+      $('#addr-eth-vis').title   = a.eth_addr   || '';
 
-      $('#addr-btc-vis').textContent   = walletCache.btc_addr   || '—';
-      $('#addr-trc20-vis').textContent = walletCache.trc20_addr || '—';
-      $('#addr-eth-vis').textContent   = walletCache.eth_addr   || '—';
-
-      $('#addr-btc-vis').title   = walletCache.btc_addr   || '';
-      $('#addr-trc20-vis').title = walletCache.trc20_addr || '';
-      $('#addr-eth-vis').title   = walletCache.eth_addr   || '';
-
-      // transactions & profits
       await renderTransactionsTable('tx-table', 50);
-      const profitsCents = computeTotalProfitsUsd();
-      $('#total-profits').innerHTML = `$${(profitsCents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency||'USD'}</span>`;
 
       // plans
       const planCard = (id, name, min, max, rate, hours) => `
