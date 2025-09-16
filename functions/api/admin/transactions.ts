@@ -1,51 +1,72 @@
-import { ensureAdmin } from './_guard';
+import { json, requireAdmin, type Env } from "../../_utils";
 
-export const onRequestGet: PagesFunction<{DB:D1Database}> = async (c) => {
-  const guard = ensureAdmin(c); if (guard) return guard;
-  const kind = c.req.query?.get('kind') || '';      // deposit | withdraw | ''
-  const status = c.req.query?.get('status') || '';  // pending | completed | failed | ''
-  const db = c.env.DB;
+function normalizeStatus(status: string | null) {
+  const s = (status || "").toLowerCase();
+  if (["pending", "completed", "failed"].includes(s)) return s;
+  return "pending";
+}
+function normalizeKind(kind: string | null) {
+  const k = (kind || "").toLowerCase();
+  if (["deposit", "withdraw"].includes(k)) return k;
+  return null; // all kinds
+}
 
-  const rows = await db.prepare(`
-    SELECT t.*, u.email AS user_email
-    FROM transactions t
-    JOIN users u ON u.id = t.user_id
-    WHERE (? = '' OR t.kind = ?)
-      AND (? = '' OR t.status = ?)
-    ORDER BY t.created_at DESC
-    LIMIT 200
-  `).bind(kind, kind, status, status).all();
+export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
+  const gate = await requireAdmin(env, request);
+  if (!gate.ok) return gate.res;
 
-  return c.json({ transactions: rows.results || [] });
+  const url = new URL(request.url);
+  const status = normalizeStatus(url.searchParams.get("status"));
+  const kind = normalizeKind(url.searchParams.get("kind"));
+
+  let sql =
+    `SELECT t.id, t.user_id, u.email AS user_email, t.kind, t.amount_cents, t.currency, t.ref, t.status, t.created_at
+       FROM transactions t JOIN users u ON u.id = t.user_id
+      WHERE t.status = ?`;
+  const binds: any[] = [status];
+  if (kind) { sql += " AND t.kind = ?"; binds.push(kind); }
+  sql += " ORDER BY t.created_at DESC LIMIT 500";
+
+  const rows = await env.DB.prepare(sql).bind(...binds).all();
+  return json({ transactions: rows.results || [] });
 };
 
-export const onRequestPatch: PagesFunction<{DB:D1Database}> = async (c) => {
-  const guard = ensureAdmin(c); if (guard) return guard;
-  const body = await c.req.json();
-  const { id, status } = body as { id: string; status: 'completed' | 'failed' | 'pending' };
+export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
+  const gate = await requireAdmin(env, request);
+  if (!gate.ok) return gate.res;
 
-  const db = c.env.DB;
+  const body = await request.json().catch(() => ({}));
+  const id = body?.id as string;
+  const status = normalizeStatus(body?.status);
+  if (!id) return json({ error: "Missing id" }, 400);
 
-  // Get tx
-  const tx = (await db.prepare(`SELECT * FROM transactions WHERE id = ?`).bind(id).first()) as any;
-  if (!tx) return c.json({ ok: false, error: 'not_found' }, 404);
+  // fetch tx
+  const tx = await env.DB.prepare(
+    `SELECT id,user_id,kind,amount_cents,currency,status FROM transactions WHERE id=? LIMIT 1`
+  ).bind(id).first<{ id:string; user_id:string; kind:string; amount_cents:number; currency:string; status:string }>();
 
-  // If approving a deposit, credit wallet; if rejecting, no credit.
-  if (tx.kind === 'deposit' && status === 'completed' && tx.status !== 'completed') {
-    await db.batch([
-      db.prepare(`UPDATE transactions SET status = ? WHERE id = ?`).bind('completed', id),
-      db.prepare(`UPDATE wallets SET balance_cents = COALESCE(balance_cents,0) + ? WHERE user_id = ?`).bind(tx.amount_cents, tx.user_id)
-    ]);
-    return c.json({ ok: true });
+  if (!tx) return json({ error: "Not found" }, 404);
+  if (tx.status !== "pending") return json({ error: "Already processed" }, 400);
+
+  // simple balance update rules
+  let delta = 0;
+  if (status === "completed") {
+    if (tx.kind === "deposit") delta = +tx.amount_cents;
+    if (tx.kind === "withdraw") delta = -tx.amount_cents;
   }
+  const now = Date.now();
 
-  // If approving a withdraw, mark completed (you may also subtract when initiating or here if pending hold).
-  if (tx.kind === 'withdraw' && status !== tx.status) {
-    await db.prepare(`UPDATE transactions SET status = ? WHERE id = ?`).bind(status, id).run();
-    return c.json({ ok: true });
+  const tx1 = env.DB.prepare(`UPDATE transactions SET status=?, updated_at=? WHERE id=?`).bind(status, now, id);
+  if (delta !== 0) {
+    const w1 = env.DB.prepare(`
+      INSERT INTO wallets (user_id,balance_cents,currency)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET balance_cents = wallets.balance_cents + excluded.balance_cents
+    `).bind(tx.user_id, delta, tx.currency || "USD");
+    const b = await env.DB.batch([tx1, w1]);
+    return json({ ok: true, updated: b.length });
+  } else {
+    const b = await env.DB.batch([tx1]);
+    return json({ ok: true, updated: b.length });
   }
-
-  // Generic status update for other kinds
-  await db.prepare(`UPDATE transactions SET status = ? WHERE id = ?`).bind(status, id).run();
-  return c.json({ ok: true });
 };
