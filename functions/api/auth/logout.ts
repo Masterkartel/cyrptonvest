@@ -1,16 +1,17 @@
-import { json, parseCookies, clearCookie, headerSetCookie, destroySession, type Env } from "../../_utils";
+// functions/api/auth/logout.ts
+import { json, parseCookies, clearCookie, destroySession, headerSetCookie, cookieName, type Env } from "../../_utils";
 
-export const onRequestPost: PagesFunction<Env> = async (ctx) => {
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    const env = ctx.env;
-    const name = env.SESSION_COOKIE_NAME || "cv_sid";
-    const cookies = parseCookies(ctx.request);
-    const sid = cookies[name];
+    const cookies = parseCookies(request.headers.get("cookie") || "");
+    const sid = cookies[cookieName];
     if (sid) await destroySession(env, sid);
 
-    const cleared = clearCookie(name, "/");
-    return headerSetCookie(json({ ok: true }), cleared);
+    // set an expired cookie
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "content-type": "application/json", "set-cookie": headerSetCookie(env, "", new Date(0)) },
+    });
   } catch (e: any) {
-    return json({ ok: false, error: "logout_failed", detail: String(e?.message || e) }, 500);
+    return json({ error: `Logout failed: ${e?.message || e}` }, { status: 500 });
   }
 };
