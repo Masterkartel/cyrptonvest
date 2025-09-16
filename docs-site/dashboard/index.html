@@ -60,19 +60,18 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* Address pills (mobile safe) */
+    /* Address rows — no pill, always fit */
     .addr-wrap .label{margin:0 0 6px}
-    .addr-pill{
+    .addr-row{
       width:100%;
       display:flex; align-items:center; gap:10px;
       border:1px solid var(--line); background:#0c1428;
-      border-radius:999px; padding:10px 12px;
-      overflow:hidden; /* keep icon inside on small screens */
+      border-radius:12px; padding:12px;
     }
-    .addr{
+    .addr-text{
+      flex:1 1 auto; min-width:0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      flex: 1 1 auto; min-width: 0;
     }
     .icon-btn{
       flex:0 0 40px; min-width:40px; width:40px; height:40px;
@@ -92,7 +91,7 @@
     .tab-panel{display:none}
     .tab-panel.active{display:block}
 
-    /* Hero card */
+    /* Hero card (with subtle symbols) */
     .hero{
       background:
         radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
@@ -102,6 +101,7 @@
       position:relative;
     }
     .hero h1{margin:0 0 8px;font-size:28px;line-height:1.15}
+    .hero h1 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:13px;margin-left:8px}
     .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
     .hero-x{
       position:absolute; top:10px; right:10px;
@@ -113,7 +113,8 @@
     /* Tighten on very small phones */
     @media (max-width:420px){
       .panel{padding:10px}
-      .addr-pill{padding:10px}
+      .addr-row{padding:10px}
+      .row{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -164,11 +165,16 @@
     </div>
   </div>
 
-  <!-- Hero / Info card (always shows on refresh) -->
+  <!-- Hero / Info card (dismiss returns on refresh) -->
   <section id="hero-wrap" class="section">
     <div class="card hero">
       <button class="hero-x" aria-label="Dismiss" onclick="dismissHero()">✕</button>
-      <h1>AI-powered trading. Smart bots. Real results.</h1>
+      <h1>
+        AI-powered trading. Smart bots. Real results.
+        <span class="chip">🤖 AI Bots</span>
+        <span class="chip">📊 Auto-Execution</span>
+        <span class="chip">⚙️ 24/7</span>
+      </h1>
       <p class="muted">
         <strong>Cyrptonvest</strong> uses algorithmic strategies and automated trade execution
         to work the markets 24/7. Choose a plan, deposit crypto, and let our bots go to work.
@@ -217,24 +223,24 @@
           <div class="addr-wrap" style="display:grid;gap:12px">
             <div>
               <div class="label muted">Bitcoin (BTC)</div>
-              <div class="addr-pill">
-                <span class="addr" id="dep-btc" title=""></span>
+              <div class="addr-row">
+                <span class="addr-text" id="dep-btc" title=""></span>
                 <button class="icon-btn" onclick="copy('#dep-btc')" aria-label="Copy">⧉</button>
               </div>
             </div>
 
             <div>
               <div class="label muted">USDT — TRON (TRC20)</div>
-              <div class="addr-pill">
-                <span class="addr" id="dep-trc20" title=""></span>
+              <div class="addr-row">
+                <span class="addr-text" id="dep-trc20" title=""></span>
                 <button class="icon-btn" onclick="copy('#dep-trc20')" aria-label="Copy">⧉</button>
               </div>
             </div>
 
             <div>
               <div class="label muted">Ethereum (ERC20)</div>
-              <div class="addr-pill">
-                <span class="addr" id="dep-eth" title=""></span>
+              <div class="addr-row">
+                <span class="addr-text" id="dep-eth" title=""></span>
                 <button class="icon-btn" onclick="copy('#dep-eth')" aria-label="Copy">⧉</button>
               </div>
             </div>
@@ -274,8 +280,8 @@
           <div style="display:grid;gap:12px">
             <div>
               <label class="muted">BTC address</label>
-              <div class="addr-pill" style="border-radius:12px">
-                <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0;width:100%">
+              <div class="addr-row">
+                <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0;width:100%;color:var(--text)">
               </div>
               <div style="height:8px"></div>
               <button class="btn" onclick="submitWithdrawal('BTC','#wd-btc-addr')">Request BTC withdrawal</button>
@@ -283,8 +289,8 @@
 
             <div>
               <label class="muted">USDT-TRC20 address</label>
-              <div class="addr-pill" style="border-radius:12px">
-                <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0;width:100%">
+              <div class="addr-row">
+                <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0;width:100%;color:var(--text)">
               </div>
               <div style="height:8px"></div>
               <button class="btn" onclick="submitWithdrawal('USDT-TRC20','#wd-trc-addr')">Request USDT-TRC20 withdrawal</button>
@@ -292,8 +298,8 @@
 
             <div>
               <label class="muted">ETH-ERC20 address</label>
-              <div class="addr-pill" style="border-radius:12px">
-                <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0;width:100%">
+              <div class="addr-row">
+                <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0;width:100%;color:var(--text)">
               </div>
               <div style="height:8px"></div>
               <button class="btn" onclick="submitWithdrawal('ETH-ERC20','#wd-eth-addr')">Request ETH-ERC20 withdrawal</button>
