@@ -1,37 +1,42 @@
-import { ensureAdmin } from '../_guard';
+import { json, requireAdmin, type Env } from "../../../_utils";
 
-export const onRequestPost: PagesFunction<{DB:D1Database}> = async (c) => {
-  const guard = ensureAdmin(c); if (guard) return guard;
-  const body = await c.req.json();
-  let { user_id, email, amount_cents, kind, note } = body as {
-    user_id?: string; email?: string; amount_cents: number; kind?: string; note?: string;
-  };
+export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+  const gate = await requireAdmin(env, request);
+  if (!gate.ok) return gate.res;
 
-  if ((!user_id && !email) || !amount_cents) return c.json({ ok:false, error:'missing' }, 400);
-  const db = c.env.DB;
+  const body = await request.json().catch(() => ({}));
+  let { user_id, email, amount_cents, kind, note } = body || {};
+  amount_cents = Number(amount_cents)||0;
+  if (!user_id && !email) return json({ error: "Provide user_id or email" }, 400);
+  if (!amount_cents) return json({ error: "Amount required" }, 400);
 
-  // Resolve id by email if needed
-  if (!user_id && email) {
-    const u = await db.prepare(`SELECT id FROM users WHERE email = ?`).bind(email).first();
-    if (!u) return c.json({ ok:false, error:'user_not_found' }, 404);
-    // @ts-ignore
-    user_id = u.id;
+  if (!user_id) {
+    const row = await env.DB.prepare(`SELECT id FROM users WHERE email=? LIMIT 1`).bind(String(email||"")).first<{id:string}>();
+    if (!row) return json({ error: "User not found" }, 404);
+    user_id = row.id;
   }
 
-  const id = crypto.randomUUID();
+  const positive = ["adjustment","profit","bonus"].includes((kind||"").toLowerCase());
+  const negative = ["plan_charge","debit"].includes((kind||"").toLowerCase());
+  let delta = amount_cents;
+  if (negative) delta = -Math.abs(amount_cents);
+  if (!positive && !negative) kind = "adjustment";
+
+  const txId = crypto.randomUUID();
   const now = Date.now();
 
-  await db.batch([
-    db.prepare(`UPDATE wallets SET balance_cents = COALESCE(balance_cents,0) + ? WHERE user_id = ?`)
-      .bind(amount_cents, user_id),
-    db.prepare(`
-      INSERT INTO transactions (id,user_id,kind,amount_cents,currency,ref,status,meta,created_at)
-      VALUES (?,?,?,?,?,?,?,json(?),?)
-    `).bind(
-      id, user_id, kind || 'adjustment', amount_cents, 'USD',
-      note || '', 'completed', JSON.stringify({ admin: true }), now
-    )
-  ]);
+  const addTx = env.DB.prepare(
+    `INSERT INTO transactions (id,user_id,kind,amount_cents,currency,ref,status,created_at)
+     VALUES (?,?,?,?,?,?,?,?)`
+  ).bind(txId, user_id, kind, Math.abs(amount_cents), "USD", note||"", "completed", now);
 
-  return c.json({ ok:true, id, user_id });
+  const upWallet = env.DB.prepare(
+    `INSERT INTO wallets (user_id,balance_cents,currency)
+     VALUES (?,?,?)
+     ON CONFLICT(user_id) DO UPDATE SET balance_cents = wallets.balance_cents + excluded.balance_cents`
+  ).bind(user_id, delta, "USD");
+
+  await env.DB.batch([addTx, upWallet]);
+
+  return json({ ok: true, id: txId });
 };
