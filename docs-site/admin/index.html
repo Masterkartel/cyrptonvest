@@ -23,6 +23,7 @@
     .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:9px 12px;font-weight:700;cursor:pointer}
     .btn-primary{background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827}
     .btn-ghost{background:#121a33;border:1px solid var(--line);color:#d1d5db}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
     .section{padding:18px 0}
     .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
     .muted{color:var(--muted)}
@@ -36,6 +37,13 @@
     .status{padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:#101a34}
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .ok{color:var(--ok)} .bad{color:var(--bad)}
+    .right{margin-left:auto}
+    .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .spinner{width:14px;height:14px;border-radius:50%;border:2px solid #2a3a66;border-top-color:#f59e0b;animation:sp .8s linear infinite}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    .empty{padding:12px;border:1px dashed #223055;border-radius:12px;text-align:center}
+    .error{padding:10px;border:1px solid #592323;background:#2a0e0e;color:#fca5a5;border-radius:12px}
+    .note{font-size:12px;color:#9aa4b2}
   </style>
 </head>
 <body>
@@ -51,6 +59,7 @@
 
   <main class="content">
     <section class="section">
+      <!-- Gate (shows if not admin) -->
       <div id="gate" class="card" style="display:none">
         <h2 style="margin:0 0 6px">Admin access</h2>
         <p class="muted" style="margin:0 0 12px">Sign in with the support admin account.</p>
@@ -69,31 +78,44 @@
         <p id="login-warn" class="muted" style="margin-top:8px;color:#fca5a5;display:none">Only support@cyrptonvest.com is allowed.</p>
       </div>
 
+      <!-- App -->
       <div id="app" style="display:none">
         <div class="grid2">
+          <!-- Users -->
           <div class="card">
-            <div class="row" style="justify-content:space-between;align-items:center">
-              <h3 style="margin:0">Users</h3>
-              <div class="row" style="align-items:center">
+            <div class="bar">
+              <div class="row" style="align-items:center;gap:10px">
+                <h3 style="margin:0">Users</h3>
+                <span id="users-meta" class="note"></span>
+              </div>
+              <div class="row">
                 <input id="u-q" placeholder="Search email…" style="width:220px">
-                <button class="btn btn-ghost" onclick="loadUsers()">Search</button>
+                <button id="btn-users-refresh" class="btn btn-ghost">Refresh</button>
               </div>
             </div>
+            <div id="users-status" class="note" style="display:none"><span class="spinner"></span> Loading users…</div>
+            <div id="users-error" class="error" style="display:none"></div>
             <div id="users"></div>
           </div>
 
+          <!-- Transactions -->
           <div class="card">
-            <div class="row" style="justify-content:space-between;align-items:center">
-              <h3 style="margin:0">Pending transactions</h3>
+            <div class="bar">
+              <div class="row" style="align-items:center;gap:10px">
+                <h3 style="margin:0">Pending transactions</h3>
+                <span id="tx-meta" class="note"></span>
+              </div>
               <div class="row">
                 <select id="t-kind">
                   <option value="all">All</option>
                   <option value="deposit">Deposits</option>
                   <option value="withdraw">Withdrawals</option>
                 </select>
-                <button class="btn btn-ghost" onclick="loadTx()">Refresh</button>
+                <button id="btn-tx-refresh" class="btn btn-ghost">Refresh</button>
               </div>
             </div>
+            <div id="tx-status" class="note" style="display:none"><span class="spinner"></span> Loading transactions…</div>
+            <div id="tx-error" class="error" style="display:none"></div>
             <div id="tx"></div>
           </div>
         </div>
@@ -103,8 +125,8 @@
             <h3 style="margin:0 0 8px">Wallet adjustment</h3>
             <div class="grid2">
               <div>
-                <label class="muted">User ID (target)</label>
-                <input id="adj-user" placeholder="user id"/>
+                <label class="muted">User ID (UUID) or Email</label>
+                <input id="adj-ident" placeholder="uuid-or-email@example.com"/>
               </div>
               <div>
                 <label class="muted">Amount (USD)</label>
@@ -126,7 +148,7 @@
               </div>
             </div>
             <div style="height:10px"></div>
-            <button class="btn btn-primary" onclick="adjust()">Apply change</button>
+            <button id="btn-adjust" class="btn btn-primary">Apply change</button>
             <p id="adj-msg" class="muted" style="margin:8px 0 0"></p>
           </div>
         </div>
@@ -139,52 +161,96 @@
   <script>
     const $=s=>document.querySelector(s);
     function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200); }
-    async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401) return {unauth:true}; return r.json(); }
+    async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401) return {unauth:true}; const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
 
     // clock
     setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
 
-    async function gate(){
-      const me = await api('/api/me');
-      const isAdmin = me?.user?.email === 'support@cyrptonvest.com';
-      $('#gate').style.display = isAdmin ? 'none':'block';
-      $('#app').style.display  = isAdmin ? 'block':'none';
-      if(isAdmin){ loadUsers(); loadTx(); }
-    }
-
     // login / logout
-    $('#login').addEventListener('click', async ()=>{
+    $('#login')?.addEventListener('click', async ()=>{
       const email=$('#email').value.trim(), password=$('#password').value;
       if(email.toLowerCase()!=='support@cyrptonvest.com'){ $('#login-warn').style.display='block'; return; }
       $('#login-warn').style.display='none';
       const res=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
       if(res?.ok){ toast('Signed in'); gate(); } else toast('Login failed');
     });
-    $('#logout').addEventListener('click', async ()=>{
+    $('#logout')?.addEventListener('click', async ()=>{
       await fetch('/api/auth/logout',{method:'POST'}); location.href='/';
     });
 
+    // Gate
+    async function gate(){
+      const me = await api('/api/me');
+      const isAdmin = me?.user?.email?.toLowerCase?.() === 'support@cyrptonvest.com';
+      $('#gate').style.display = isAdmin ? 'none':'block';
+      $('#app').style.display  = isAdmin ? 'block':'none';
+      if(isAdmin){ bindButtons(); loadUsers(); loadTx(); }
+    }
+
+    function bindButtons(){
+      $('#btn-users-refresh')?.addEventListener('click', ()=>loadUsers());
+      $('#btn-tx-refresh')?.addEventListener('click', ()=>loadTx());
+      $('#t-kind')?.addEventListener('change', ()=>loadTx());
+      $('#u-q')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadUsers(); });
+      $('#btn-adjust')?.addEventListener('click', adjust);
+    }
+
     // Users
     async function loadUsers(){
-      const q=$('#u-q').value.trim();
-      const res = await api('/api/admin/users'+(q?`?q=${encodeURIComponent(q)}`:''));
-      if(res?.unauth){ toast('Not authorized'); return; }
-      const rows = (res.users||[]).map(u=>`
+      $('#users-error').style.display='none';
+      $('#users-status').style.display='inline-flex';
+      $('#users-status').innerHTML = '<span class="spinner"></span> Loading users…';
+      const q=$('#u-q').value?.trim() || '';
+      const url = '/api/admin/users' + (q?`?q=${encodeURIComponent(q)}`:'');
+      const res = await api(url);
+      if(res?.unauth){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent='Not authorized'; return; }
+      if(!res || !Array.isArray(res.users)){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent='Failed to load users'; return; }
+
+      const rows = res.users.map(u=>`
         <tr>
           <td style="font-family:ui-monospace,Menlo,Consolas">${u.id}</td>
           <td>${u.email}</td>
-          <td>$${(u.balance_cents/100).toFixed(2)}</td>
+          <td>$${((u.balance_cents||0)/100).toFixed(2)}</td>
+          <td>
+            <label style="display:inline-flex;gap:6px;align-items:center">
+              <input type="checkbox" ${u.disallow_starter ? 'checked':''} onchange="toggleLimit('${u.id}','starter',this.checked)"/> Starter
+            </label>
+            &nbsp;•&nbsp;
+            <label style="display:inline-flex;gap:6px;align-items:center">
+              <input type="checkbox" ${u.disallow_growth ? 'checked':''} onchange="toggleLimit('${u.id}','growth',this.checked)"/> Growth
+            </label>
+            &nbsp;•&nbsp;
+            <label style="display:inline-flex;gap:6px;align-items:center">
+              <input type="checkbox" ${u.disallow_pro ? 'checked':''} onchange="toggleLimit('${u.id}','pro',this.checked)"/> Pro
+            </label>
+          </td>
+          <td class="row">
+            <button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button>
+          </td>
           <td>${new Date(u.created_at).toLocaleString()}</td>
         </tr>`).join('');
-      $('#users').innerHTML = `<table><thead><tr><th>User ID</th><th>Email</th><th>Balance</th><th>Created</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="muted">No results</td></tr>'}</tbody></table>`;
+
+      $('#users').innerHTML = `<table>
+        <thead><tr><th>User ID</th><th>Email</th><th>Balance</th><th>Plan Locks</th><th>Actions</th><th>Created</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody></table>`;
+
+      $('#users-meta').textContent = `${res.users.length} user${res.users.length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
+      $('#users-status').style.display='none';
     }
 
     // Transactions
     async function loadTx(){
+      $('#tx-error').style.display='none';
+      $('#tx-status').style.display='inline-flex';
+      $('#tx-status').innerHTML = '<span class="spinner"></span> Loading transactions…';
+
       const kind = $('#t-kind').value;
-      const res = await api('/api/admin/transactions?status=pending'+(kind==='all'?'':`&kind=${kind}`));
-      if(res?.unauth){ toast('Not authorized'); return; }
-      const rows = (res.transactions||[]).map(t=>`
+      const url = '/api/admin/transactions?status=pending' + (kind==='all'?'':`&kind=${kind}`);
+      const res = await api(url);
+      if(res?.unauth){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent='Not authorized'; return; }
+      if(!res || !Array.isArray(res.transactions)){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent='Failed to load transactions'; return; }
+
+      const rows = res.transactions.map(t=>`
         <tr>
           <td style="font-family:ui-monospace,Menlo,Consolas">${t.id}</td>
           <td>${t.user_email||t.user_id}</td>
@@ -198,10 +264,16 @@
             <button class="btn btn-ghost" onclick="rejectTx('${t.id}')">Reject</button>
           </td>
         </tr>`).join('');
+
       $('#tx').innerHTML = `<table>
         <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Ref</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="8" class="muted">No pending items</td></tr>'}</tbody></table>`;
+        <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
+
+      $('#tx-meta').textContent = `${res.transactions.length} pending • updated ${new Date().toLocaleTimeString()}`;
+      $('#tx-status').style.display='none';
     }
+
+    // Approve / Reject
     async function approve(id){
       const res=await api('/api/admin/transactions',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'completed'})});
       if(res?.ok){ toast('Approved'); loadTx(); loadUsers(); } else toast('Failed');
@@ -211,14 +283,34 @@
       if(res?.ok){ toast('Rejected'); loadTx(); } else toast('Failed');
     }
 
-    // Wallet adjust
-    async function adjust(){
-      const userId=$('#adj-user').value.trim(), amt=parseFloat($('#adj-amt').value||'0'), kind=$('#adj-kind').value, note=$('#adj-note').value.trim();
-      if(!userId||!amt){ $('#adj-msg').textContent='Enter user id and amount'; return; }
-      const res=await api('/api/admin/wallet/adjust',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId, amount_cents:Math.round(amt*100), kind, note})});
-      if(res?.ok){ $('#adj-msg').textContent='Applied'; loadUsers(); } else $('#adj-msg').textContent='Failed';
+    // Limits
+    async function toggleLimit(userId, plan, checked){
+      // Merge current checkboxes into one payload
+      const row = [...document.querySelectorAll('#users tbody tr')].find(tr => tr.firstElementChild?.textContent === userId);
+      const [starterCk, growthCk, proCk] = row ? row.querySelectorAll('input[type=checkbox]') : [];
+      const payload = {
+        user_id: userId,
+        disallow_starter: plan==='starter'? (checked?1:0) : (starterCk?.checked?1:0),
+        disallow_growth:  plan==='growth' ? (checked?1:0) : (growthCk?.checked?1:0),
+        disallow_pro:     plan==='pro'    ? (checked?1:0) : (proCk?.checked?1:0)
+      };
+      const res = await fetch('/api/admin/limits', {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload)
+      });
+      if(res.ok){ toast('Updated'); } else { toast('Failed to update'); }
     }
 
+    // Adjust
+    async function adjust(){
+      const ident=$('#adj-ident').value.trim(), amt=parseFloat($('#adj-amt').value||'0'), kind=$('#adj-kind').value, note=$('#adj-note').value.trim();
+      if(!ident||!amt){ $('#adj-msg').textContent='Enter a user id/email and amount'; return; }
+      const body = ident.includes('@') ? { email: ident, amount_cents: Math.round(amt*100), kind, note } :
+                                         { user_id: ident, amount_cents: Math.round(amt*100), kind, note };
+      const res=await api('/api/admin/wallet/adjust',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(res?.ok){ $('#adj-msg').textContent='Applied'; $('#adj-amt').value=''; loadUsers(); } else $('#adj-msg').textContent='Failed';
+    }
+
+    // boot
     gate();
   </script>
 </body>
