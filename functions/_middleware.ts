@@ -1,45 +1,35 @@
 // functions/_middleware.ts
-// Load session (if any) and attach current user to data.user
-import { parseCookies } from "./_utils";
+import { parseCookies, cookieName, getUserFromSession } from "./_utils";
 
 export const onRequest: PagesFunction = async ({ request, env, next, data }) => {
+  // Always default to no user
   data.user = null;
 
-  // Parse cookies and check session
-  const cookies = parseCookies(request);
-  const sid = cookies["session"];
-  if (sid) {
-    const row = await env.DB.prepare(
-      `SELECT s.user_id, s.expires_at, u.email
-       FROM sessions s
-       JOIN users u ON u.id = s.user_id
-       WHERE s.id = ?`
-    ).bind(sid).first();
-
-    if (row && Date.now() < row.expires_at) {
-      data.user = { id: row.user_id, email: row.email };
-    }
+  // Try to restore session
+  const user = await getUserFromSession(env, request);
+  if (user) {
+    data.user = user;
   }
 
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // Protect /admin pages
+  // Protect /admin routes
   if (path.startsWith("/admin")) {
-    const user = data.user;
-
-    // Allow support@cyrptonvest.com, block others
-    if (!user || user.email?.toLowerCase() !== "support@cyrptonvest.com") {
-      // If it's an API call (/api/admin/*), reject outright
+    // Require logged-in admin
+    const adminEmail = (env.ADMIN_EMAIL || "support@cyrptonvest.com").toLowerCase();
+    if (!data.user || data.user.email?.toLowerCase() !== adminEmail) {
+      // If it’s an API endpoint (/api/admin/*), reject outright
       if (path.startsWith("/api/admin")) {
         return new Response(JSON.stringify({ error: "forbidden" }), {
           status: 401,
           headers: { "Content-Type": "application/json" },
         });
       }
-      // For /admin UI, let the page render — the gate inside index.html will handle login
+      // For /admin UI pages, allow rendering — the frontend will gate
     }
   }
 
+  // Let other requests pass through
   return next();
 };
