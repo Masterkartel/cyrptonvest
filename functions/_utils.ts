@@ -1,3 +1,4 @@
+// functions/_utils.ts
 // Shared helpers for Cloudflare Pages Functions
 // Provides all symbols referenced across your existing endpoints.
 
@@ -8,8 +9,9 @@ export type Env = {
   ADMIN_PASSWORD?: string;
 
   // Optional for email sending (Resend)
-  RESEND_API_KEY?: string;
-  MAIL_FROM?: string;
+  RESEND_API_KEY?: string;          // re_****************
+  MAIL_FROM?: string;               // e.g. "Cryptonvest <noreply@cyrptonvest.com>"
+  REPLY_TO?: string;                // e.g. "support@cyrptonvest.com"
 };
 
 const COOKIE_NAME = "cv_session";
@@ -77,7 +79,7 @@ async function hmac(secret: string, msg: string) {
 }
 
 /* ───────────────────────────── Sessions ──────────────────────────────── */
-// Stateless cookie session, signed with AUTH_COOKIE_SECRET (your original model)
+// Stateless cookie session, signed with AUTH_COOKIE_SECRET
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
 export async function signSession(env: Env, session: Session) {
@@ -170,7 +172,7 @@ export async function hashPassword(plain: string) {
 export async function hashPasswordS256(plain: string) {
   const saltBytes = new Uint8Array(12);
   crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map(b => b.toString(16).padStart(2,"0")).join("");
+  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
 }
@@ -245,13 +247,21 @@ export function isReasonablePassword(pw: string) {
 export async function sendEmail(env: Env, to: string, subject: string, html: string) {
   // If RESEND is configured, send real email
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
+    const payload: Record<string, unknown> = {
+      from: env.MAIL_FROM,    // e.g. "Cryptonvest <noreply@cyrptonvest.com>"
+      to: [to],
+      subject,
+      html,
+    };
+    if (env.REPLY_TO) payload.reply_to = env.REPLY_TO; // e.g. "support@cyrptonvest.com"
+
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${env.RESEND_API_KEY}`,
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, html }),
+      body: JSON.stringify(payload),
     });
     if (!r.ok) {
       const text = await r.text().catch(() => "");
