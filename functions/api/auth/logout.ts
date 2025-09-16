@@ -1,8 +1,8 @@
-import { json, parseCookies, clearCookie } from "../../_utils";
+import { json, parseCookies, clearCookie, destroySession, type Env } from "../../_utils";
 
-export const onRequestPost: PagesFunction = async ({ request, env }) => {
-  const cookies = parseCookies(request);
-  const sid = cookies["session"];
-  if (sid) await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(sid).run();
-  return json({ ok: true }, 200, { "Set-Cookie": clearCookie("session") });
+export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+  const name = env.SESSION_COOKIE_NAME || "cv_sid";
+  const sid = parseCookies(request)[name];
+  if (sid) await destroySession(env, sid);
+  return new Response("", { status:204, headers: { "Set-Cookie": clearCookie(name) } });
 };
