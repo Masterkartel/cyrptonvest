@@ -24,24 +24,44 @@
     .content{max-width:1200px;margin:0 auto}
 
     /* Avatar dropdown */
-    .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer}
+    .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer;transition:transform .2s ease}
+    .avatar:hover{transform:translateY(-1px)}
     .dropdown{position:absolute;top:56px;right:16px;background:#0f1629;border:1px solid var(--line);border-radius:12px;min-width:240px;display:none;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.35)}
     .dropdown.show{display:block}
     .dropdown .hd{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700}
-    .dropdown a{display:block;color:#e6edf3;padding:10px 12px;text-decoration:none}
+    .dropdown a{display:block;color:#e6edf3;padding:10px 12px;text-decoration:none;transition:background .2s ease}
     .dropdown a:hover{background:#121d3a}
 
     /* Layout */
     .section{padding:16px}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden}
+    .card{
+      background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden;
+      transform:translateY(8px);opacity:0;animation:cardIn .6s cubic-bezier(.16,1,.3,1) forwards;
+      transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+    .section .card:nth-of-type(1){animation-delay:.02s}
+    .section .card:nth-of-type(2){animation-delay:.08s}
+    .section .card:nth-of-type(3){animation-delay:.14s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(0,0,0,.28)}
+    @keyframes cardIn{to{transform:translateY(0);opacity:1}}
     .card h2{margin:0 0 12px}
     .muted{color:var(--muted)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
     /* Tabs */
     .switch{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
-    .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700}
-    .switch button.active{background: linear-gradient(180deg, #fbbf24, #f59e0b); color:#0b0f19; box-shadow: 0 0 0 2px rgba(251,191,36,.25) inset;}
+    .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700;transition:background .2s ease, transform .15s ease}
+    .switch button:active{transform:scale(.98)}
+    .switch button.active{
+      background: linear-gradient(180deg, #fbbf24, #f59e0b); color:#0b0f19; box-shadow: 0 0 0 2px rgba(251,191,36,.25) inset;
+      position:relative;
+    }
+    .switch button.active::after{
+      content:""; position:absolute; inset:0; background:radial-gradient(60% 120% at 50% -20%, rgba(255,255,255,.25), transparent 60%);
+      pointer-events:none; mix-blend-mode:overlay;
+      animation:activeSheen 2.5s linear infinite;
+    }
+    @keyframes activeSheen{0%{opacity:.25} 50%{opacity:.05} 100%{opacity:.25}}
     .panel{border:1px solid var(--line);background:#0d1530;border-radius:12px;padding:12px;position:relative;z-index:1}
 
     /* Topcard gradient */
@@ -55,17 +75,23 @@
     .topcard .panel{background: rgba(10,16,34,.75); backdrop-filter: blur(2px);}
 
     /* KPI tiles */
-    .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
+    .kpi{
+      display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px;
+      transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+    .kpi:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(0,0,0,.24);border-color:#2a3761}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* ===== NEW: Address lines (no big pill) ===== */
+    /* ===== Address lines (no big pill) ===== */
     .addr-group{display:grid;gap:10px}
     .addr-line{
       display:flex;align-items:center;gap:10px;border-bottom:1px dashed #203054;padding:6px 0;
+      transition:background .2s ease, border-color .2s ease;
     }
+    .addr-line:hover{background:rgba(17,29,55,.3);border-color:#2a3a66}
     .chip{display:inline-flex;align-items:center;gap:6px;background:#0f1a36;border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-weight:800;flex:0 0 auto}
     .addr-text{
-      flex:1 1 auto; min-width:0; position:relative; height:22px; /* compact height */
+      flex:1 1 auto; min-width:0; position:relative; height:22px;
       -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 40px), transparent 100%);
               mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 40px), transparent 100%);
     }
@@ -76,20 +102,37 @@
     .addr-text:hover .addr-scroll{animation-play-state:paused}
     @keyframes mar{from{transform:translateX(0)} to{transform:translateX(-100%)}}
     .addr-actions{flex:0 0 auto; display:flex; gap:6px}
-    .icon-btn{width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer}
-    .icon-btn:active{transform:scale(.96)}
-    /* make sure the text area is shorter on small screens so buttons never get pushed */
+    .icon-btn{
+      width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;color:#e6edf3;display:grid;place-items:center;cursor:pointer;
+      transition:transform .1s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+    }
+    .icon-btn:hover{box-shadow:0 6px 14px rgba(0,0,0,.25);border-color:#2a3a66;background:#112049}
+    .icon-btn:active{transform:scale(.94)}
+    /* keep buttons visible on very small screens */
     @media (max-width:420px){ .addr-text{ max-width:55% } }
     @media (max-width:380px){ .addr-text{ max-width:50% } }
     @media (max-width:340px){ .addr-text{ max-width:46% } }
 
-    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer;
+      box-shadow:0 6px 20px rgba(245,158,11,.15); transition:transform .15s ease, box-shadow .2s ease, filter .2s ease;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,158,11,.22)}
+    .btn:active{transform:translateY(0);filter:saturate(.96)}
 
     input,select,textarea{
       width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none;
-      pointer-events:auto; position:relative; z-index:2;
+      pointer-events:auto; position:relative; z-index:2; transition:box-shadow .2s ease, border-color .2s ease;
     }
-    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
+    input:focus,select:focus,textarea:focus{
+      box-shadow:0 0 0 3px var(--ring), 0 0 0 0 transparent;
+      animation:focusPulse 1.2s ease-out 1;
+      border-color:#314077;
+    }
+    @keyframes focusPulse{
+      0%{box-shadow:0 0 0 0 var(--ring)}
+      100%{box-shadow:0 0 0 3px var(--ring)}
+    }
     .field-warn{color:#fca5a5;font-size:12px;margin-top:6px}
     input.input-error{ box-shadow:0 0 0 3px rgba(239,68,68,.25); border-color:#ef4444 }
 
@@ -109,18 +152,20 @@
     .hero h1{margin:0 0 8px;font-size:28px;line-height:1.15}
     .hero h1 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:13px;margin-left:8px}
     .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
-    .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer}
-    .hero-x:hover{background:#132043}
+    .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer;transition:transform .2s ease, background .2s ease}
+    .hero-x:hover{background:#132043;transform:rotate(4deg)}
 
-    /* ===== Reverted QR modal (QR + full address) ===== */
+    /* QR modal */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
-    .modal.show{display:grid}
+    .modal.show .modal-card{animation:modalIn .28s ease-out both}
+    @keyframes modalIn{from{transform:translateY(12px) scale(.98);opacity:0} to{transform:translateY(0) scale(1);opacity:1}}
     .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px 18px;max-width:min(92vw,460px);text-align:center}
     .qr-title{margin:0 0 10px}
     .qr-frame{
       position:relative;display:flex;align-items:center;justify-content:center;
       width:min(80vw, 220px);height:min(80vw, 220px);
       border-radius:12px;background:#0b1328;border:1px solid #223055;margin:0 auto 12px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
     }
     .qr-frame img{display:block;width:84%;height:auto}
     .corner{position:absolute;width:18px;height:18px;border:2px solid #4f9cff}
@@ -563,7 +608,7 @@
       await renderTransactionsTable('tx-table', 50);
 
       const planCard = (id, name, min, max, rate, hours) => `
-        <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0">
+        <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;transition:transform .25s ease, box-shadow .25s ease">
           <strong>${name}</strong>
           <div class="muted">Range: $${min} – $${max} • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
           <div class="row" style="margin-top:8px">
@@ -584,6 +629,12 @@
         planCard('starter','Starter',5,10,0.60,3) +
         planCard('growth','Growth',50,400,1.40,6) +
         planCard('pro','Professional',500,10000,2.00,24);
+
+      // Add a tiny hover lift to each rendered plan card without changing structure:
+      Array.from(document.querySelectorAll('#plans > div')).forEach(el=>{
+        el.addEventListener('mouseenter', ()=>{ el.style.transform='translateY(-2px)'; el.style.boxShadow='0 12px 26px rgba(0,0,0,.24)'; });
+        el.addEventListener('mouseleave', ()=>{ el.style.transform=''; el.style.boxShadow=''; });
+      });
 
       attachCalcSoft('starter',0.60,5,10);
       attachCalcSoft('growth',1.40,50,400);
