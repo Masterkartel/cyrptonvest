@@ -7,7 +7,7 @@ export type Env = {
   ADMIN_EMAIL?: string;
   ADMIN_PASSWORD?: string;
 
-  // Email (Resend)
+  // Optional for email sending (Resend)
   RESEND_API_KEY?: string;          // re_****************
   MAIL_FROM?: string;               // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
   REPLY_TO?: string;                // e.g. "support@cyrptonvest.com"
@@ -16,12 +16,8 @@ export type Env = {
 const COOKIE_NAME = "cv_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-/* ───────────────────────── Response helpers ──────────────────────────── */
-export function json(
-  data: unknown,
-  status: number = 200,
-  headers: HeadersInit = {}
-) {
+/* ─────────────── Response helpers ─────────────── */
+export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json", ...headers },
@@ -31,9 +27,12 @@ export function bad(message = "Bad request", status = 400) {
   return json({ ok: false, error: message }, status);
 }
 
-/* ───────────────────────── Cookie helpers ────────────────────────────── */
-export function parseCookies(req: Request): Record<string, string> {
-  const raw = req.headers.get("cookie") || "";
+/* ─────────────── Cookie helpers ─────────────── */
+export function parseCookies(reqOrHeader: Request | string): Record<string, string> {
+  const raw =
+    typeof reqOrHeader === "string"
+      ? reqOrHeader
+      : reqOrHeader.headers.get("cookie") || "";
   const out: Record<string, string> = {};
   raw.split(/;\s*/).forEach((p) => {
     const i = p.indexOf("=");
@@ -51,7 +50,7 @@ export function headerSetCookie(resOrHeaders: Response | Headers, value: string)
   }
 }
 
-/* ───────────────────── Token (HMAC, URL-safe b64) ───────────────────── */
+/* ─────────────── Token (HMAC, URL-safe b64) ─────────────── */
 function toBase64(u8: Uint8Array) {
   let str = "";
   u8.forEach((b) => (str += String.fromCharCode(b)));
@@ -77,8 +76,7 @@ async function hmac(secret: string, msg: string) {
   return toBase64(new Uint8Array(sig));
 }
 
-/* ───────────────────────── Sessions (two formats) ────────────────────── */
-// 1) Legacy signed cookie (payload.signature)
+/* ─────────────── Sessions (stateless + DB) ─────────────── */
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
 export async function signSession(env: Env, session: Session) {
@@ -100,9 +98,11 @@ export async function verifySession(env: Env, token: string): Promise<Session | 
     return null;
   }
 }
+
 function buildCookie(token: string) {
   return `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`;
 }
+
 export async function setCookie(res: Response, env: Env, session: Session) {
   const token = await signSession(env, session);
   headerSetCookie(res, buildCookie(token));
@@ -110,6 +110,8 @@ export async function setCookie(res: Response, env: Env, session: Session) {
 export function clearCookie(res: Response) {
   headerSetCookie(res, `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
 }
+
+/* Back-compat names */
 export async function createSession(env: Env, session: Session) {
   const token = await signSession(env, session);
   return buildCookie(token);
@@ -118,64 +120,65 @@ export function destroySession(res: Response) {
   clearCookie(res);
 }
 
-// 2) New DB session cookie (opaque SID stored in D1 `sessions`)
-type DbSessionRow = {
-  id: string;          // SID
-  user_id: string;
-  expires_at: string;  // ISO
-};
-type DbUserRow = {
-  id: string;
-  email: string;
-  password_hash: string | null;
-  role?: string | null; // optional role column
-};
+/* ─────────────── Auth guards / accessors ─────────────── */
+/** Try DB session first (SID in `sessions`), then legacy signed token. */
+export async function getUserFromSession(req: Request, env: Env): Promise<Session | null> {
+  const token = parseCookies(req)[COOKIE_NAME];
+  if (!token) return null;
 
-/** Look up SID in D1 and join user */
-async function loadSessionFromDB(env: Env, sid: string): Promise<Session | null> {
-  const row = await env.DB.prepare(
-    `SELECT id, user_id, expires_at FROM sessions WHERE id = ? LIMIT 1`
-  ).bind(sid).first<DbSessionRow | null>();
+  // Heuristic: if it contains a dot, it's a legacy signed token
+  const looksLikeSignedToken = token.includes(".");
 
-  if (!row) return null;
-  // Expiry check (defensive; DB may already purge)
-  if (row.expires_at) {
-    const expMs = Date.parse(row.expires_at);
-    if (Number.isFinite(expMs) && Date.now() > expMs) return null;
+  if (!looksLikeSignedToken) {
+    // Treat as DB session SID
+    try {
+      // Join sessions→users to get email; accept ISO or Unix expiry
+      const row = await env.DB.prepare(
+        `SELECT s.id as sid, s.expires_at as exp, u.id as uid, u.email as email
+           FROM sessions s
+           JOIN users u ON u.id = s.user_id
+          WHERE s.id = ?
+          LIMIT 1`
+      ).bind(token).first<{ sid: string; exp: string; uid: string; email: string }>();
+
+      if (!row) return null;
+
+      const now = Date.now();
+      let ok = false;
+
+      // ISO?
+      const asDate = new Date(row.exp);
+      if (!Number.isNaN(asDate.getTime())) {
+        ok = asDate.getTime() > now;
+      } else {
+        // Maybe Unix seconds
+        const sec = parseInt(row.exp, 10);
+        if (!Number.isNaN(sec)) ok = sec * 1000 > now;
+      }
+      if (!ok) return null;
+
+      const role: "user" | "admin" =
+        env.ADMIN_EMAIL && row.email?.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
+          ? "admin"
+          : "user";
+
+      return { sub: row.uid, email: row.email, role, iat: Math.floor(now / 1000) };
+    } catch (e) {
+      // fall through to legacy verification
+    }
   }
 
-  const user = await env.DB.prepare(
-    `SELECT id, email, password_hash, COALESCE(role,'user') AS role FROM users WHERE id = ? LIMIT 1`
-  ).bind(row.user_id).first<DbUserRow | null>();
+  // Legacy signed cookie support
+  const sess = await verifySession(env, token);
+  if (!sess) return null;
 
-  if (!user) return null;
+  // Upgrade role if matches admin email
+  const role: "user" | "admin" =
+    env.ADMIN_EMAIL && sess.email?.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
+      ? "admin"
+      : (sess.role || "user");
 
-  // Build Session shape expected by the app
-  return {
-    sub: user.id,
-    email: user.email,
-    role: (user.role === "admin" ? "admin" : "user"),
-    iat: Math.floor(Date.now() / 1000),
-  };
-}
-
-/* ────────────────────── Auth guards / accessors ──────────────────────── */
-/**
- * Accepts BOTH:
- *  - legacy token (contains a ".") → verifySession
- *  - DB SID (opaque, no ".") → lookup in D1 `sessions` and `users`
- */
-export async function getUserFromSession(req: Request, env: Env) {
-  const sidOrToken = parseCookies(req)[COOKIE_NAME];
-  if (!sidOrToken) return null;
-
-  if (sidOrToken.includes(".")) {
-    // legacy signed cookie
-    return await verifySession(env, sidOrToken);
-  } else {
-    // new DB session id
-    return await loadSessionFromDB(env, sidOrToken);
-  }
+  return { ...sess, role };
 }
 
 export async function requireAuth(req: Request, env: Env): Promise<Session> {
@@ -192,7 +195,7 @@ export async function requireAdmin(req: Request, env: Env) {
   return sess;
 }
 
-/* ───────────────────── Password / hashing helpers ────────────────────── */
+/* ─────────────── Password / hashing helpers ─────────────── */
 function tsc(a: string, b: string) {
   if (a.length !== b.length) return false;
   let out = 0;
@@ -212,7 +215,7 @@ export async function hashPassword(plain: string) {
 export async function hashPasswordS256(plain: string) {
   const saltBytes = new Uint8Array(12);
   crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map(b => b.toString(16).padStart(2,"0")).join("");
+  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
 }
@@ -238,8 +241,7 @@ export async function verifyPassword(plain: string, stored: string) {
     }
     if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
     return tsc(stored, plain);
-  } catch (e) {
-    console.error("verifyPassword error:", e);
+  } catch {
     return false;
   }
 }
@@ -257,11 +259,11 @@ export function isReasonablePassword(pw: string) {
   return typeof pw === "string" && pw.length >= 8;
 }
 
-/* ───────────────────────── Email helper (Resend) ─────────────────────── */
+/* ─────────────── Email (Resend) ─────────────── */
 export async function sendEmail(env: Env, to: string, subject: string, html: string) {
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const payload: Record<string, unknown> = {
-      from: env.MAIL_FROM,
+      from: env.MAIL_FROM, // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
       to: [to],
       subject,
       html,
@@ -285,18 +287,24 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
   console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
 }
 
-/* ─────────────────────────── D1 helpers ──────────────────────────────── */
+/* ─────────────── D1 helpers ─────────────── */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
     `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
-  ).bind(email.toLowerCase()).first<{
-    id: string; email: string; password_hash: string; created_at: number;
-  }>();
+  )
+    .bind(email.toLowerCase())
+    .first<{ id: string; email: string; password_hash: string; created_at: number }>();
 }
+
+/**
+ * db – flexible export:
+ *  - call like a function:   db(env).prepare("SELECT 1")
+ *  - or legacy helper:       db.getUserByEmail(env, email)
+ */
 export const db: any = (env: Env) => env.DB;
 db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
-/* ───────────────────────── Reset helpers (tokens) ────────────────────── */
+/* ─────────────── Reset helpers (tokens) ─────────────── */
 export function randomTokenHex(len = 32): string {
   const a = new Uint8Array(len);
   crypto.getRandomValues(a);
