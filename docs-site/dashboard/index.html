@@ -60,17 +60,27 @@
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);padding:14px;border-radius:14px}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* Address rows (no visible address; only buttons) */
+    /* Address rows with marquee + actions */
     .addr-wrap .label{margin:0 0 6px}
     .addr-row{
       width:100%;
-      display:flex; align-items:center; justify-content:space-between;
+      display:flex; align-items:center; gap:10px;
       border:1px solid var(--line); background:#0c1428;
-      border-radius:12px; padding:10px 10px 10px 12px;
-      gap:10px;
+      border-radius:12px; padding:10px 12px;
     }
     .addr-left{display:flex;align-items:center;gap:10px}
     .addr-left .coin{font-weight:700}
+    .addr-text{flex:1 1 auto; min-width:0; overflow:hidden; position:relative}
+    .addr-marquee{
+      display:inline-block; white-space:nowrap; padding-right:48px;
+      animation: addr-mar 18s linear infinite;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      letter-spacing:.2px;
+    }
+    .addr-row:hover .addr-marquee{ animation-play-state: paused }
+    @keyframes addr-mar{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
+    @media (prefers-reduced-motion: reduce){ .addr-marquee{ animation:none } }
+
     .addr-actions{display:flex;gap:8px}
     .icon-btn{
       width:40px;height:40px;border-radius:999px;border:1px solid var(--line);
@@ -88,7 +98,7 @@
     .tab-panel{display:none}
     .tab-panel.active{display:block}
 
-    /* Hero card with chips */
+    /* Hero card */
     .hero{
       background:
         radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
@@ -102,11 +112,11 @@
     .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer}
     .hero-x:hover{background:#132043}
 
-    /* QR modal */
+    /* QR modal centered */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
     .modal.show{display:grid}
-    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px;max-width:90vw}
-    .modal-card img{display:block;max-width:260px;width:80vw;height:auto;border-radius:12px;border:1px solid #1e2a4d}
+    .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px;max-width:90vw;text-align:center}
+    .modal-card img{display:block;max-width:260px;width:80vw;height:auto;margin:0 auto;border-radius:12px;border:1px solid #1e2a4d}
 
     @media (max-width:420px){
       .row{grid-template-columns:1fr}
@@ -220,9 +230,10 @@
               <div class="label muted">Bitcoin (BTC)</div>
               <div class="addr-row">
                 <div class="addr-left"><span class="coin">BTC</span></div>
+                <div class="addr-text"><span id="addr-btc-vis" class="addr-marquee"></span></div>
                 <div class="addr-actions">
                   <button class="icon-btn" aria-label="Copy BTC" onclick="copyAddr('btc')">⧉</button>
-                  <button class="icon-btn" aria-label="QR BTC" onclick="showQr('btc')">▦</button>
+                  <button class="icon-btn" aria-label="QR BTC"   onclick="showQr('btc')">▦</button>
                 </div>
                 <span id="addr-btc" hidden></span>
               </div>
@@ -232,9 +243,10 @@
               <div class="label muted">USDT — TRON (TRC20)</div>
               <div class="addr-row">
                 <div class="addr-left"><span class="coin">USDT-TRC20</span></div>
+                <div class="addr-text"><span id="addr-trc20-vis" class="addr-marquee"></span></div>
                 <div class="addr-actions">
                   <button class="icon-btn" aria-label="Copy TRC20" onclick="copyAddr('trc20')">⧉</button>
-                  <button class="icon-btn" aria-label="QR TRC20" onclick="showQr('trc20')">▦</button>
+                  <button class="icon-btn" aria-label="QR TRC20"   onclick="showQr('trc20')">▦</button>
                 </div>
                 <span id="addr-trc20" hidden></span>
               </div>
@@ -244,9 +256,10 @@
               <div class="label muted">Ethereum (ERC20)</div>
               <div class="addr-row">
                 <div class="addr-left"><span class="coin">ETH-ERC20</span></div>
+                <div class="addr-text"><span id="addr-eth-vis" class="addr-marquee"></span></div>
                 <div class="addr-actions">
                   <button class="icon-btn" aria-label="Copy ERC20" onclick="copyAddr('eth')">⧉</button>
-                  <button class="icon-btn" aria-label="QR ERC20" onclick="showQr('eth')">▦</button>
+                  <button class="icon-btn" aria-label="QR ERC20"   onclick="showQr('eth')">▦</button>
                 </div>
                 <span id="addr-eth" hidden></span>
               </div>
@@ -360,7 +373,7 @@
     function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(), 3200); }
     async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401){location.href='/login.html';return;} const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
 
-    // Hero helpers
+    // Hero
     function startInvesting(){ switchTop('deposit'); document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'}); }
     function dismissHero(){ const el = document.getElementById('hero-wrap'); if(el) el.style.display = 'none'; }
 
@@ -375,13 +388,14 @@
     });
     $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
-    // Top tabs
+    // Top tabs — explicit mapping so highlights work for Deposit/Withdraw too
+    const topPanels = { wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw' };
+    const topTabs   = { wallet:'#tab-wallet',   deposit:'#tab-dep',      withdraw:'#tab-wd' };
     function switchTop(which){
-      const map = {wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw'};
-      for(const k in map){
-        document.querySelector(map[k]).style.display = (k===which)?'block':'none';
-        document.getElementById('tab-'+(k==='wallet'?'wallet':k)).classList.toggle('active', k===which);
-      }
+      Object.keys(topPanels).forEach(k=>{
+        document.querySelector(topPanels[k]).style.display = (k===which)?'block':'none';
+        document.querySelector(topTabs[k]).classList.toggle('active', k===which);
+      });
     }
 
     // Bottom tabs
@@ -433,7 +447,7 @@
       document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // Deposit helpers
+    // Deposit — copy/QR
     function addrValue(kind){
       if(kind==='btc') return $('#addr-btc').textContent.trim();
       if(kind==='trc20') return $('#addr-trc20').textContent.trim();
@@ -534,10 +548,18 @@
       $('#total-assets').innerHTML = `$${(walletCache.balance_cents/100).toFixed(2)} <span class="muted" style="font-size:14px">${walletCache.currency||'USD'}</span>`;
       $('#wd-balance').textContent = `$${(walletCache.balance_cents/100).toFixed(2)} ${walletCache.currency||'USD'}`;
 
-      // deposit addresses (hidden spans for copy/QR)
+      // deposit addresses (hidden + visible marquee)
       $('#addr-btc').textContent   = walletCache.btc_addr || '';
       $('#addr-trc20').textContent = walletCache.trc20_addr || '';
       $('#addr-eth').textContent   = walletCache.eth_addr || '';
+
+      $('#addr-btc-vis').textContent   = walletCache.btc_addr   || '—';
+      $('#addr-trc20-vis').textContent = walletCache.trc20_addr || '—';
+      $('#addr-eth-vis').textContent   = walletCache.eth_addr   || '—';
+
+      $('#addr-btc-vis').title   = walletCache.btc_addr   || '';
+      $('#addr-trc20-vis').title = walletCache.trc20_addr || '';
+      $('#addr-eth-vis').title   = walletCache.eth_addr   || '';
 
       // transactions & profits
       await renderTransactionsTable('tx-table', 50);
