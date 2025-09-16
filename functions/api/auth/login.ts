@@ -1,5 +1,6 @@
+// functions/api/auth/login.ts
 import {
-  json, bad, verifyPassword, createSession, headerSetCookie, type Env
+  json, bad, verifyPassword, createSession, headerSetCookie, type Env,
 } from "../../_utils";
 
 type Req = { email?: string; password?: string };
@@ -12,10 +13,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const DB = env.DB as D1Database | undefined;
     if (!DB) return json({ error: "DB binding missing" }, { status: 500 });
 
-    const row = await DB.prepare<
-      { id: string; email: string; password_hash: string; is_active: number }
-    >(
-      `SELECT id, email, password_hash, COALESCE(is_active,1) as is_active
+    const row = await DB.prepare<{
+      id: string; email: string; password_hash: string; is_active: number;
+    }>(
+      `SELECT id, email, password_hash, COALESCE(is_active,1) AS is_active
          FROM users
         WHERE lower(email)=lower(?)
         LIMIT 1`
@@ -23,7 +24,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
     if (!row) return bad("Invalid credentials");
     if (!row.is_active) return bad("Account disabled");
-
     const ok = await verifyPassword(password, row.password_hash);
     if (!ok) return bad("Invalid credentials");
 
