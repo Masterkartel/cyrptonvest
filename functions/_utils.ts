@@ -33,16 +33,10 @@ export function bad(message = "Bad request", status = 400) {
 }
 
 /* ───────────────────────── Cookie helpers ────────────────────────────── */
-// Accepts either the full Request object or a raw cookie string (back-compat)
-export function parseCookies(source: Request | string): Record<string, string> {
-  const raw =
-    typeof source === "string"
-      ? source
-      : source?.headers?.get("cookie") || "";
-
+export function parseCookies(req: Request): Record<string, string> {
+  const raw = req.headers.get("cookie") || "";
   const out: Record<string, string> = {};
   raw.split(/;\s*/).forEach((p) => {
-    if (!p) return;
     const i = p.indexOf("=");
     if (i > -1) out[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
   });
@@ -85,7 +79,9 @@ async function hmac(secret: string, msg: string) {
 }
 
 /* ───────────────────────────── Sessions ──────────────────────────────── */
-// Stateless cookie session, signed with AUTH_COOKIE_SECRET
+// Supports both:
+//  A) Stateless cookie (payload.signature) signed with AUTH_COOKIE_SECRET
+//  B) DB-backed session id stored in `sessions` (id,user_id,created_at,expires_at)
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
 export async function signSession(env: Env, session: Session) {
@@ -129,32 +125,45 @@ export function destroySession(res: Response) {
   clearCookie(res);
 }
 
-/* ─────────────── Auth guards / accessors (dual-mode: token or DB SID) ─────────────── */
+/* ────────────────────── Auth guards / accessors ──────────────────────── */
 export async function getUserFromSession(req: Request, env: Env) {
   const cookies = parseCookies(req);
-  const tokenOrSid = cookies[cookieName];
+  const tokenOrSid = cookies[COOKIE_NAME];
   if (!tokenOrSid) return null;
 
-  // Mode A: stateless signed token (payload.sig)
+  // Try stateless HMAC session first (has a dot)
   if (tokenOrSid.includes(".")) {
     const sess = await verifySession(env, tokenOrSid);
     if (sess) return sess;
-    // If signature fails, fall through to SID lookup
+    // fall-through to DB lookup if verify failed
   }
 
-  // Mode B: DB session id (created by /api/auth/login.ts)
+  // DB session id path (created by /api/auth/login.ts)
   try {
+    const nowSec = Math.floor(Date.now() / 1000);
     const row = await env.DB.prepare(
-      `SELECT s.id AS sid, s.user_id, s.created_at, s.expires_at, u.email
-         FROM sessions s
-         JOIN users u ON u.id = s.user_id
-        WHERE s.id = ? AND datetime('now') < s.expires_at
-        LIMIT 1`
-    ).bind(tokenOrSid).first<{
+      `SELECT
+         s.id         AS sid,
+         s.user_id    AS user_id,
+         s.created_at AS created_at,
+         s.expires_at AS expires_at,
+         u.email      AS email
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.id = ?
+         AND (
+           -- expires_at stored as integer seconds
+           (typeof(s.expires_at) = 'integer' AND s.expires_at > ?)
+           OR
+           -- expires_at stored as text (ISO or SQLite DATETIME); convert to seconds
+           (typeof(s.expires_at) = 'text' AND CAST(strftime('%s', s.expires_at) AS INTEGER) > ?)
+         )
+       LIMIT 1`
+    ).bind(tokenOrSid, nowSec, nowSec).first<{
       sid: string;
       user_id: string;
       created_at: string;
-      expires_at: string;
+      expires_at: number | string;
       email: string;
     }>();
 
@@ -217,7 +226,7 @@ export async function hashPassword(plain: string) {
 export async function hashPasswordS256(plain: string) {
   const saltBytes = new Uint8Array(12);
   crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map(b => b.toString(16).padStart(2,"0")).join("");
+  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2,"0")).join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
 }
@@ -234,10 +243,8 @@ export async function verifyPassword(plain: string, stored: string) {
 
   try {
     // bcrypt (optional if you later add bcryptjs dependency)
-    // dynamic import so build doesn’t fail if not installed
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
+      // @ts-ignore
       const bcrypt = (await import("bcryptjs")).default;
       return await bcrypt.compare(plain, stored);
     }
@@ -272,13 +279,11 @@ export async function verifyPassword(plain: string, stored: string) {
 /** Preferred hasher for resets: bcrypt if available; fallback to s256 */
 export async function hashPasswordBcrypt(plain: string) {
   try {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const bcrypt = (await import("bcryptjs")).default;
     const salt = await bcrypt.genSalt(10);
     return await bcrypt.hash(plain, salt);
   } catch {
-    // No bcrypt dependency? fallback to salted sha256
     return await hashPasswordS256(plain);
   }
 }
