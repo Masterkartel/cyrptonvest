@@ -1,101 +1,111 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Create account — Cyrptonvest</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<style>
-  :root{--bg:#0b0f19;--panel:#0f1629;--line:#1d2640;--text:#e6edf3;--muted:#9aa4b2;--brand:#f59e0b}
-  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,Inter,Arial}
-  .wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
-  .card{max-width:420px;width:92%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
-  .brand{display:flex;gap:10px;align-items:center;justify-content:center}
-  .brand img{width:28px;height:28px}
-  label{font-weight:600;font-size:13px}
-  input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:var(--text)}
-  .btn{width:100%;padding:12px;border-radius:999px;border:0;background:var(--brand);color:#111827;font-weight:700;cursor:pointer}
-  .err{display:none;background:#2a1220;border:1px solid #7f1d1d;color:#fecaca;padding:10px;border-radius:10px;margin:8px 0}
-  a{color:#f59e0b;text-decoration:none}
-
-  /* password eye */
-  .pw-wrap{position:relative}
-  .pw-wrap input{padding-right:40px}
-  .pw-toggle{
-    position:absolute;right:10px;top:50%;transform:translateY(-50%);
-    background:none;border:none;cursor:pointer;font-size:16px;color:#9aa4b2;
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create account — Cyrptonvest</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root{--bg:#0b0f19;--panel:#0f1629;--line:#1d2640;--text:#e6edf3;--muted:#9aa4b2;--brand:#f59e0b;--ring:rgba(245,158,11,.35)}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,Inter,Arial}
+    .wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+    .card{max-width:420px;width:92%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+    .brand{display:flex;gap:10px;align-items:center;justify-content:center}
+    .brand img{width:28px;height:28px}
+    h2{margin:8px 0 14px;text-align:center}
+    label{font-weight:600;font-size:13px;display:block;margin:8px 0 6px;color:#cbd5e1}
+    input{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0a1122;color:var(--text);outline:none}
+    input:focus{box-shadow:0 0 0 3px var(--ring)}
+    .btn{width:100%;padding:12px;border-radius:999px;border:0;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827;font-weight:800;cursor:pointer}
+    .err{display:none;background:#2a1220;border:1px solid #7f1d1d;color:#fecaca;padding:10px;border-radius:12px;margin:8px 0;white-space:pre-wrap}
+    a{color:#f59e0b;text-decoration:none}
+    /* eye toggle */
+    .pw-wrap{position:relative}
+    .pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#0f1a36;display:grid;place-items:center;cursor:pointer}
+    .pw-eye:hover{background:#112149}
+  </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
     <div class="brand"><img src="/assets/logo.svg" alt=""><strong>Cyrptonvest</strong></div>
-    <h2 style="text-align:center;margin:8px 0 14px">Create account</h2>
+    <h2>Create account</h2>
+
     <div id="err" class="err"></div>
-    <form id="f">
-      <label>Email</label>
-      <input id="e" type="email" required placeholder="you@example.com">
-      <div style="height:8px"></div>
-      <label>Password</label>
+
+    <form id="f" novalidate>
+      <label for="e">Email</label>
+      <input id="e" type="email" required placeholder="you@example.com" autocomplete="username">
+
+      <label for="p">Password</label>
       <div class="pw-wrap">
-        <input id="p" type="password" required minlength="6" placeholder="Min 6 characters">
-        <button type="button" class="pw-toggle" onclick="togglePw('p', this)">👁</button>
+        <input id="p" type="password" required minlength="8" placeholder="Min 8 characters" autocomplete="new-password">
+        <button type="button" id="eye" class="pw-eye" aria-label="Show password">👁️</button>
       </div>
+
       <div style="height:12px"></div>
-      <button class="btn">Create account</button>
+      <button class="btn" id="submit">Create account</button>
     </form>
+
     <p style="text-align:center;margin:10px 0 0"><a href="/login.html">I have an account</a></p>
   </div>
 </div>
 
 <script>
-async function post(url, body){
-  const r = await fetch(url,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(body)
+  // Show/hide password
+  document.getElementById('eye')?.addEventListener('click', ()=>{
+    const inp = document.getElementById('p');
+    const isPw = inp.type === 'password';
+    inp.type = isPw ? 'text' : 'password';
+    document.getElementById('eye').textContent = isPw ? '🙈' : '👁️';
+    document.getElementById('eye').setAttribute('aria-label', isPw ? 'Hide password' : 'Show password');
   });
-  if(!r.ok) throw new Error(await r.text()||'Signup failed');
-  return r.json().catch(()=>({}));
-}
 
-const err=document.getElementById('err');
-document.getElementById('f').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  err.style.display='none'; 
-  err.textContent='';
-
-  try{
-    await post('/api/auth/signup',{
-      email:document.getElementById('e').value.trim(),
-      password:document.getElementById('p').value
+  async function postJSON(url, body){
+    const r = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body:JSON.stringify(body)
     });
-    location.href='/dashboard/';
-  }catch(ex){
-    let msg = ex.message || String(ex);
-
-    // Clean friendly error mapping
-    if(/exist|taken|duplicate/i.test(msg)){
-      msg = "Email is already registered";
-    } else if(/password|short|weak/i.test(msg)){
-      msg = "Password too short (minimum 6 characters)";
+    const ct = r.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = await r.json();
+      if (!r.ok || data?.error) throw new Error(data?.error || `Request failed (${r.status})`);
+      return data;
+    } else {
+      // Non-JSON fallback
+      const text = await r.text().catch(()=> '');
+      throw new Error(text || (r.ok ? 'Unexpected response' : `Request failed (${r.status})`));
     }
-
-    err.textContent = msg;
-    err.style.display='block';
   }
-});
-</script>
 
-<!-- eye toggle helper -->
-<script>
-function togglePw(id, btn){
-  const inp = document.getElementById(id);
-  if(!inp) return;
-  const isPw = inp.type === 'password';
-  inp.type = isPw ? 'text' : 'password';
-  btn.textContent = isPw ? '🙈' : '👁';
-}
+  const errBox = document.getElementById('err');
+  function showErr(msg){
+    errBox.textContent = String(msg);
+    errBox.style.display = 'block';
+  }
+
+  document.getElementById('f').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    errBox.style.display = 'none';
+    document.getElementById('submit').disabled = true;
+    document.getElementById('submit').textContent = 'Creating…';
+
+    const email = document.getElementById('e').value.trim();
+    const password = document.getElementById('p').value;
+
+    try{
+      await postJSON('/api/auth/signup', { email, password });
+      location.href = '/dashboard/';
+    }catch(ex){
+      showErr(ex.message || 'Signup failed');
+    }finally{
+      document.getElementById('submit').disabled = false;
+      document.getElementById('submit').textContent = 'Create account';
+    }
+  });
 </script>
 </body>
 </html>
