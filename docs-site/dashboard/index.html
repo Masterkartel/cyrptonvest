@@ -17,11 +17,12 @@
     .brand{display:flex;align-items:center;gap:10px;font-weight:800}
     .brand img{width:22px;height:22px}
     .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
-    /* calculator pill: align height with inputs and slightly smaller text */
-    .pill.calc{padding:10px 12px; height:42px; font-size:14px}
-    .ok{color:var(--ok)}
-
     .content{max-width:1200px;margin:0 auto}
+
+    /* calc pill: vertical, mobile-friendly, aligns with input */
+    .pill.calc{display:flex;flex-direction:column;align-items:flex-start;border-radius:14px;padding:10px 12px;gap:2px}
+    .pill.calc .main{font-weight:800}
+    .ok{color:var(--ok)}
 
     .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer;transition:transform .2s ease}
     .avatar:hover{transform:translateY(-1px)}
@@ -45,6 +46,10 @@
     .card h2{margin:0 0 12px}
     .muted{color:var(--muted)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+    /* specific to plan form row so headings line up */
+    .plan-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+    .plan-row label{display:block;margin-bottom:6px}
 
     .switch{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
     .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700;transition:background .2s ease,transform .15s ease}
@@ -80,7 +85,6 @@
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,.15);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
     .btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,158,11,.22)}
     .btn:active{transform:translateY(0);filter:saturate(.96)}
-    /* same height alt button for logout with tighter width */
     .btn-alt{display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--line);color:#e6edf3;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
     .btn-alt:hover{background:#121a33}
 
@@ -121,6 +125,13 @@
 
     body{overflow-x:hidden}
     .hidden{display:none}
+
+    /* Mobile tweaks */
+    @media (max-width: 480px){
+      .pill.calc{width:100%;padding:8px 10px}
+      input,select,textarea{padding:8px}
+      .row, .plan-row{gap:12px}
+    }
 
     /* Settings: button row aligned, same height, spread apart */
     .settings-actions{
@@ -241,7 +252,7 @@
               <span class="chip">ETH-ERC20</span>
               <span class="addr-text" title="ETH ERC20 address"><span id="addr-eth-vis" class="addr-scroll"></span></span>
               <span class="addr-actions">
-                <!-- FIXED: Copy first, then QR (to match BTC/USDT) -->
+                <!-- Copy first, then QR -->
                 <button class="icon-btn" aria-label="Copy ERC20" onclick="copyAddr('eth')">⧉</button>
                 <button class="icon-btn" aria-label="QR ERC20" onclick="showQr('eth')">▦</button>
               </span>
@@ -328,7 +339,6 @@
           </div>
         </div>
 
-        <!-- action buttons aligned on one line, same height, far ends -->
         <div class="settings-actions">
           <a class="btn" href="/forgot.html" id="btn-reset-pw">Reset password</a>
           <button class="btn-alt" id="btn-logout-2">Log out</button>
@@ -379,7 +389,7 @@
       return ct.includes('application/json') ? r.json() : r.text();
     }
 
-    // Session bootstrap — ensure auth BEFORE rendering anything that needs it
+    // Session bootstrap
     let SESSION = null;
     async function ensureAuth(){
       try{
@@ -396,7 +406,6 @@
       }
     }
 
-    // UI helpers
     function startInvesting(){ switchTop('deposit'); document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'}); }
     function dismissHero(){ const el = $('#hero-wrap'); if(el) el.style.display = 'none'; }
 
@@ -449,8 +458,8 @@
         if(v>max){ warn.textContent=`Maximum is $${max}`; warn.style.display='block'; out.innerHTML='—'; return; }
         warn.style.display='none';
         const profit = v*rate, total = v+profit;
-        // PROFIT amount in green
-        out.innerHTML = `$${total.toFixed(2)} total (<span class="ok">$${profit.toFixed(2)}</span> profit)`;
+        // Two lines for small screens
+        out.innerHTML = `<span class="main">$${total.toFixed(2)} total</span><span><span class="ok">$${profit.toFixed(2)}</span> profit</span>`;
       };
       amt?.addEventListener('input', update);
       update();
@@ -549,7 +558,6 @@
     }
 
     async function renderEverything(){
-      // SESSION already set by ensureAuth()
       const email = (SESSION && SESSION.email) ? SESSION.email : '';
       $('#avatar').textContent = (email ? email[0] : '?').toUpperCase();
       $('#dd-email').textContent = email || '(not signed in)';
@@ -560,12 +568,12 @@
       $('#total-profits').innerHTML = `$${(totals.profits/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#wd-balance').textContent  = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
 
-      // Hard-coded addresses (as requested)
+      // Hard-coded addresses
       const a = {
         btc_addr:   "bc1qcqy3f6z3qjglyt8qalmphrd4p6rz4jy6m0q0ye",
         trc20_addr: "TTxwizHvUPUuJdmSmJREpaSYrwsderWp5V",
         eth_addr:   "0xf3060f3dbb49b1ad301dd4291b2e74ab2fdcd861",
-        ...totals.addrs // (server values would override if provided)
+        ...totals.addrs
       };
       $('#addr-btc').textContent   = a.btc_addr   || '';
       $('#addr-trc20').textContent = a.trc20_addr || '';
@@ -583,7 +591,7 @@
         <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;transition:transform .25s ease, box-shadow .25s ease">
           <strong>${name}</strong>
           <div class="muted">Range: $${min} – $${max} • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
-          <div class="row" style="margin-top:8px">
+          <div class="row plan-row" style="margin-top:8px">
             <div>
               <label class="muted">Enter amount (USD)</label>
               <input id="${id}-amt" type="number" step="0.01" placeholder="${min}">
@@ -591,8 +599,7 @@
             </div>
             <div>
               <label class="muted">Estimated return</label>
-              <!-- aligned pill -->
-              <div id="${id}-out" class="pill calc" style="display:inline-flex;margin-top:0">—</div>
+              <div id="${id}-out" class="pill calc" style="margin-top:0">—</div>
             </div>
           </div>
           <div style="height:8px"></div>
@@ -615,7 +622,7 @@
       switchTop('wallet');
     }
 
-    // Simple section router
+    // Router
     function showSection(id){
       ['section-main','section-bottom','section-settings','section-support'].forEach(sec=>{
         document.getElementById(sec).classList.toggle('hidden', sec!==id && !(id==='section-main' && sec==='section-bottom'));
