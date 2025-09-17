@@ -15,26 +15,22 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   const url = new URL(ctx.request.url);
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
-  // detect optional columns so we can run on BOTH old and new schemas
-  const hasFlags = await hasColumns(ctx.env, "users", [
-    "disallow_starter", "disallow_growth", "disallow_pro"
-  ]);
+  const hasFlags   = await hasColumns(ctx.env, "users", ["disallow_starter","disallow_growth","disallow_pro"]);
   const hasCreated = await hasColumns(ctx.env, "users", ["created_at"]);
 
-  // SELECT parts that work on any schema
   const baseSelect = `
     SELECT
       u.id,
       u.email,
       ${hasCreated ? "u.created_at" : "0 AS created_at"},
-      COALESCE(w.balance_cents, 0) AS balance_cents,
-      COALESCE(w.currency, 'USD')  AS currency
+      COALESCE(w.balance_cents,0) AS balance_cents,
+      COALESCE(w.currency,'USD')  AS currency
       ${hasFlags ? `,
         COALESCE(u.disallow_starter,0) AS disallow_starter,
         COALESCE(u.disallow_growth,0)  AS disallow_growth,
         COALESCE(u.disallow_pro,0)     AS disallow_pro
-      ` : `
-        ,0 AS disallow_starter,
+      ` : `,
+        0 AS disallow_starter,
         0 AS disallow_growth,
         0 AS disallow_pro
       `}
@@ -51,31 +47,22 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
     : ctx.env.DB.prepare(sql);
 
   const rows = await stmt.all<{
-    id: string;
-    email: string;
-    created_at: number | null;
-    balance_cents: number | null;
-    currency: string | null;
-    disallow_starter: number | null;
-    disallow_growth: number | null;
-    disallow_pro: number | null;
+    id: string; email: string; created_at: number | null;
+    balance_cents: number | null; currency: string | null;
+    disallow_starter: number | null; disallow_growth: number | null; disallow_pro: number | null;
   }>();
 
-  const users = (rows?.results || []).map((r) => {
-    const sec = Number(r.created_at || 0);
-    // If created_at is in seconds, convert; if it's 0 (old schema), leave 0 (UI renders '—')
-    const created_at = sec && sec < 1e12 ? sec * 1000 : sec;
-    return {
-      id: r.id,
-      email: r.email,
-      created_at,
-      balance_cents: r.balance_cents ?? 0,
-      currency: r.currency || "USD",
-      disallow_starter: !!r.disallow_starter,
-      disallow_growth:  !!r.disallow_growth,
-      disallow_pro:     !!r.disallow_pro,
-    };
-  });
+  const users = (rows.results || []).map(r => ({
+    id: r.id,
+    email: r.email,
+    // return raw created_at; UI will normalize
+    created_at: Number(r.created_at || 0),
+    balance_cents: r.balance_cents ?? 0,
+    currency: r.currency || "USD",
+    disallow_starter: !!r.disallow_starter,
+    disallow_growth:  !!r.disallow_growth,
+    disallow_pro:     !!r.disallow_pro,
+  }));
 
   return json({ ok: true, users });
 };
