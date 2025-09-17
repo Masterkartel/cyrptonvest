@@ -16,6 +16,7 @@
     a{color:var(--brand);text-decoration:none}
     .content{max-width:1200px;margin:0 auto;padding:0 16px}
 
+    /* Topbar */
     .topbar{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);
       background:linear-gradient(180deg,#0e152f,transparent)}
     .tb-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
@@ -23,15 +24,21 @@
     .brand img{width:22px;height:22px}
     .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;
       padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
+
+    /* Buttons */
     .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:9px 12px;font-weight:700;cursor:pointer;transition:transform .15s ease, box-shadow .2s ease}
     .btn:hover{transform:translateY(-1px)}
     .btn-primary{background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827}
     .btn-ghost{background:#121a33;border:1px solid var(--line);color:#d1d5db}
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
+    /* Layout */
     .section{padding:18px 0}
-    .cards{display:grid;grid-template-columns:2fr 1fr;gap:16px}
-    @media (max-width:980px){.cards{grid-template-columns:1fr}}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+    @media (max-width:980px){.grid2,.grid3{grid-template-columns:1fr}}
+
+    /* Card */
     .card{
       background:
         radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.12), transparent 55%),
@@ -45,24 +52,33 @@
     .card:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(0,0,0,.28)}
     @keyframes cardIn{to{transform:translateY(0);opacity:1}}
 
+    /* Inputs */
     .muted{color:var(--muted)}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    @media (max-width:900px){.grid2{grid-template-columns:1fr}}
-
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #172042;vertical-align:middle}
-    th{text-align:left}
-    .status{padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:#101a34}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    .ok{color:var(--ok)} .bad{color:var(--bad)}
+
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
     .spinner{width:14px;height:14px;border-radius:50%;border:2px solid #2a3a66;border-top-color:#f59e0b;animation:sp .8s linear infinite}
     @keyframes sp{to{transform:rotate(360deg)}}
     .empty{padding:12px;border:1px dashed #223055;border-radius:12px;text-align:center}
     .error{padding:10px;border:1px solid #592323;background:#2a0e0e;color:#fca5a5;border-radius:12px}
     .note{font-size:12px;color:#9aa4b2}
+
+    /* Users list as “pills/rows” */
+    .u-list{display:flex;flex-direction:column;gap:10px}
+    .u-row{
+      display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
+      border:1px solid var(--line);background:#0f1629;border-radius:12px;padding:10px
+    }
+    .u-main{min-width:0}
+    .u-email{display:flex;gap:8px;align-items:center;font-weight:600;word-break:break-all}
+    .u-id{display:flex;gap:6px;align-items:center;font-family:ui-monospace,Menlo,Consolas;font-size:12px;color:#9aa4b2;word-break:break-all}
+    .copy{cursor:pointer;border:1px solid #223055;background:#101a34;border-radius:8px;padding:2px 6px;font-size:12px}
+    .u-right{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .tag{border:1px solid var(--line);background:#101a34;border-radius:999px;padding:2px 8px;font-size:12px}
+    .switches{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .switches label{display:inline-flex;gap:6px;align-items:center;font-size:12px}
   </style>
 </head>
 <body>
@@ -99,47 +115,9 @@
 
       <!-- App -->
       <div id="app" style="display:none">
-        <div class="cards">
-          <!-- Users -->
-          <div class="card">
-            <div class="bar">
-              <div class="row" style="align-items:center;gap:10px">
-                <h3 style="margin:0">Users</h3>
-                <span id="users-meta" class="note"></span>
-              </div>
-              <div class="row">
-                <input id="u-q" placeholder="Search email…" style="width:220px">
-                <button id="btn-users-refresh" class="btn btn-ghost">Refresh</button>
-              </div>
-            </div>
-            <div id="users-status" class="note" style="display:none"><span class="spinner"></span> Loading users…</div>
-            <div id="users-error" class="error" style="display:none"></div>
-            <div id="users"></div>
-          </div>
 
-          <!-- Transactions -->
-          <div class="card">
-            <div class="bar">
-              <div class="row" style="align-items:center;gap:10px">
-                <h3 style="margin:0">Pending transactions</h3>
-                <span id="tx-meta" class="note"></span>
-              </div>
-              <div class="row">
-                <select id="t-kind">
-                  <option value="all">All</option>
-                  <option value="deposit">Deposits</option>
-                  <option value="withdraw">Withdrawals</option>
-                </select>
-                <button id="btn-tx-refresh" class="btn btn-ghost">Refresh</button>
-              </div>
-            </div>
-            <div id="tx-status" class="note" style="display:none"><span class="spinner"></span> Loading transactions…</div>
-            <div id="tx-error" class="error" style="display:none"></div>
-            <div id="tx"></div>
-          </div>
-        </div>
-
-        <div class="section">
+        <!-- Row 1: Wallet & Profit adjustments (wallet first) -->
+        <div class="grid2">
           <div class="card">
             <h3 style="margin:0 0 8px">Wallet adjustment</h3>
             <div class="grid2">
@@ -169,6 +147,77 @@
             <div style="height:10px"></div>
             <button id="btn-adjust" class="btn btn-primary">Apply change</button>
             <p id="adj-msg" class="muted" style="margin:8px 0 0"></p>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 8px">Profit adjustment (reporting)</h3>
+            <div class="grid2">
+              <div>
+                <label class="muted">User ID (UUID) or Email</label>
+                <input id="p-ident" placeholder="uuid-or-email@example.com"/>
+              </div>
+              <div>
+                <label class="muted">Amount (USD)</label>
+                <input id="p-amt" type="number" step="0.01" placeholder="50.00"/>
+              </div>
+            </div>
+            <div class="grid2" style="margin-top:10px">
+              <div>
+                <label class="muted">Note</label>
+                <input id="p-note" placeholder="Reason / reference"/>
+              </div>
+              <div>
+                <label class="muted">Direction</label>
+                <select id="p-direction">
+                  <option value="credit">Credit (+)</option>
+                  <option value="debit">Debit (−)</option>
+                </select>
+              </div>
+            </div>
+            <div style="height:10px"></div>
+            <button id="btn-profit" class="btn btn-ghost">Record profit</button>
+            <p id="p-msg" class="muted" style="margin:8px 0 0"></p>
+          </div>
+        </div>
+
+        <!-- Row 2: Users + Pending transactions -->
+        <div class="grid2" style="margin-top:16px">
+          <!-- Users -->
+          <div class="card">
+            <div class="bar">
+              <div class="row">
+                <h3 style="margin:0">Users</h3>
+                <span id="users-meta" class="note"></span>
+              </div>
+              <div class="row">
+                <input id="u-q" placeholder="Search email…" style="width:220px">
+                <button id="btn-users-refresh" class="btn btn-ghost">Refresh</button>
+              </div>
+            </div>
+            <div id="users-status" class="note" style="display:none"><span class="spinner"></span> Loading users…</div>
+            <div id="users-error" class="error" style="display:none"></div>
+            <div id="users" class="u-list"></div>
+          </div>
+
+          <!-- Transactions -->
+          <div class="card">
+            <div class="bar">
+              <div class="row">
+                <h3 style="margin:0">Pending transactions</h3>
+                <span id="tx-meta" class="note"></span>
+              </div>
+              <div class="row">
+                <select id="t-kind">
+                  <option value="all">All</option>
+                  <option value="deposit">Deposits</option>
+                  <option value="withdraw">Withdrawals</option>
+                </select>
+                <button id="btn-tx-refresh" class="btn btn-ghost">Refresh</button>
+              </div>
+            </div>
+            <div id="tx-status" class="note" style="display:none"><span class="spinner"></span> Loading transactions…</div>
+            <div id="tx-error" class="error" style="display:none"></div>
+            <div id="tx"></div>
           </div>
         </div>
       </div>
@@ -221,15 +270,26 @@
       $('#btn-tx-refresh')?.addEventListener('click', ()=>loadTx());
       $('#t-kind')?.addEventListener('change', ()=>loadTx());
       $('#u-q')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadUsers(); });
-      $('#btn-adjust')?.addEventListener('click', adjust);
+      $('#btn-adjust')?.addEventListener('click', adjustWallet);
+      $('#btn-profit')?.addEventListener('click', adjustProfit);
+    }
+
+    /* Date helpers: normalize seconds/ms/us to ms for display */
+    function normalizeMs(v){
+      let n = Number(v || 0);
+      if (!n) return 0;
+      if (n < 1e11) return n * 1000;   // seconds -> ms
+      if (n > 4e12) return Math.floor(n / 1000); // microseconds -> ms
+      return n;                         // already ms
+    }
+    const fmtDate = v => normalizeMs(v) ? new Date(normalizeMs(v)).toLocaleString() : '—';
+
+    /* Copy helpers */
+    function copy(text){
+      navigator.clipboard.writeText(text).then(()=>toast('Copied'));
     }
 
     // Users
-    function formatCreatedAt(sec){
-      const ms = Number(sec||0)*1000;
-      return ms ? new Date(ms).toLocaleString() : '—';
-    }
-
     async function loadUsers(){
       $('#users-error').style.display='none';
       $('#users-status').style.display='inline-flex';
@@ -238,39 +298,40 @@
       const res = await api('/api/admin/users' + (q?`?q=${encodeURIComponent(q)}`:''));
       if(!res.ok){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent=(res.data?.error||'Failed to load users'); return; }
 
-      const rows = (res.data.users||[]).map(u=>`
-        <tr>
-          <td style="font-family:ui-monospace,Menlo,Consolas">${u.id}</td>
-          <td>${u.email}</td>
-          <td>$${((u.balance_cents||0)/100).toFixed(2)}</td>
-          <td>
-            <label style="display:inline-flex;gap:6px;align-items:center">
-              <input type="checkbox" ${u.disallow_starter ? 'checked':''} onchange="toggleLimit('${u.id}','starter',this.checked)"/> Starter
-            </label>
-            &nbsp;•&nbsp;
-            <label style="display:inline-flex;gap:6px;align-items:center">
-              <input type="checkbox" ${u.disallow_growth ? 'checked':''} onchange="toggleLimit('${u.id}','growth',this.checked)"/> Growth
-            </label>
-            &nbsp;•&nbsp;
-            <label style="display:inline-flex;gap:6px;align-items:center">
-              <input type="checkbox" ${u.disallow_pro ? 'checked':''} onchange="toggleLimit('${u.id}','pro',this.checked)"/> Pro
-            </label>
-          </td>
-          <td class="row">
-            <button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button>
-          </td>
-          <td>${formatCreatedAt(u.created_at)}</td>
-        </tr>`).join('');
+      const list = (res.data.users||[]).map(u=>{
+        const bal = `$${((u.balance_cents||0)/100).toFixed(2)}`;
+        return `
+          <div class="u-row">
+            <div class="u-main">
+              <div class="u-email">
+                ${u.email}
+                <button class="copy" onclick="copy('${u.email}')">Copy</button>
+              </div>
+              <div class="u-id">
+                <span>${u.id}</span>
+                <button class="copy" onclick="copy('${u.id}')">Copy</button>
+              </div>
+              <div class="switches" style="margin-top:6px">
+                <label><input type="checkbox" ${u.disallow_starter?'checked':''} onchange="toggleLimit('${u.id}','starter',this.checked)"> Starter</label>
+                <label><input type="checkbox" ${u.disallow_growth?'checked':''}  onchange="toggleLimit('${u.id}','growth',this.checked)"> Growth</label>
+                <label><input type="checkbox" ${u.disallow_pro?'checked':''}     onchange="toggleLimit('${u.id}','pro',this.checked)"> Pro</label>
+              </div>
+            </div>
+            <div class="u-right">
+              <span class="tag">${bal}</span>
+              <span class="tag">${fmtDate(u.created_at)}</span>
+              <button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button>
+            </div>
+          </div>
+        `;
+      }).join('');
 
-      $('#users').innerHTML = `<table>
-        <thead><tr><th>User ID</th><th>Email</th><th>Balance</th><th>Plan Locks</th><th>Actions</th><th>Created</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody></table>`;
-
+      $('#users').innerHTML = list || `<div class="empty muted">No users yet</div>`;
       $('#users-meta').textContent = `${(res.data.users||[]).length} user${(res.data.users||[]).length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
       $('#users-status').style.display='none';
     }
 
-    // Transactions
+    // Pending transactions (table remains)
     async function loadTx(){
       $('#tx-error').style.display='none';
       $('#tx-status').style.display='inline-flex';
@@ -287,15 +348,15 @@
           <td>${t.kind}</td>
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>${t.ref||''}</td>
-          <td><span class="status">${t.status}</span></td>
-          <td>${formatCreatedAt(t.created_at)}</td>
+          <td><span class="tag">${t.status}</span></td>
+          <td>${fmtDate(t.created_at)}</td>
           <td class="row">
             <button class="btn btn-primary" onclick="approve('${t.id}')">Approve</button>
             <button class="btn btn-ghost" onclick="rejectTx('${t.id}')">Reject</button>
           </td>
         </tr>`).join('');
 
-      $('#tx').innerHTML = `<table>
+      $('#tx').innerHTML = `<table style="width:100%;border-collapse:collapse">
         <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Ref</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
 
@@ -315,8 +376,9 @@
 
     // Limits
     async function toggleLimit(userId, plan, checked){
-      const row = [...document.querySelectorAll('#users tbody tr')].find(tr => tr.firstElementChild?.textContent === userId);
-      const [starterCk, growthCk, proCk] = row ? row.querySelectorAll('input[type=checkbox]') : [];
+      const row = [...document.querySelectorAll('.u-row')].find(r => r.querySelector('.u-id span')?.textContent === userId);
+      const cks = row ? row.querySelectorAll('input[type=checkbox]') : [];
+      const [starterCk, growthCk, proCk] = cks;
       const payload = {
         user_id: userId,
         disallow_starter: plan==='starter'? (checked?1:0) : (starterCk?.checked?1:0),
@@ -333,11 +395,11 @@
     window.promptAdjust = (id,email)=>{
       $('#adj-ident').value = email || id || '';
       $('#adj-amt').focus();
-      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+      window.scrollTo({top: 0, behavior:'smooth'});
     }
 
     // Wallet adjust
-    async function adjust(){
+    async function adjustWallet(){
       const ident=$('#adj-ident').value.trim();
       const rawAmt=$('#adj-amt').value;
       const note=$('#adj-note').value.trim();
@@ -353,6 +415,7 @@
       if(direction==='debit') cents = -cents;
       else if(direction==='auto') cents = Math.round(amt*100);
 
+      // keep compatibility with existing API that expects delta_cents
       const body = ident.includes('@')
         ? { email: ident, delta_cents: cents, note }
         : { user_id: ident, delta_cents: cents, note };
@@ -367,6 +430,38 @@
         loadUsers();
       }else{
         $('#adj-msg').textContent = res.data?.error || 'Failed to apply change';
+      }
+    }
+
+    // Profit adjust (transaction only)
+    async function adjustProfit(){
+      const ident=$('#p-ident').value.trim();
+      const rawAmt=$('#p-amt').value;
+      const note=$('#p-note').value.trim();
+      const dir=$('#p-direction').value;
+
+      const amt = Number(rawAmt);
+      if(!ident || !Number.isFinite(amt) || amt<=0){
+        $('#p-msg').textContent='Enter a user id/email and a positive amount';
+        return;
+      }
+      const cents = Math.round(amt*100);
+      const signed = dir==='debit' ? -cents : cents;
+
+      const body = ident.includes('@')
+        ? { email: ident, amount_cents: signed, note }
+        : { user_id: ident, amount_cents: signed, note };
+
+      const res = await api('/api/admin/profit/adjust',{
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+
+      if(res.ok){
+        $('#p-msg').textContent='Recorded ✅';
+        $('#p-amt').value=''; $('#p-note').value='';
+        toast('Profit adjustment recorded');
+      }else{
+        $('#p-msg').textContent = res.data?.error || 'Failed to record';
       }
     }
 
