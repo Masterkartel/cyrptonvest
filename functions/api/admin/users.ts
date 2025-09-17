@@ -1,68 +1,77 @@
 // functions/api/admin/users.ts
-import { json, bad, requireAdmin, type Env } from "../../_utils";
-
-async function hasColumns(env: Env, table: string, cols: string[]) {
-  const info = await env.DB.prepare(`PRAGMA table_info(${table})`).all<{
-    cid: number; name: string; type: string; notnull: number; dflt_value: any; pk: number;
-  }>();
-  const names = new Set((info.results || []).map(r => (r.name || "").toLowerCase()));
-  return cols.every(c => names.has(c.toLowerCase()));
-}
+import { json, requireAdmin, type Env } from "../../_utils";
 
 export const onRequestGet: PagesFunction<Env> = async (ctx) => {
-  try { await requireAdmin(ctx.request, ctx.env); } catch { return bad("Forbidden", 403); }
+  try {
+    await requireAdmin(ctx.request, ctx.env);
 
-  const url = new URL(ctx.request.url);
-  const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+    const url = new URL(ctx.request.url);
+    const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
-  const hasFlags   = await hasColumns(ctx.env, "users", ["disallow_starter","disallow_growth","disallow_pro"]);
-  const hasCreated = await hasColumns(ctx.env, "users", ["created_at"]);
+    // Pull users with wallet (left join) + created_at in seconds
+    const users = await ctx.env.DB.prepare(
+      q
+        ? `SELECT u.id, u.email, u.created_at,
+                 COALESCE(w.balance_cents,0) AS balance_cents,
+                 COALESCE(u.disallow_starter,0) AS disallow_starter,
+                 COALESCE(u.disallow_growth,0)  AS disallow_growth,
+                 COALESCE(u.disallow_pro,0)     AS disallow_pro
+           FROM users u
+           LEFT JOIN wallets w ON w.user_id = u.id
+           WHERE lower(u.email) LIKE ?
+           ORDER BY u.created_at DESC`
+        : `SELECT u.id, u.email, u.created_at,
+                 COALESCE(w.balance_cents,0) AS balance_cents,
+                 COALESCE(u.disallow_starter,0) AS disallow_starter,
+                 COALESCE(u.disallow_growth,0)  AS disallow_growth,
+                 COALESCE(u.disallow_pro,0)     AS disallow_pro
+           FROM users u
+           LEFT JOIN wallets w ON w.user_id = u.id
+           ORDER BY u.created_at DESC`
+    )
+      .bind(q ? `%${q}%` : undefined)
+      .all<{
+        id: string;
+        email: string;
+        created_at: number;
+        balance_cents: number;
+        disallow_starter: number;
+        disallow_growth: number;
+        disallow_pro: number;
+      }>();
 
-  const baseSelect = `
-    SELECT
-      u.id,
-      u.email,
-      ${hasCreated ? "u.created_at" : "0 AS created_at"},
-      COALESCE(w.balance_cents,0) AS balance_cents,
-      COALESCE(w.currency,'USD')  AS currency
-      ${hasFlags ? `,
-        COALESCE(u.disallow_starter,0) AS disallow_starter,
-        COALESCE(u.disallow_growth,0)  AS disallow_growth,
-        COALESCE(u.disallow_pro,0)     AS disallow_pro
-      ` : `,
-        0 AS disallow_starter,
-        0 AS disallow_growth,
-        0 AS disallow_pro
-      `}
-    FROM users u
-    LEFT JOIN wallets w ON w.user_id = u.id
-  `;
+    const rows = users.results || [];
 
-  const sql = q
-    ? `${baseSelect} WHERE lower(u.email) LIKE ? ORDER BY ${hasCreated ? "u.created_at" : "u.rowid"} DESC LIMIT 500`
-    : `${baseSelect} ORDER BY ${hasCreated ? "u.created_at" : "u.rowid"} DESC LIMIT 500`;
+    // Sum profits per user from transactions table
+    // (profit, plan_payout, interest, bonus) with cleared/completed/success
+    const profitKinds = ["profit", "plan_payout", "interest", "bonus"];
+    const profitMap = new Map<string, number>();
 
-  const stmt = q
-    ? ctx.env.DB.prepare(sql).bind(`%${q}%`)
-    : ctx.env.DB.prepare(sql);
+    const profits = await ctx.env.DB.prepare(
+      `SELECT user_id, SUM(amount_cents) AS cents
+         FROM transactions
+        WHERE kind IN (${profitKinds.map(() => "?").join(",")})
+          AND status IN ('cleared','completed','success')
+        GROUP BY user_id`
+    )
+      .bind(...profitKinds)
+      .all<{ user_id: string; cents: number }>();
 
-  const rows = await stmt.all<{
-    id: string; email: string; created_at: number | null;
-    balance_cents: number | null; currency: string | null;
-    disallow_starter: number | null; disallow_growth: number | null; disallow_pro: number | null;
-  }>();
+    (profits.results || []).forEach((r) => profitMap.set(r.user_id, Number(r.cents || 0)));
 
-  const users = (rows.results || []).map(r => ({
-    id: r.id,
-    email: r.email,
-    // return raw created_at; UI will normalize
-    created_at: Number(r.created_at || 0),
-    balance_cents: r.balance_cents ?? 0,
-    currency: r.currency || "USD",
-    disallow_starter: !!r.disallow_starter,
-    disallow_growth:  !!r.disallow_growth,
-    disallow_pro:     !!r.disallow_pro,
-  }));
+    const out = rows.map((u) => ({
+      id: u.id,
+      email: u.email,
+      created_at: Number(u.created_at || 0), // seconds since epoch
+      balance_cents: Number(u.balance_cents || 0),
+      profit_cents: profitMap.get(u.id) || 0,
+      disallow_starter: u.disallow_starter ? 1 : 0,
+      disallow_growth: u.disallow_growth ? 1 : 0,
+      disallow_pro: u.disallow_pro ? 1 : 0,
+    }));
 
-  return json({ ok: true, users });
+    return json({ ok: true, users: out });
+  } catch (e: any) {
+    return json({ ok: false, error: "Forbidden" }, 403);
+  }
 };
