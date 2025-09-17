@@ -33,7 +33,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     await requireAdmin(ctx.request, ctx.env);
   } catch {
-    return json({ ok: false, error: "Forbidden" }, 403);
+    return bad("Forbidden", 403);
   }
 
   // 1) Parse body
@@ -47,7 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const currency = (body.currency || "USD").toUpperCase();
   const note = String(body.note || "").slice(0, 200);
 
-  // 2) Resolve target user
+  // 2) Resolve user
   let userId = (body.user_id || "").trim();
   if (!userId && body.email) {
     const u = await getUserByEmail(ctx.env, String(body.email).toLowerCase());
@@ -56,15 +56,12 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   }
   if (!userId) return bad("user_id or email required", 400);
 
-  const user = await ctx.env.DB.prepare(
+  const exists = await ctx.env.DB.prepare(
     `SELECT id FROM users WHERE id = ? LIMIT 1`
-  )
-    .bind(userId)
-    .first<{ id: string }>();
-  if (!user) return bad("User not found", 404);
+  ).bind(userId).first<{ id: string }>();
+  if (!exists) return bad("User not found", 404);
 
   // 3) Coerce amount in cents (integer & non-zero)
-  //    priority: delta_cents -> amount_cents -> amount_usd*100
   const pick = (v: unknown) => (typeof v === "string" ? v.trim() : v);
   let centsRaw: unknown =
     body.delta_cents ?? body.amount_cents ?? (body.amount_usd != null
@@ -76,14 +73,12 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     return bad("Amount must be a non-zero integer (cents)", 400);
   }
 
-  // 4) Ensure wallet row exists
+  // 4) Ensure wallet row exists (D1 upsert)
   await ctx.env.DB.prepare(
     `INSERT INTO wallets (user_id, balance_cents, currency, created_at, updated_at)
      VALUES (?, 0, ?, strftime('%s','now'), strftime('%s','now'))
      ON CONFLICT(user_id) DO NOTHING`
-  )
-    .bind(userId, currency)
-    .run();
+  ).bind(userId, currency).run();
 
   // 5) Adjust balance
   await ctx.env.DB.prepare(
@@ -91,18 +86,14 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
        SET balance_cents = COALESCE(balance_cents,0) + ?,
            updated_at     = strftime('%s','now')
      WHERE user_id = ?`
-  )
-    .bind(delta_cents, userId)
-    .run();
+  ).bind(delta_cents, userId).run();
 
-  // 6) Read back wallet
+  // 6) Get updated wallet
   const wallet = await ctx.env.DB.prepare(
     `SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`
-  )
-    .bind(userId)
-    .first<{ balance_cents: number; currency: string }>();
+  ).bind(userId).first<{ balance_cents: number; currency: string }>();
 
-  // 7) Record audit tx
+  // 7) Audit transaction (cleared)
   const txid = randomTokenHex(12);
   const kind = delta_cents >= 0 ? "admin_credit" : "admin_debit";
   const created_at = Math.floor(Date.now() / 1000);
@@ -112,17 +103,15 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       (id, user_id, kind, amount_cents, currency, status, ref, created_at)
      VALUES
       (?,  ?,      ?,    ?,            ?,        'cleared', ?,  ?)`
-  )
-    .bind(
-      txid,
-      userId,
-      kind,
-      Math.abs(delta_cents),
-      currency,
-      note || "",
-      created_at
-    )
-    .run();
+  ).bind(
+    txid,
+    userId,
+    kind,
+    Math.abs(delta_cents),
+    currency,
+    note || "",
+    created_at
+  ).run();
 
   return json({
     ok: true,
