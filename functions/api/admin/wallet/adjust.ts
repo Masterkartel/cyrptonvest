@@ -1,91 +1,74 @@
 // functions/api/admin/wallet/adjust.ts
-import {
-  json,
-  bad,
-  requireAdmin,
-  randomTokenHex,
-  getUserByEmail,
-  type Env,
-} from "../../../_utils";
+import { json, bad, requireAdmin, randomTokenHex, type Env } from "../../../_utils";
 
-type Body = {
-  user_id?: string;
-  email?: string;
-  delta_cents?: number | string;
-  amount_cents?: number | string;
-  amount_usd?: number | string;
-  currency?: string;
-  note?: string;
-};
+type Body =
+  | { user_id: string; amount_cents: number; kind?: string; note?: string; direction?: "auto" | "credit" | "debit" }
+  | { email: string;   amount_cents: number; kind?: string; note?: string; direction?: "auto" | "credit" | "debit" };
+
+async function getUserIdByEmail(env: Env, email: string) {
+  const row = await env.DB.prepare(`SELECT id FROM users WHERE lower(email)=? LIMIT 1`)
+    .bind(email.toLowerCase()).first<{ id: string }>();
+  return row?.id || null;
+}
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
-  try { await requireAdmin(ctx.request, ctx.env); } catch { return bad("Forbidden", 403); }
+  try { await requireAdmin(ctx.request, ctx.env); } catch { return json({ ok:false, error:"Forbidden" }, 403); }
 
-  let body: Body;
-  try { body = await ctx.request.json<Body>(); } catch { return bad("Invalid JSON body", 400); }
+  let body: any = {};
+  try { body = await ctx.request.json(); } catch { return bad("Invalid JSON body", 400); }
 
-  const currency = (body.currency || "USD").toUpperCase();
-  const note = String(body.note || "").slice(0, 200);
+  const amount_cents_num = Math.trunc(Number(body.amount_cents));
+  if (!Number.isFinite(amount_cents_num) || amount_cents_num === 0) {
+    return bad("amount_cents must be a non-zero integer", 400);
+  }
 
-  // Resolve user
-  let userId = String(body.user_id || "").trim();
-  if (!userId && body.email) {
-    const u = await getUserByEmail(ctx.env, String(body.email).toLowerCase());
+  let user_id = String(body.user_id || "").trim();
+  if (!user_id && body.email) {
+    const u = await getUserIdByEmail(ctx.env, String(body.email));
     if (!u) return bad("User not found", 404);
-    userId = u.id;
+    user_id = u;
   }
-  if (!userId) return bad("user_id or email required", 400);
+  if (!user_id) return bad("Provide user_id or email", 400);
 
-  const exists = await ctx.env.DB.prepare(
-    `SELECT id FROM users WHERE id = ? LIMIT 1`
-  ).bind(userId).first<{ id: string }>();
-  if (!exists) return bad("User not found", 404);
+  const nowSec = Math.floor(Date.now() / 1000);
 
-  // Amount → integer cents
-  const pick = (v: unknown) => (typeof v === "string" ? v.trim() : v);
-  let centsRaw: unknown =
-    body.delta_cents ?? body.amount_cents ??
-    (body.amount_usd != null ? Number(pick(body.amount_usd)) * 100 : undefined);
+  // Ensure wallet exists
+  await ctx.env.DB
+    .prepare(`INSERT INTO wallets (user_id, balance_cents, currency) VALUES (?, 0, 'USD') ON CONFLICT(user_id) DO NOTHING`)
+    .bind(user_id)
+    .run();
 
-  const delta_cents = Math.trunc(Number(pick(centsRaw)));
-  if (!Number.isFinite(delta_cents) || delta_cents === 0) {
-    return bad("Amount must be a non-zero integer (cents)", 400);
-  }
+  // Direction
+  const dir: "auto" | "credit" | "debit" = (body.direction || "auto");
+  const signedDelta =
+    dir === "credit" ? Math.abs(amount_cents_num)
+    : dir === "debit" ? -Math.abs(amount_cents_num)
+    : amount_cents_num; // auto: use sign given
 
-  // Ensure wallet row exists, then apply adjustment
-  await ctx.env.DB.prepare(
-    `INSERT INTO wallets (user_id, balance_cents, currency)
-     VALUES (?, 0, ?)
-     ON CONFLICT(user_id) DO NOTHING`
-  ).bind(userId, currency).run();
+  // Update balance
+  await ctx.env.DB
+    .prepare(`UPDATE wallets SET balance_cents = COALESCE(balance_cents,0) + ? WHERE user_id = ?`)
+    .bind(signedDelta, user_id)
+    .run();
 
-  await ctx.env.DB.prepare(
-    `UPDATE wallets
-       SET balance_cents = COALESCE(balance_cents,0) + ?
-     WHERE user_id = ?`
-  ).bind(delta_cents, userId).run();
+  // Read back
+  const wallet = await ctx.env.DB
+    .prepare(`SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`)
+    .bind(user_id).first<{ balance_cents:number; currency:string }>();
 
-  const wallet = await ctx.env.DB.prepare(
-    `SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`
-  ).bind(userId).first<{ balance_cents: number; currency: string }>();
-
-  // Audit trail
+  // Audit transaction
   const txid = randomTokenHex(12);
-  const kind = delta_cents >= 0 ? "admin_credit" : "admin_debit";
-  const created_at = Math.floor(Date.now() / 1000);
-  await ctx.env.DB.prepare(
-    `INSERT INTO transactions
-      (id, user_id, kind, amount_cents, currency, status, ref, created_at)
-     VALUES (?,  ?,      ?,    ?,            ?,        'cleared', ?,  ?)`
-  ).bind(txid, userId, kind, Math.abs(delta_cents), currency, note || "", created_at).run();
+  const kind = signedDelta >= 0 ? "admin_credit" : "admin_debit";
+  const note = String(body.note || "");
+  await ctx.env.DB
+    .prepare(`INSERT INTO transactions (id, user_id, kind, amount_cents, currency, status, ref, created_at)
+              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`)
+    .bind(txid, user_id, kind, Math.abs(signedDelta), wallet?.currency || "USD", note, nowSec)
+    .run();
 
   return json({
     ok: true,
-    wallet: {
-      user_id: userId,
-      balance_cents: wallet?.balance_cents ?? 0,
-      currency: wallet?.currency || currency,
-    },
-    tx: { id: txid, kind, amount_cents: Math.abs(delta_cents), currency, note, created_at },
+    wallet: { user_id, balance_cents: wallet?.balance_cents ?? 0, currency: wallet?.currency || "USD" },
+    tx: { id: txid, kind, amount_cents: Math.abs(signedDelta), currency: wallet?.currency || "USD", note, created_at: nowSec }
   });
 };
