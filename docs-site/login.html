@@ -16,8 +16,8 @@
     input{width:100%;padding:12px;border:1px solid var(--line);background:#0b1328;color:var(--text);border-radius:12px;outline:none}
     input:focus{box-shadow:0 0 0 3px var(--ring)}
     .btn{width:100%;margin-top:14px;padding:12px;border-radius:999px;border:0;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0b0f19;font-weight:800;cursor:pointer}
-    .err{display:none;margin-top:12px;background:#1a1320;border:1px solid #5b1d2a;color:#fecaca;border-radius:12px;padding:10px}
-    .row{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:10px}
+    .err{display:none;margin-top:12px;background:#1a1320;border:1px solid #5b1d2a;color:#fecaca;border-radius:12px;padding:10px;white-space:pre-wrap}
+    .row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
     a{color:#fbbf24;text-decoration:none}
   </style>
 </head>
@@ -37,29 +37,39 @@
       <div id="err" class="err"></div>
 
       <div class="row">
-        <div class="muted">
-          No account? <a href="/signup.html">Create one</a><br>
-          <a href="/forgot.html">Forgot password?</a>
-        </div>
+        <div class="muted">No account? <a href="/signup.html">Create one</a></div>
         <a href="/">Back home</a>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <a href="/forgot.html">Forgot password?</a>
       </div>
     </form>
   </div>
 
   <script>
+    console.log("[login] inline script loaded");
+    console.log("[login] cookies enabled?", navigator.cookieEnabled);
+
+    // Helper: never inject server HTML into the page
     async function postJSON(url, body){
+      console.log("[login] POST", url, body);
       const r = await fetch(url, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
+        // credentials *must* be include so the Set-Cookie from /api is accepted
         credentials: 'include',
         body: JSON.stringify(body)
       });
+      console.log("[login] response", r.status, r.statusText, "ct=", r.headers.get("content-type"));
       const ct = r.headers.get('content-type') || '';
       if (ct.includes('application/json')) {
         const data = await r.json();
+        console.log("[login] JSON", data);
         if (!r.ok || data?.error) throw new Error(data?.error || `Request failed (${r.status})`);
         return data;
       } else {
+        const text = await r.text().catch(()=>"(no body)");
+        console.warn("[login] Non-JSON response body:", text.slice(0,200));
         throw new Error(r.status >= 500
           ? 'Service temporarily unavailable. Please try again.'
           : `Request failed (${r.status})`);
@@ -68,28 +78,58 @@
 
     function showErr(msg){
       const el = document.getElementById('err');
-      el.textContent = msg;
+      el.textContent = String(msg);
       el.style.display = 'block';
     }
 
-    document.getElementById('login-form')?.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const err = document.getElementById('err');
-      err.style.display='none';
-      const btn = document.getElementById('btn'); btn.disabled = true; btn.textContent = 'Signing in…';
+    // Bind submit handler
+    const form = document.getElementById('login-form');
+    if (!form) {
+      console.error("[login] #login-form NOT found. The JS won't run.");
+    } else {
+      console.log("[login] #login-form found, adding submit listener");
+      form.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        console.log("[login] submit intercepted");
 
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
+        // hide old error
+        const err = document.getElementById('err');
+        err.style.display='none';
 
-      try{
-        await postJSON('/api/auth/login', { email, password });
-        location.href = '/dashboard/';
-      }catch(ex){
-        showErr(String(ex.message || ex));
-      }finally{
-        btn.disabled = false; btn.textContent = 'Sign in';
-      }
-    });
+        const btn = document.getElementById('btn');
+        btn.disabled = true;
+        btn.textContent = 'Signing in…';
+
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        console.log("[login] attempting for", email);
+
+        try{
+          const data = await postJSON('/api/auth/login', { email, password });
+
+          // The cookie is HttpOnly so document.cookie won't show it.
+          // We can quickly probe /api/me to confirm login:
+          console.log("[login] probing /api/me…");
+          const meRes = await fetch('/api/me', { credentials: 'include' });
+          const meCT = meRes.headers.get('content-type') || '';
+          let me = { status: meRes.status };
+          if (meCT.includes('application/json')) me = await meRes.json();
+          console.log("[login] /api/me result:", me);
+
+          if (meRes.ok && (me.ok || me.user)) {
+            location.href = '/dashboard/';
+          } else {
+            showErr('Signed in, but could not verify session. Please refresh and try again.');
+          }
+        }catch(ex){
+          console.error("[login] error", ex);
+          showErr(ex.message || String(ex));
+        }finally{
+          btn.disabled = false;
+          btn.textContent = 'Sign in';
+        }
+      });
+    }
   </script>
 </body>
 </html>
