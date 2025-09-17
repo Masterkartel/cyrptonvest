@@ -16,7 +16,6 @@
     a{color:var(--brand);text-decoration:none}
     .content{max-width:1200px;margin:0 auto;padding:0 16px}
 
-    /* Topbar */
     .topbar{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);
       background:linear-gradient(180deg,#0e152f,transparent)}
     .tb-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
@@ -30,7 +29,6 @@
     .btn-ghost{background:#121a33;border:1px solid var(--line);color:#d1d5db}
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
-    /* Sections / cards */
     .section{padding:18px 0}
     .card{
       background:
@@ -57,7 +55,6 @@
     .status{padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:#101a34}
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .ok{color:var(--ok)} .bad{color:var(--bad)}
-    .right{margin-left:auto}
     .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
     .spinner{width:14px;height:14px;border-radius:50%;border:2px solid #2a3a66;border-top-color:#f59e0b;animation:sp .8s linear infinite}
     @keyframes sp{to{transform:rotate(360deg)}}
@@ -79,7 +76,7 @@
 
   <main class="content">
     <section class="section">
-      <!-- Gate (shows if not admin) -->
+      <!-- Gate -->
       <div id="gate" class="card" style="display:none">
         <h2 style="margin:0 0 6px">Admin access</h2>
         <p class="muted" style="margin:0 0 12px">Sign in with the support admin account.</p>
@@ -181,7 +178,13 @@
   <script>
     const $=s=>document.querySelector(s);
     function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200); }
-    async function api(path,opts){ const r=await fetch(path,{credentials:'include',...opts}); if(r.status===401) return {unauth:true}; const ct=r.headers.get('Content-Type')||''; return ct.includes('application/json')?r.json():r.text(); }
+    async function api(path,opts){
+      const r=await fetch(path,{credentials:'include',...opts});
+      const ct=r.headers.get('Content-Type')||'';
+      let data = ct.includes('application/json') ? await r.json().catch(()=>null) : await r.text().catch(()=>null);
+      // Bubble up status + data
+      return { status:r.status, ok:r.ok, data };
+    }
 
     // clock
     setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
@@ -192,7 +195,7 @@
       if(email.toLowerCase()!=='support@cyrptonvest.com'){ $('#login-warn').style.display='block'; return; }
       $('#login-warn').style.display='none';
       const res=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-      if(res?.ok){ toast('Signed in'); gate(); } else toast('Login failed');
+      if(res.ok){ toast('Signed in'); gate(); } else toast('Login failed');
     });
     $('#logout')?.addEventListener('click', async ()=>{
       await fetch('/api/auth/logout',{method:'POST'}); location.href='/';
@@ -200,7 +203,8 @@
 
     // Gate
     async function gate(){
-      const me = await api('/api/me');
+      const m = await fetch('/api/me',{credentials:'include'});
+      const me = (m.headers.get('content-type')||'').includes('application/json') ? await m.json() : {};
       const isAdmin = me?.user?.email?.toLowerCase?.() === 'support@cyrptonvest.com';
       $('#gate').style.display = isAdmin ? 'none':'block';
       $('#app').style.display  = isAdmin ? 'block':'none';
@@ -226,12 +230,10 @@
       $('#users-status').style.display='inline-flex';
       $('#users-status').innerHTML = '<span class="spinner"></span> Loading users…';
       const q=$('#u-q').value?.trim() || '';
-      const url = '/api/admin/users' + (q?`?q=${encodeURIComponent(q)}`:'');
-      const res = await api(url);
-      if(res?.unauth){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent='Not authorized'; return; }
-      if(!res || !Array.isArray(res.users)){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent='Failed to load users'; return; }
+      const res = await api('/api/admin/users' + (q?`?q=${encodeURIComponent(q)}`:''));
+      if(!res.ok){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent=(res.data?.error||'Failed to load users'); return; }
 
-      const rows = res.users.map(u=>`
+      const rows = (res.data.users||[]).map(u=>`
         <tr>
           <td style="font-family:ui-monospace,Menlo,Consolas">${u.id}</td>
           <td>${u.email}</td>
@@ -259,7 +261,7 @@
         <thead><tr><th>User ID</th><th>Email</th><th>Balance</th><th>Plan Locks</th><th>Actions</th><th>Created</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody></table>`;
 
-      $('#users-meta').textContent = `${res.users.length} user${res.users.length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
+      $('#users-meta').textContent = `${(res.data.users||[]).length} user${(res.data.users||[]).length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
       $('#users-status').style.display='none';
     }
 
@@ -270,12 +272,10 @@
       $('#tx-status').innerHTML = '<span class="spinner"></span> Loading transactions…';
 
       const kind = $('#t-kind').value;
-      const url = '/api/admin/transactions?status=pending' + (kind==='all'?'':`&kind=${kind}`);
-      const res = await api(url);
-      if(res?.unauth){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent='Not authorized'; return; }
-      if(!res || !Array.isArray(res.transactions)){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent='Failed to load transactions'; return; }
+      const res = await api('/api/admin/transactions?status=pending' + (kind==='all'?'':`&kind=${kind}`));
+      if(!res.ok){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent=(res.data?.error||'Failed to load transactions'); return; }
 
-      const rows = res.transactions.map(t=>`
+      const rows = (res.data.transactions||[]).map(t=>`
         <tr>
           <td style="font-family:ui-monospace,Menlo,Consolas">${t.id}</td>
           <td>${t.user_email||t.user_id}</td>
@@ -294,18 +294,18 @@
         <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Ref</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
 
-      $('#tx-meta').textContent = `${res.transactions.length} pending • updated ${new Date().toLocaleTimeString()}`;
+      $('#tx-meta').textContent = `${(res.data.transactions||[]).length} pending • updated ${new Date().toLocaleTimeString()}`;
       $('#tx-status').style.display='none';
     }
 
     // Approve / Reject
     async function approve(id){
       const res=await api('/api/admin/transactions',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'completed'})});
-      if(res?.ok){ toast('Approved'); loadTx(); loadUsers(); } else toast('Failed');
+      if(res.ok){ toast('Approved'); loadTx(); loadUsers(); } else toast(res.data?.error || 'Failed');
     }
     async function rejectTx(id){
       const res=await api('/api/admin/transactions',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'failed'})});
-      if(res?.ok){ toast('Rejected'); loadTx(); } else toast('Failed');
+      if(res.ok){ toast('Rejected'); loadTx(); } else toast(res.data?.error || 'Failed');
     }
 
     // Limits
@@ -318,10 +318,10 @@
         disallow_growth:  plan==='growth' ? (checked?1:0) : (growthCk?.checked?1:0),
         disallow_pro:     plan==='pro'    ? (checked?1:0) : (proCk?.checked?1:0)
       };
-      const res = await fetch('/api/admin/limits', {
+      const r = await fetch('/api/admin/limits', {
         method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload)
       });
-      if(res.ok){ toast('Updated'); } else { toast('Failed to update'); }
+      if(r.ok){ toast('Updated'); } else { toast('Failed to update'); }
     }
 
     // Quick prompt fill for Adjust button on a user row
@@ -346,8 +346,7 @@
 
       let cents = Math.round(Math.abs(amt) * 100);
       if(direction==='debit') cents = -cents;
-      else if(direction==='auto') cents = Math.round(amt*100); // keep sign as typed
-      // direction==='credit' keeps positive
+      else if(direction==='auto') cents = Math.round(amt*100);
 
       const body = ident.includes('@')
         ? { email: ident, delta_cents: cents, note }
@@ -357,12 +356,12 @@
         method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
       });
 
-      if(res?.ok){
+      if(res.ok){
         $('#adj-msg').textContent='Applied ✅';
         $('#adj-amt').value=''; $('#adj-note').value='';
         loadUsers();
       }else{
-        $('#adj-msg').textContent='Failed to apply change';
+        $('#adj-msg').textContent = res.data?.error || 'Failed to apply change';
       }
     }
 
