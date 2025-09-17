@@ -19,6 +19,14 @@
     .err{display:none;margin-top:12px;background:#1a1320;border:1px solid #5b1d2a;color:#fecaca;border-radius:12px;padding:10px;white-space:pre-wrap}
     .row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
     a{color:#fbbf24;text-decoration:none}
+
+    /* password eye */
+    .pw-wrap{position:relative}
+    .pw-wrap input{padding-right:40px}
+    .pw-toggle{
+      position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      background:none;border:none;cursor:pointer;font-size:16px;color:#9aa4b2;
+    }
   </style>
 </head>
 <body>
@@ -31,7 +39,10 @@
       <input id="email" type="email" placeholder="you@example.com" autocomplete="username" required>
 
       <label for="password">Password</label>
-      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+      <div class="pw-wrap">
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+        <button type="button" class="pw-toggle" onclick="togglePw('password', this)">👁</button>
+      </div>
 
       <button class="btn" type="submit" id="btn">Sign in</button>
       <div id="err" class="err"></div>
@@ -129,6 +140,17 @@
           btn.textContent = 'Sign in';
         }
       });
+    }
+  </script>
+
+  <!-- eye toggle helper -->
+  <script>
+    function togglePw(id, btn){
+      const inp = document.getElementById(id);
+      if(!inp) return;
+      const isPw = inp.type === 'password';
+      inp.type = isPw ? 'text' : 'password';
+      btn.textContent = isPw ? '🙈' : '👁';
     }
   </script>
 </body>
