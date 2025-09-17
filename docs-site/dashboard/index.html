@@ -43,7 +43,7 @@
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
     .switch{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
-    .switch button{padding:10px;border:none;background:#121a33;color:#d1d3db;cursor:pointer;font-weight:700;transition:background .2s ease,transform .15s ease}
+    .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700;transition:background .2s ease,transform .15s ease}
     .switch button:active{transform:scale(.98)}
     .switch button.active{background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0b0f19;box-shadow:0 0 0 2px rgba(251,191,36,.25) inset;position:relative}
     .switch button.active::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 120% at 50% -20%,rgba(255,255,255,.25),transparent 60%);pointer-events:none;mix-blend-mode:overlay;animation:activeSheen 2.5s linear infinite}
@@ -73,7 +73,7 @@
     .icon-btn:hover{box-shadow:0 6px 14px rgba(0,0,0,.25);border-color:#2a3a66;background:#112049}
     .icon-btn:active{transform:scale(.94)}
 
-    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,.15);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:12px 16px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,.15);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
     .btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,158,11,.22)}
     .btn:active{transform:translateY(0);filter:saturate(.96)}
 
@@ -113,6 +113,10 @@
 
     body{overflow-x:hidden}
     .hidden{display:none}
+
+    /* Settings layout tweaks */
+    .btn-row{display:flex;justify-content:space-between;gap:12px;margin-top:12px}
+    .btn-row .btn{flex:1;display:inline-flex;align-items:center;justify-content:center}
   </style>
 </head>
 <body>
@@ -310,14 +314,12 @@
           <div>
             <label class="muted">Password</label>
             <input value="********" readonly>
-            <div class="field-warn">Use the button below to reset your password.</div>
           </div>
         </div>
-
-        <!-- moved below, like Log out -->
-        <div style="height:12px"></div>
-        <a class="btn" href="/forgot.html" style="display:inline-block;margin-right:8px">Reset password</a>
-        <button class="btn" id="btn-logout-2">Log out</button>
+        <div class="btn-row">
+          <a class="btn" href="/forgot.html">Reset password</a>
+          <button class="btn" id="btn-logout-2">Log out</button>
+        </div>
       </div>
     </section>
 
@@ -359,13 +361,6 @@
       const ct = r.headers.get('Content-Type')||'';
       return ct.includes('application/json') ? r.json() : r.text();
     }
-
-    // 🔒 Default deposit addresses (fallback only). REPLACE with your real addresses:
-    const DEFAULT_DEPOSIT_ADDRS = {
-      btc:   "REPLACE_WITH_YOUR_BTC_ADDRESS",
-      trc20: "REPLACE_WITH_YOUR_USDT_TRC20_ADDRESS",
-      eth:   "REPLACE_WITH_YOUR_ERC20_ADDRESS"
-    };
 
     // Session bootstrap — ensure auth BEFORE rendering anything that needs it
     let SESSION = null;
@@ -543,27 +538,20 @@
       $('#set-email') && ($('#set-email').value = email || '');
 
       const totals = await fetchTotals();
-
-      // Fallback to default deposit addresses if API returned empty
-      const a = totals.addrs || {};
-      const btcAddr   = a.btc_addr   || DEFAULT_DEPOSIT_ADDRS.btc;
-      const trc20Addr = a.trc20_addr || DEFAULT_DEPOSIT_ADDRS.trc20;
-      const ethAddr   = a.eth_addr   || DEFAULT_DEPOSIT_ADDRS.eth;
-
       $('#total-assets').innerHTML  = `$${(totals.balance/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#total-profits').innerHTML = `$${(totals.profits/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#wd-balance').textContent  = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
 
-      // populate deposit addresses
-      $('#addr-btc').textContent   = btcAddr || '';
-      $('#addr-trc20').textContent = trc20Addr || '';
-      $('#addr-eth').textContent   = ethAddr || '';
-      $('#addr-btc-vis').textContent   = btcAddr || '—';
-      $('#addr-trc20-vis').textContent = trc20Addr || '—';
-      $('#addr-eth-vis').textContent   = ethAddr || '—';
-      $('#addr-btc-vis').title   = btcAddr || '';
-      $('#addr-trc20-vis').title = trc20Addr || '';
-      $('#addr-eth-vis').title   = ethAddr || '';
+      const a = totals.addrs;
+      $('#addr-btc').textContent   = a.btc_addr   || '';
+      $('#addr-trc20').textContent = a.trc20_addr || '';
+      $('#addr-eth').textContent   = a.eth_addr   || '';
+      $('#addr-btc-vis').textContent   = a.btc_addr   || '—';
+      $('#addr-trc20-vis').textContent = a.trc20_addr || '—';
+      $('#addr-eth-vis').textContent   = a.eth_addr   || '—';
+      $('#addr-btc-vis').title   = a.btc_addr   || '';
+      $('#addr-trc20-vis').title = a.trc20_addr || '';
+      $('#addr-eth-vis').title   = a.eth_addr   || '';
 
       await renderTransactionsTable('tx-table', 50);
 
@@ -624,7 +612,7 @@
     // Clock
     setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
 
-    // Boot: confirm session first; then wire UI & render
+    // Boot
     (async ()=>{
       if(await ensureAuth()){
         initBottomTabs();
