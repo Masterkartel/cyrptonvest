@@ -23,19 +23,23 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     if (row.used_at) return bad("This reset link has already been used", 400);
     if (now > (row.expires_at || 0)) return bad("This reset link has expired", 400);
 
+    // Update password for the user (by email)
     const hashed = await hashPasswordBcrypt(password);
     await db(env)
       .prepare("UPDATE users SET password_hash = ? WHERE lower(email) = ?")
       .bind(hashed, row.email.toLowerCase())
       .run();
 
+    // Mark token used
     await db(env)
       .prepare("UPDATE reset_tokens SET used_at = ? WHERE id = ?")
       .bind(now, row.id)
       .run();
 
-    // Confirmation email
-    const base = (env as any).WEB_BASE_URL?.replace(/\/+$/, "") || new URL(request.url).origin;
+    // Send "password changed" confirmation (await optional; use await while testing)
+    const base =
+      (env as any).WEB_BASE_URL?.replace(/\/+$/, "") ||
+      new URL(request.url).origin;
     const dash = `${base}/dashboard/`;
     const first = row.email.split("@")[0] || "there";
 
@@ -66,13 +70,11 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       <tr><td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">© ${new Date().getFullYear()} Cyrptonvest. All rights reserved.</td></tr>
     </table></td></tr></table></body></html>`;
 
-    // Fire-and-forget is fine, but await during testing if you want logs:
-    // await sendEmail(env, row.email, "Your Cyrptonvest password was changed", html);
-    sendEmail(env, row.email, "Your Cyrptonvest password was changed", html)
-      .catch((e: any) => console.error("[password changed email]", e));
+    // During testing you can await to see errors in Functions logs:
+    await sendEmail(env, row.email, "Your Cyrptonvest password was changed", html);
 
     return json({ ok: true, message: "Password updated" });
-  } catch {
+  } catch (e: any) {
     return bad("Unable to reset password", 500);
   }
 };
