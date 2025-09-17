@@ -9,26 +9,46 @@
   <style>
     :root{
       --bg:#0b0f19;--panel:#0f1629;--panel2:#0c1428;--muted:#9aa4b2;--text:#e6edf3;--line:#1d2640;
-      --brand:#f59e0b;--ok:#22c55e;--bad:#ef4444;--ring:rgba(245,158,11,.3)
+      --brand:#f59e0b;--ok:#22c55e;--bad:#ef4444;--ring:rgba(245,158,11,.30)
     }
     *{box-sizing:border-box}
     html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif}
     a{color:var(--brand);text-decoration:none}
     .content{max-width:1200px;margin:0 auto;padding:0 16px}
-    .topbar{position:sticky;top:0;z-index:30;background:linear-gradient(180deg,#0e152f,transparent);border-bottom:1px solid var(--line)}
+
+    /* Topbar */
+    .topbar{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg,#0e152f,transparent)}
     .tb-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
     .brand{display:flex;align-items:center;gap:10px;font-weight:800}
     .brand img{width:22px;height:22px}
-    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
-    .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:9px 12px;font-weight:700;cursor:pointer}
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;
+      padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
+    .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:9px 12px;font-weight:700;cursor:pointer;transition:transform .15s ease, box-shadow .2s ease}
+    .btn:hover{transform:translateY(-1px)}
     .btn-primary{background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827}
     .btn-ghost{background:#121a33;border:1px solid var(--line);color:#d1d5db}
     .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* Sections / cards */
     .section{padding:18px 0}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+    .card{
+      background:
+        radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.12), transparent 55%),
+        radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.10), transparent 55%),
+        linear-gradient(180deg,#101934,#0c1226);
+      border:1px solid #27335a;border-radius:16px;padding:14px;
+      box-shadow:0 10px 30px rgba(0,0,0,.18);
+      transform:translateY(8px);opacity:0;animation:cardIn .6s cubic-bezier(.16,1,.3,1) forwards;
+      transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease
+    }
+    .card:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(0,0,0,.28)}
+    @keyframes cardIn{to{transform:translateY(0);opacity:1}}
+
     .muted{color:var(--muted)}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
     table{width:100%;border-collapse:collapse}
@@ -135,16 +155,16 @@
             </div>
             <div class="grid2" style="margin-top:10px">
               <div>
-                <label class="muted">Kind</label>
-                <select id="adj-kind">
-                  <option value="adjustment">Adjustment</option>
-                  <option value="plan_charge">Plan charge</option>
-                  <option value="profit">Profit</option>
-                </select>
-              </div>
-              <div>
                 <label class="muted">Note</label>
                 <input id="adj-note" placeholder="Reason / reference"/>
+              </div>
+              <div>
+                <label class="muted">Direction</label>
+                <select id="adj-direction">
+                  <option value="auto">Auto (use + / - sign)</option>
+                  <option value="credit">Force credit (+)</option>
+                  <option value="debit">Force debit (−)</option>
+                </select>
               </div>
             </div>
             <div style="height:10px"></div>
@@ -196,6 +216,11 @@
     }
 
     // Users
+    function formatCreatedAt(sec){
+      const ms = Number(sec||0)*1000;
+      return ms ? new Date(ms).toLocaleString() : '—';
+    }
+
     async function loadUsers(){
       $('#users-error').style.display='none';
       $('#users-status').style.display='inline-flex';
@@ -227,7 +252,7 @@
           <td class="row">
             <button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button>
           </td>
-          <td>${new Date(u.created_at).toLocaleString()}</td>
+          <td>${formatCreatedAt(u.created_at)}</td>
         </tr>`).join('');
 
       $('#users').innerHTML = `<table>
@@ -258,7 +283,7 @@
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>${t.ref||''}</td>
           <td><span class="status">${t.status}</span></td>
-          <td>${new Date(t.created_at).toLocaleString()}</td>
+          <td>${formatCreatedAt(t.created_at)}</td>
           <td class="row">
             <button class="btn btn-primary" onclick="approve('${t.id}')">Approve</button>
             <button class="btn btn-ghost" onclick="rejectTx('${t.id}')">Reject</button>
@@ -285,7 +310,6 @@
 
     // Limits
     async function toggleLimit(userId, plan, checked){
-      // Merge current checkboxes into one payload
       const row = [...document.querySelectorAll('#users tbody tr')].find(tr => tr.firstElementChild?.textContent === userId);
       const [starterCk, growthCk, proCk] = row ? row.querySelectorAll('input[type=checkbox]') : [];
       const payload = {
@@ -300,14 +324,46 @@
       if(res.ok){ toast('Updated'); } else { toast('Failed to update'); }
     }
 
-    // Adjust
+    // Quick prompt fill for Adjust button on a user row
+    window.promptAdjust = (id,email)=>{
+      $('#adj-ident').value = id || email || '';
+      $('#adj-amt').focus();
+      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+    }
+
+    // Wallet adjust
     async function adjust(){
-      const ident=$('#adj-ident').value.trim(), amt=parseFloat($('#adj-amt').value||'0'), kind=$('#adj-kind').value, note=$('#adj-note').value.trim();
-      if(!ident||!amt){ $('#adj-msg').textContent='Enter a user id/email and amount'; return; }
-      const body = ident.includes('@') ? { email: ident, amount_cents: Math.round(amt*100), kind, note } :
-                                         { user_id: ident, amount_cents: Math.round(amt*100), kind, note };
-      const res=await api('/api/admin/wallet/adjust',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      if(res?.ok){ $('#adj-msg').textContent='Applied'; $('#adj-amt').value=''; loadUsers(); } else $('#adj-msg').textContent='Failed';
+      const ident=$('#adj-ident').value.trim();
+      const rawAmt=$('#adj-amt').value;
+      const note=$('#adj-note').value.trim();
+      const direction=$('#adj-direction').value;
+
+      const amt = Number(rawAmt);
+      if(!ident || !Number.isFinite(amt) || amt===0){
+        $('#adj-msg').textContent='Enter a user id/email and a non-zero amount';
+        return;
+      }
+
+      let cents = Math.round(Math.abs(amt) * 100);
+      if(direction==='debit') cents = -cents;
+      else if(direction==='auto') cents = Math.round(amt*100); // keep sign as typed
+      // direction==='credit' keeps positive
+
+      const body = ident.includes('@')
+        ? { email: ident, delta_cents: cents, note }
+        : { user_id: ident, delta_cents: cents, note };
+
+      const res = await api('/api/admin/wallet/adjust',{
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+
+      if(res?.ok){
+        $('#adj-msg').textContent='Applied ✅';
+        $('#adj-amt').value=''; $('#adj-note').value='';
+        loadUsers();
+      }else{
+        $('#adj-msg').textContent='Failed to apply change';
+      }
     }
 
     // boot
