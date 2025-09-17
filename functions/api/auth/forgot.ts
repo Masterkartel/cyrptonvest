@@ -16,22 +16,15 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const expires = now + 1000 * 60 * 30; // 30 minutes
 
     await db(env)
-      .prepare(
-        "INSERT INTO reset_tokens (email, token, expires_at, created_at) VALUES (?, ?, ?, ?)"
-      )
+      .prepare("INSERT INTO reset_tokens (email, token, expires_at, created_at) VALUES (?, ?, ?, ?)")
       .bind(email.toLowerCase(), token, expires, now)
       .run()
-      .catch(() => { /* swallow insert errors */ });
+      .catch(() => {});
 
-    // Prefer configured base URL; otherwise fall back to request origin
-    const base =
-      (env as any).WEB_BASE_URL?.replace(/\/+$/, "") ||
-      new URL(request.url).origin;
-
+    const base = (env as any).WEB_BASE_URL?.replace(/\/+$/, "") || new URL(request.url).origin;
     const link = `${base}/reset.html?token=${encodeURIComponent(token)}`;
     const first = (user?.name || email.split("@")[0] || "there");
 
-    // On-brand HTML
     const html = `
     <!doctype html><html><head>
       <meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8">
@@ -44,7 +37,9 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     linear-gradient(180deg,#101934,#0c1226);border:1px solid #27335a;border-radius:16px;overflow:hidden">
       <tr><td style="padding:16px 20px;border-bottom:1px solid #1d2640">
         <table width="100%"><tr>
-          <td style="font-weight:800;font-size:16px;color:#e6edf3"><img src="https://cyrptonvest.com/assets/logo.svg" width="22" height="22" alt="logo" style="vertical-align:middle;margin-right:8px">Cyrptonvest</td>
+          <td style="font-weight:800;font-size:16px;color:#e6edf3">
+            <img src="${base}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
+          </td>
           <td align="right" style="color:#9aa4b2;font-size:12px">Password reset</td>
         </tr></table>
       </td></tr>
@@ -59,13 +54,12 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
         <p style="margin:12px 0 0;color:#9aa4b2">If you didn’t request this, you can ignore this email.</p>
       </td></tr>
       <tr><td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">© ${new Date().getFullYear()} Cyrptonvest. All rights reserved.</td></tr>
-    </table></td></tr></table></body></html>
-    `;
+    </table></td></tr></table></body></html>`;
 
     await sendEmail(env, email, "Reset your Cyrptonvest password", html);
 
     return json({ ok: true, message: "If that account exists, a reset link has been sent." });
-  } catch (e: any) {
+  } catch {
     return bad("Unable to process request", 500);
   }
 };
