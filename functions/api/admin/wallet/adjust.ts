@@ -8,16 +8,6 @@ import {
   type Env,
 } from "../../../_utils";
 
-/**
- * Admin wallet adjustment.
- * Accepts:
- *  - { user_id,  delta_cents, currency?, note? }
- *  - { email,    delta_cents, currency?, note? }
- *  - { user_id|email, amount_cents, ... }            // alias
- *  - { user_id|email, amount_usd, ... }              // converted to cents
- *
- * Positive amount = credit, negative = debit.
- */
 type Body = {
   user_id?: string;
   email?: string;
@@ -79,7 +69,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     `SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`
   ).bind(userId).first<{ balance_cents: number; currency: string }>();
 
-  // Audit transaction
+  // Audit trail
   const txid = randomTokenHex(12);
   const kind = delta_cents >= 0 ? "admin_credit" : "admin_debit";
   const created_at = Math.floor(Date.now() / 1000);
