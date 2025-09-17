@@ -1,32 +1,25 @@
-// GET /api/admin/users?cursor=<id>&limit=50&search=foo  (auth: admin)
+// functions/api/admin/users.ts
 import { json, requireAdmin, type Env } from "../../_utils";
 
 export const onRequestGet: PagesFunction<Env> = async (ctx) => {
-  await requireAdmin(ctx.request, ctx.env);
+  try {
+    await requireAdmin(ctx.request, ctx.env);
 
-  const url = new URL(ctx.request.url);
-  const limit = Math.max(1, Math.min(200, Number(url.searchParams.get("limit")) || 50));
-  const cursor = url.searchParams.get("cursor") || ""; // opaque user id to continue after
-  const search = (url.searchParams.get("search") || "").trim().toLowerCase();
+    // Pull minimal fields you need in the admin table
+    const rows = await ctx.env.DB.prepare(
+      `SELECT id, email, created_at
+         FROM users
+        ORDER BY created_at DESC`
+    ).all<{ id: string; email: string; created_at: number }>();
 
-  let sql = `SELECT id, email, created_at FROM users`;
-  const args: any[] = [];
+    const users = (rows?.results || []).map(u => {
+      const sec = Number(u.created_at || 0);
+      const ms  = sec < 1e12 ? sec * 1000 : sec; // normalize to ms
+      return { id: u.id, email: u.email, created_at_ms: ms };
+    });
 
-  const where: string[] = [];
-  if (search) { where.push(`lower(email) LIKE ?`); args.push(`%${search}%`); }
-  if (cursor) { where.push(`id > ?`); args.push(cursor); }
-
-  if (where.length) sql += ` WHERE ` + where.join(` AND `);
-  sql += ` ORDER BY id ASC LIMIT ?`; args.push(limit + 1);
-
-  const rows = await ctx.env.DB.prepare(sql).bind(...args).all<{
-    id: string; email: string; created_at: string | number;
-  }>();
-
-  const list = rows.results || [];
-  const hasMore = list.length > limit;
-  const page = hasMore ? list.slice(0, limit) : list;
-  const nextCursor = hasMore ? page[page.length - 1].id : null;
-
-  return json({ ok: true, users: page, nextCursor });
+    return json({ ok: true, users });
+  } catch (e:any) {
+    return json({ ok: false, error: "Forbidden" }, 403);
+  }
 };
