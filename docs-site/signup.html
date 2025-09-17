@@ -9,10 +9,19 @@
   .card{max-width:420px;width:92%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
   .brand{display:flex;gap:10px;align-items:center;justify-content:center}
   .brand img{width:28px;height:28px}
-  label{font-weight:600;font-size:13px} input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:var(--text)}
+  label{font-weight:600;font-size:13px}
+  input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:var(--text)}
   .btn{width:100%;padding:12px;border-radius:999px;border:0;background:var(--brand);color:#111827;font-weight:700;cursor:pointer}
   .err{display:none;background:#2a1220;border:1px solid #7f1d1d;color:#fecaca;padding:10px;border-radius:10px;margin:8px 0}
   a{color:#f59e0b;text-decoration:none}
+
+  /* password eye */
+  .pw-wrap{position:relative}
+  .pw-wrap input{padding-right:40px}
+  .pw-toggle{
+    position:absolute;right:10px;top:50%;transform:translateY(-50%);
+    background:none;border:none;cursor:pointer;font-size:16px;color:#9aa4b2;
+  }
 </style>
 </head><body>
 <div class="wrap">
@@ -21,9 +30,14 @@
     <h2 style="text-align:center;margin:8px 0 14px">Create account</h2>
     <div id="err" class="err"></div>
     <form id="f">
-      <label>Email</label><input id="e" type="email" required placeholder="you@example.com">
+      <label>Email</label>
+      <input id="e" type="email" required placeholder="you@example.com">
       <div style="height:8px"></div>
-      <label>Password</label><input id="p" type="password" required minlength="6" placeholder="Min 6 characters">
+      <label>Password</label>
+      <div class="pw-wrap">
+        <input id="p" type="password" required minlength="6" placeholder="Min 6 characters">
+        <button type="button" class="pw-toggle" onclick="togglePw('p', this)">👁</button>
+      </div>
       <div style="height:12px"></div>
       <button class="btn">Create account</button>
     </form>
@@ -44,5 +58,16 @@ document.getElementById('f').addEventListener('submit', async (e)=>{
     location.href='/dashboard/';
   }catch(ex){ err.textContent=ex.message; err.style.display='block'; }
 });
+</script>
+
+<!-- eye toggle helper -->
+<script>
+function togglePw(id, btn){
+  const inp = document.getElementById(id);
+  if(!inp) return;
+  const isPw = inp.type === 'password';
+  inp.type = isPw ? 'text' : 'password';
+  btn.textContent = isPw ? '🙈' : '👁';
+}
 </script>
 </body></html>
