@@ -17,6 +17,10 @@
     .brand{display:flex;align-items:center;gap:10px;font-weight:800}
     .brand img{width:22px;height:22px}
     .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
+    /* calculator pill: align height with inputs and slightly smaller text */
+    .pill.calc{padding:10px 12px; height:42px; font-size:14px}
+    .ok{color:var(--ok)}
+
     .content{max-width:1200px;margin:0 auto}
 
     .avatar{width:36px;height:36px;border-radius:999px;background:#18223f;border:1px solid var(--line);display:grid;place-items:center;color:#e6edf3;font-weight:800;cursor:pointer;transition:transform .2s ease}
@@ -101,7 +105,7 @@
     .hero-x:hover{background:#132043;transform:rotate(4deg)}
 
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
-    .modal.show{display:grid} /* <-- make modal visible when .show is added */
+    .modal.show{display:grid}
     .modal.show .modal-card{animation:modalIn .28s ease-out both}
     @keyframes modalIn{from{transform:translateY(12px) scale(.98);opacity:0} to{transform:translateY(0) scale(1);opacity:1}}
     .modal-card{background:#0f1629;border:1px solid var(--line);border-radius:16px;padding:16px 18px;max-width:min(92vw,460px);text-align:center}
@@ -237,8 +241,9 @@
               <span class="chip">ETH-ERC20</span>
               <span class="addr-text" title="ETH ERC20 address"><span id="addr-eth-vis" class="addr-scroll"></span></span>
               <span class="addr-actions">
-                <button class="icon-btn" aria-label="QR ERC20" onclick="showQr('eth')">▦</button>
+                <!-- FIXED: Copy first, then QR (to match BTC/USDT) -->
                 <button class="icon-btn" aria-label="Copy ERC20" onclick="copyAddr('eth')">⧉</button>
+                <button class="icon-btn" aria-label="QR ERC20" onclick="showQr('eth')">▦</button>
               </span>
               <span id="addr-eth" hidden></span>
             </div>
@@ -438,13 +443,14 @@
       const update = ()=>{
         const raw = amt.value.trim();
         const v = parseFloat(raw);
-        if(!raw){ warn.textContent='Enter an amount'; warn.style.display='block'; out.textContent='—'; return; }
-        if(isNaN(v)){ warn.textContent='Not a number'; warn.style.display='block'; out.textContent='—'; return; }
-        if(v<min){ warn.textContent=`Minimum is $${min}`; warn.style.display='block'; out.textContent='—'; return; }
-        if(v>max){ warn.textContent=`Maximum is $${max}`; warn.style.display='block'; out.textContent='—'; return; }
+        if(!raw){ warn.textContent='Enter an amount'; warn.style.display='block'; out.innerHTML='—'; return; }
+        if(isNaN(v)){ warn.textContent='Not a number'; warn.style.display='block'; out.innerHTML='—'; return; }
+        if(v<min){ warn.textContent=`Minimum is $${min}`; warn.style.display='block'; out.innerHTML='—'; return; }
+        if(v>max){ warn.textContent=`Maximum is $${max}`; warn.style.display='block'; out.innerHTML='—'; return; }
         warn.style.display='none';
         const profit = v*rate, total = v+profit;
-        out.textContent = `$${total.toFixed(2)} total ($${profit.toFixed(2)} profit)`;
+        // PROFIT amount in green
+        out.innerHTML = `$${total.toFixed(2)} total (<span class="ok">$${profit.toFixed(2)}</span> profit)`;
       };
       amt?.addEventListener('input', update);
       update();
@@ -585,7 +591,8 @@
             </div>
             <div>
               <label class="muted">Estimated return</label>
-              <div id="${id}-out" class="pill" style="display:inline-flex;margin-top:6px">—</div>
+              <!-- aligned pill -->
+              <div id="${id}-out" class="pill calc" style="display:inline-flex;margin-top:0">—</div>
             </div>
           </div>
           <div style="height:8px"></div>
