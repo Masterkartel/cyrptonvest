@@ -10,13 +10,13 @@ import {
 
 /**
  * Admin wallet adjustment.
- * Body can be any of:
- *  - { user_id, delta_cents, currency?, note? }
- *  - { email,   delta_cents, currency?, note? }
+ * Accepts:
+ *  - { user_id,  delta_cents, currency?, note? }
+ *  - { email,    delta_cents, currency?, note? }
  *  - { user_id|email, amount_cents, ... }            // alias
  *  - { user_id|email, amount_usd, ... }              // converted to cents
  *
- * delta/amount may be negative (debit) or positive (credit).
+ * Positive amount = credit, negative = debit.
  */
 type Body = {
   user_id?: string;
@@ -24,12 +24,12 @@ type Body = {
   delta_cents?: number | string;
   amount_cents?: number | string;
   amount_usd?: number | string;
-  currency?: string; // default 'USD'
+  currency?: string;
   note?: string;
 };
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
-  // 0) Auth
+  // 0) Admin auth
   try {
     await requireAdmin(ctx.request, ctx.env);
   } catch {
@@ -48,7 +48,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const note = String(body.note || "").slice(0, 200);
 
   // 2) Resolve user
-  let userId = (body.user_id || "").trim();
+  let userId = String(body.user_id || "").trim();
   if (!userId && body.email) {
     const u = await getUserByEmail(ctx.env, String(body.email).toLowerCase());
     if (!u) return bad("User not found", 404);
@@ -61,7 +61,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   ).bind(userId).first<{ id: string }>();
   if (!exists) return bad("User not found", 404);
 
-  // 3) Coerce amount in cents (integer & non-zero)
+  // 3) Amount in cents (non-zero integer)
   const pick = (v: unknown) => (typeof v === "string" ? v.trim() : v);
   let centsRaw: unknown =
     body.delta_cents ?? body.amount_cents ?? (body.amount_usd != null
@@ -73,22 +73,21 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     return bad("Amount must be a non-zero integer (cents)", 400);
   }
 
-  // 4) Ensure wallet row exists (D1 upsert)
+  // 4) Ensure wallet row exists (schema-safe upsert)
   await ctx.env.DB.prepare(
-    `INSERT INTO wallets (user_id, balance_cents, currency, created_at, updated_at)
-     VALUES (?, 0, ?, strftime('%s','now'), strftime('%s','now'))
+    `INSERT INTO wallets (user_id, balance_cents, currency)
+     VALUES (?, 0, ?)
      ON CONFLICT(user_id) DO NOTHING`
   ).bind(userId, currency).run();
 
   // 5) Adjust balance
   await ctx.env.DB.prepare(
     `UPDATE wallets
-       SET balance_cents = COALESCE(balance_cents,0) + ?,
-           updated_at     = strftime('%s','now')
+       SET balance_cents = COALESCE(balance_cents,0) + ?
      WHERE user_id = ?`
   ).bind(delta_cents, userId).run();
 
-  // 6) Get updated wallet
+  // 6) Read wallet back
   const wallet = await ctx.env.DB.prepare(
     `SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`
   ).bind(userId).first<{ balance_cents: number; currency: string }>();
