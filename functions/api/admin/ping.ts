@@ -1,14 +1,7 @@
-// functions/api/admin/ping.ts
+// GET /api/admin/ping  (auth: admin)
 import { json, requireAdmin, type Env } from "../../_utils";
 
-export const onRequestGet: PagesFunction<Env> = [
-  requireAdmin,
-  async ({ env }) => {
-    try {
-      const pong = await env.DB.prepare("SELECT 1 AS ok").first("ok");
-      return json({ ok: true, db: pong === 1 ? "ready" : "weird" });
-    } catch (e: any) {
-      return json({ ok: false, error: String(e?.message || e) }, { status: 500 });
-    }
-  },
-];
+export const onRequestGet: PagesFunction<Env> = async (ctx) => {
+  await requireAdmin(ctx.request, ctx.env);
+  return json({ ok: true, pong: true });
+};
