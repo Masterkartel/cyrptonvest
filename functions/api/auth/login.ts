@@ -11,7 +11,7 @@ import {
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const { request, env } = ctx;
 
-  // Preflight (CORS is handled by _middleware; just 204 here)
+  // Handle OPTIONS quickly (CORS preflight is set in _middleware)
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204 });
   }
@@ -42,20 +42,19 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) return bad("Invalid credentials", 400);
 
-    // 4) Determine role
+    // 4) Determine role (email match to ADMIN_EMAIL is admin)
+    const adminEmail = (env.ADMIN_EMAIL || "").toLowerCase();
     const role: "user" | "admin" =
-      env.ADMIN_EMAIL && user.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
-        ? "admin"
-        : "user";
+      adminEmail && user.email.toLowerCase() === adminEmail ? "admin" : "user";
 
-    // 5) Create session + cookie with correct Domain/Secure for this request
+    // 5) Create session (stored in D1) and build cookie for this host
     const cookie = await createSession(
       env,
       { sub: user.id, email: user.email, role, iat: Math.floor(Date.now() / 1000) },
       request
     );
 
-    // 6) Send JSON + Set-Cookie (CORS/security headers added by _middleware)
+    // 6) Respond
     const res = json({ ok: true, user: { id: user.id, email: user.email, role } });
     headerSetCookie(res, cookie);
     return res;
