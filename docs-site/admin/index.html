@@ -30,6 +30,8 @@
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
     .section{padding:18px 0}
+    .cards{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+    @media (max-width:980px){.cards{grid-template-columns:1fr}}
     .card{
       background:
         radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.12), transparent 55%),
@@ -50,7 +52,7 @@
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
     table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #172042}
+    th,td{padding:10px;border-bottom:1px solid #172042;vertical-align:middle}
     th{text-align:left}
     .status{padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:#101a34}
     .row{display:flex;gap:8px;flex-wrap:wrap}
@@ -97,7 +99,7 @@
 
       <!-- App -->
       <div id="app" style="display:none">
-        <div class="grid2">
+        <div class="cards">
           <!-- Users -->
           <div class="card">
             <div class="bar">
@@ -158,7 +160,7 @@
               <div>
                 <label class="muted">Direction</label>
                 <select id="adj-direction">
-                  <option value="auto">Auto (use + / - sign)</option>
+                  <option value="auto">Auto (use + / − sign)</option>
                   <option value="credit">Force credit (+)</option>
                   <option value="debit">Force debit (−)</option>
                 </select>
@@ -179,11 +181,14 @@
     const $=s=>document.querySelector(s);
     function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200); }
     async function api(path,opts){
-      const r=await fetch(path,{credentials:'include',...opts});
-      const ct=r.headers.get('Content-Type')||'';
-      let data = ct.includes('application/json') ? await r.json().catch(()=>null) : await r.text().catch(()=>null);
-      // Bubble up status + data
-      return { status:r.status, ok:r.ok, data };
+      try{
+        const r=await fetch(path,{credentials:'include',...opts});
+        const ct=r.headers.get('Content-Type')||'';
+        const data = ct.includes('application/json') ? await r.json().catch(()=>null) : await r.text().catch(()=>null);
+        return { status:r.status, ok:r.ok, data };
+      }catch(e){
+        return { status:0, ok:false, data:{ error:'Network error' } };
+      }
     }
 
     // clock
@@ -324,9 +329,9 @@
       if(r.ok){ toast('Updated'); } else { toast('Failed to update'); }
     }
 
-    // Quick prompt fill for Adjust button on a user row
+    // Quick fill when clicking "Adjust"
     window.promptAdjust = (id,email)=>{
-      $('#adj-ident').value = id || email || '';
+      $('#adj-ident').value = email || id || '';
       $('#adj-amt').focus();
       window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
     }
