@@ -1,11 +1,11 @@
 // functions/api/auth/login.ts
-import { verifyPassword, cookieName, buildCookieFromSid, type Env } from "../../_utils";
+import { verifyPassword, cookieName, type Env } from "../../_utils";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("Origin") || "*";
   return {
     "Access-Control-Allow-Origin": origin,
-    Vary: "Origin",
+    "Vary": "Origin",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Headers": "content-type, authorization",
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
@@ -16,9 +16,11 @@ function corsHeaders(req: Request) {
 }
 
 function json(data: unknown, init: ResponseInit = {}) {
+  const h = new Headers(init.headers);
+  if (!h.has("Content-Type")) h.set("Content-Type", "application/json");
   return new Response(JSON.stringify(data), {
     status: init.status ?? 200,
-    headers: { "Content-Type": "application/json", ...(init.headers || {}) },
+    headers: h,
   });
 }
 
@@ -37,7 +39,8 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     return new Response(null, { status: 204, headers: corsHeaders(request) });
   }
 
-  let email = "", password = "";
+  let email = "";
+  let password = "";
   try {
     const body = await request.json<any>();
     email = String(body?.email || "").trim().toLowerCase();
@@ -48,15 +51,16 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   }
 
   try {
-    const user = await env.DB.prepare(
+    const userRow = await env.DB.prepare(
       `SELECT id, email, password_hash FROM users WHERE lower(email) = ? LIMIT 1`
     ).bind(email).first<{ id: string; email: string; password_hash: string }>();
-    if (!user) return bad("Invalid credentials", request);
 
-    const ok = await verifyPassword(password, user.password_hash);
+    if (!userRow) return bad("Invalid credentials", request);
+
+    const ok = await verifyPassword(password, userRow.password_hash);
     if (!ok) return bad("Invalid credentials", request);
 
-    // Create session row (UNIX seconds expiry)
+    // Create DB session
     const sidBytes = new Uint8Array(32);
     crypto.getRandomValues(sidBytes);
     const sid = b64url(sidBytes);
@@ -68,14 +72,14 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     await env.DB.prepare(
       `INSERT INTO sessions (id, user_id, created_at, expires_at)
        VALUES (?, ?, datetime('now'), ?)`
-    ).bind(sid, user.id, expSec).run();
+    ).bind(sid, userRow.id, expSec).run();
 
-    // Set cookie with proper Domain/Secure based on request URL
-    const cookie = buildCookieFromSid(request, sid, maxAge);
+    const cookie = `${cookieName}=${sid}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax; Secure`;
+
     const headers = new Headers(corsHeaders(request));
     headers.append("Set-Cookie", cookie);
 
-    return json({ ok: true, user: { id: user.id, email: user.email } }, { headers });
+    return json({ ok: true, user: { id: userRow.id, email: userRow.email } }, { headers });
   } catch (err: any) {
     console.error("login error:", err?.message || err);
     return json({ ok: false, error: "service_unavailable" }, { headers: corsHeaders(request), status: 503 });
