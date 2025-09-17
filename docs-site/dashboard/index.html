@@ -73,7 +73,7 @@
     .icon-btn:hover{box-shadow:0 6px 14px rgba(0,0,0,.25);border-color:#2a3a66;background:#112049}
     .icon-btn:active{transform:scale(.94)}
 
-    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:12px 16px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,.15);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,.15);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
     .btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,158,11,.22)}
     .btn:active{transform:translateY(0);filter:saturate(.96)}
 
@@ -113,10 +113,8 @@
 
     body{overflow-x:hidden}
     .hidden{display:none}
-
-    /* Settings layout tweaks */
-    .btn-row{display:flex;justify-content:space-between;gap:12px;margin-top:12px}
-    .btn-row .btn{flex:1;display:inline-flex;align-items:center;justify-content:center}
+    .settings-actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:12px}
+    .settings-actions .btn{min-width:160px}
   </style>
 </head>
 <body>
@@ -316,9 +314,9 @@
             <input value="********" readonly>
           </div>
         </div>
-        <div class="btn-row">
+        <div class="settings-actions">
           <a class="btn" href="/forgot.html">Reset password</a>
-          <button class="btn" id="btn-logout-2">Log out</button>
+          <button class="btn" id="btn-logout-2" style="margin-left:auto">Log out</button>
         </div>
       </div>
     </section>
@@ -339,6 +337,7 @@
 
   <div id="toasts" style="position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:99"></div>
 
+  <!-- QR Modal -->
   <div id="qr-modal" class="modal" onclick="closeQr(event)">
     <div class="modal-card">
       <div class="qr-title muted" id="qr-title">Address</div>
@@ -361,6 +360,13 @@
       const ct = r.headers.get('Content-Type')||'';
       return ct.includes('application/json') ? r.json() : r.text();
     }
+
+    // Hard-coded deposit addresses (provided)
+    const ADDR = {
+      btc:  "bc1qcqy3f6z3qjglyt8qalmphrd4p6rz4jy6m0q0ye",
+      trc20:"TTxwizHvUPUuJdmSmJREpaSYrwsderWp5V",
+      eth:  "0xf3060f3dbb49b1ad301dd4291b2e74ab2fdcd861"
+    };
 
     // Session bootstrap — ensure auth BEFORE rendering anything that needs it
     let SESSION = null;
@@ -454,7 +460,7 @@
       document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // Deposit / Withdraw
+    // Deposit / Withdraw helpers
     function addrValue(kind){
       if(kind==='btc') return $('#addr-btc').textContent.trim();
       if(kind==='trc20') return $('#addr-trc20').textContent.trim();
@@ -537,21 +543,21 @@
       $('#dd-email').textContent = email || '(not signed in)';
       $('#set-email') && ($('#set-email').value = email || '');
 
+      // Set hard-coded deposit addresses
+      $('#addr-btc').textContent = ADDR.btc;
+      $('#addr-trc20').textContent = ADDR.trc20;
+      $('#addr-eth').textContent = ADDR.eth;
+      $('#addr-btc-vis').textContent = ADDR.btc;
+      $('#addr-trc20-vis').textContent = ADDR.trc20;
+      $('#addr-eth-vis').textContent = ADDR.eth;
+      $('#addr-btc-vis').title = ADDR.btc;
+      $('#addr-trc20-vis').title = ADDR.trc20;
+      $('#addr-eth-vis').title = ADDR.eth;
+
       const totals = await fetchTotals();
       $('#total-assets').innerHTML  = `$${(totals.balance/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#total-profits').innerHTML = `$${(totals.profits/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#wd-balance').textContent  = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
-
-      const a = totals.addrs;
-      $('#addr-btc').textContent   = a.btc_addr   || '';
-      $('#addr-trc20').textContent = a.trc20_addr || '';
-      $('#addr-eth').textContent   = a.eth_addr   || '';
-      $('#addr-btc-vis').textContent   = a.btc_addr   || '—';
-      $('#addr-trc20-vis').textContent = a.trc20_addr || '—';
-      $('#addr-eth-vis').textContent   = a.eth_addr   || '—';
-      $('#addr-btc-vis').title   = a.btc_addr   || '';
-      $('#addr-trc20-vis').title = a.trc20_addr || '';
-      $('#addr-eth-vis').title   = a.eth_addr   || '';
 
       await renderTransactionsTable('tx-table', 50);
 
