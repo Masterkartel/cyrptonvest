@@ -2,24 +2,20 @@
 import { json, bad, requireAdmin, type Env } from "../../_utils";
 
 export const onRequestGet: PagesFunction<Env> = async (ctx) => {
-  // 1) Auth — only admins may read the user list
   try {
     await requireAdmin(ctx.request, ctx.env);
   } catch {
     return bad("Forbidden", 403);
   }
 
-  // 2) Optional email search
   const url = new URL(ctx.request.url);
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
-  // 3) Pull users + wallet balances (LEFT JOIN so users without wallets still appear)
-  //    COALESCE to show $0.00 when no wallet row exists.
   const base = `
     SELECT
       u.id,
       u.email,
-      u.created_at,                           -- stored in seconds in our schema
+      u.created_at,                           -- epoch seconds
       COALESCE(w.balance_cents, 0)  AS balance_cents,
       COALESCE(w.currency, 'USD')   AS currency,
       COALESCE(u.disallow_starter, 0) AS disallow_starter,
@@ -40,7 +36,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   const rows = await stmt.all<{
     id: string;
     email: string;
-    created_at: number | null;      // seconds
+    created_at: number | null;
     balance_cents: number | null;
     currency: string | null;
     disallow_starter: number | null;
@@ -48,14 +44,13 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
     disallow_pro: number | null;
   }>();
 
-  // 4) Normalize created_at to milliseconds for JS Date() and coerce flags to booleans
   const users = (rows?.results || []).map((r) => {
     const sec = Number(r.created_at || 0);
-    const created_at = sec < 1e12 ? sec * 1000 : sec; // seconds → ms (or already ms)
+    const created_at = sec < 1e12 ? sec * 1000 : sec; // seconds → ms
     return {
       id: r.id,
       email: r.email,
-      created_at,                                    // Admin UI calls: new Date(u.created_at)
+      created_at, // Admin page does: new Date(u.created_at).toLocaleString()
       balance_cents: r.balance_cents ?? 0,
       currency: r.currency || "USD",
       disallow_starter: !!r.disallow_starter,
