@@ -1,21 +1,19 @@
-// functions/api/wallet/deposit.ts
 import { json, bad, requireAuth, type Env } from "../../_utils";
 import { ensureWallet, hexId16 } from "../../_db";
 
 type Body = {
   amount_cents?: number;
-  currency?: string;        // "USD"
-  network?: string;         // "BTC" | "USDT-TRC20" | "ETH-ERC20" | "manual"
-  address?: string;         // optional
-  txid?: string;            // optional
+  currency?: string;
+  network?: string;
+  address?: string;
+  txid?: string;
 };
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const sess = await requireAuth(ctx.request, ctx.env);
-    let body: Body = {};
-    try { body = await ctx.request.json<Body>(); } catch {}
 
+    let body: Body = {}; try { body = await ctx.request.json<Body>(); } catch {}
     const amount = Math.trunc(Number(body.amount_cents || 0));
     if (!Number.isFinite(amount) || amount <= 0) return bad("amount_cents must be a positive integer", 400);
 
@@ -24,10 +22,8 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const address  = String(body.address || "").slice(0, 120);
     const txid     = String(body.txid || "").slice(0, 120);
 
-    // 1) Ensure wallet
     const walletId = await ensureWallet(ctx.env, String(sess.sub), currency);
 
-    // 2) Insert pending deposit into txs
     const txId = hexId16();
     const memo = [network, address && `ADDR:${address}`, txid && `TX:${txid}`].filter(Boolean).join(" | ");
 
