@@ -1,5 +1,6 @@
 // functions/api/wallet/withdraw.ts
 import { json, bad, requireAuth, type Env } from "../../_utils";
+import { ensureWallet, hexId16 } from "../../_db";
 
 type Body = {
   amount_cents?: number;
@@ -11,9 +12,8 @@ type Body = {
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const sess = await requireAuth(ctx.request, ctx.env);
-
     let body: Body = {};
-    try { body = await ctx.request.json<Body>(); } catch { /* noop */ }
+    try { body = await ctx.request.json<Body>(); } catch {}
 
     const amount = Math.trunc(Number(body.amount_cents || 0));
     if (!Number.isFinite(amount) || amount <= 0) return bad("amount_cents must be a positive integer", 400);
@@ -21,35 +21,27 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const currency = (body.currency || "USD").toUpperCase();
     const network  = String(body.network || "").toUpperCase();
     const address  = String(body.address || "").trim();
-
     if (!network) return bad("network is required", 400);
     if (!address) return bad("address is required", 400);
 
-    // Ensure wallet exists (so pending rows don't fail)
+    // 1) Ensure wallet
+    const walletId = await ensureWallet(ctx.env, String(sess.sub), currency);
+
+    // (Optional) pre-check funds using posted balance view before queuing:
+    // const bal = await ctx.env.DB.prepare(`SELECT current_balance_cents FROM v_wallet_reconcile WHERE user_id=?`)
+    //  .bind(String(sess.sub)).first<number>("current_balance_cents");
+    // if ((bal ?? 0) < amount) return bad("Insufficient funds", 400);
+
+    // 2) Insert pending withdrawal into txs
+    const txId = hexId16();
+    const memo = `WITHDRAW ${network} → ${address.slice(0, 8)}…`;
+
     await ctx.env.DB.prepare(
-      `INSERT INTO wallets (user_id, balance_cents, currency)
-       VALUES (?, 0, ?)
-       ON CONFLICT(user_id) DO NOTHING`
-    ).bind(String(sess.sub), currency).run();
+      `INSERT INTO txs (id, user_id, wallet_id, amount_cents, kind, status, memo, created_at)
+       VALUES (?, ?, ?, ?, 'withdrawal', 'pending', ?, datetime('now'))`
+    ).bind(txId, String(sess.sub), walletId, amount, memo).run();
 
-    // Optional: you may enforce minimum balance here; for now we just queue a pending withdrawal
-
-    const txId = (crypto as any).randomUUID?.() ?? String(Date.now());
-    const created_sec = Math.floor(Date.now() / 1000);
-    await ctx.env.DB.prepare(
-      `INSERT INTO transactions (id, user_id, kind, amount_cents, currency, status, ref, created_at)
-       VALUES (?, ?, 'withdraw', ?, ?, 'pending', ?, ?)`
-    ).bind(
-      txId,
-      String(sess.sub),
-      amount,
-      currency,
-      // Put the *method* (network) in ref so UI shows "BTC" / "USDT-TRC20" etc.
-      network,
-      created_sec
-    ).run();
-
-    return json({ ok: true, id: txId });
+    return json({ ok: true, id: txId, wallet_id: walletId });
   } catch (e: any) {
     console.error("withdraw error:", e);
     return bad("Unable to request withdrawal", 500);
