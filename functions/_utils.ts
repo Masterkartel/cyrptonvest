@@ -1,4 +1,3 @@
-// functions/_utils.ts
 // Shared helpers for Cloudflare Pages Functions
 
 export type Env = {
@@ -13,7 +12,7 @@ export type Env = {
 
 const COOKIE_NAME = "cv_session";
 
-/* basic responses */
+/* ---------- responses ---------- */
 export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -24,7 +23,7 @@ export function bad(message = "Bad request", status = 400) {
   return json({ ok: false, error: message }, status);
 }
 
-/* cookies */
+/* ---------- cookies ---------- */
 export function parseCookies(req: Request): Record<string, string> {
   const raw = req.headers.get("cookie") || "";
   const out: Record<string, string> = {};
@@ -92,31 +91,25 @@ function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
   return `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
-/* hashing */
+/* ---------- hashing ---------- */
 function tsc(a: string, b: string) {
   if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  let out = 0; for (let i=0;i<a.length;i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
 export async function sha256HexStr(s: string) {
   const data = new TextEncoder().encode(s);
   const buf = await crypto.subtle.digest("SHA-256", data);
   const bytes = new Uint8Array(buf);
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return Array.from(bytes).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 export async function hashPassword(plain: string) {
   const hex = await sha256HexStr(plain);
   return `sha256$${hex}`;
 }
 export async function hashPasswordS256(plain: string) {
-  const saltBytes = new Uint8Array(12);
-  crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const saltBytes = new Uint8Array(12); crypto.getRandomValues(saltBytes);
+  const salt = Array.from(saltBytes).map(b=>b.toString(16).padStart(2,"0")).join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
 }
@@ -124,7 +117,7 @@ export async function verifyPassword(plain: string, stored: string) {
   if (!stored || !plain) return false;
   try {
     if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
-      // @ts-ignore optional dep
+      // @ts-ignore optional
       const bcrypt = (await import("bcryptjs")).default;
       return await bcrypt.compare(plain, stored);
     }
@@ -138,25 +131,19 @@ export async function verifyPassword(plain: string, stored: string) {
     }
     if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
     return tsc(stored, plain);
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 export async function hashPasswordBcrypt(plain: string) {
   try {
-    // @ts-ignore optional dep
+    // @ts-ignore optional
     const bcrypt = (await import("bcryptjs")).default;
     const salt = await bcrypt.genSalt(10);
     return await bcrypt.hash(plain, salt);
-  } catch {
-    return await hashPasswordS256(plain);
-  }
+  } catch { return await hashPasswordS256(plain); }
 }
-export function isReasonablePassword(pw: string) {
-  return typeof pw === "string" && pw.length >= 8;
-}
+export function isReasonablePassword(pw: string) { return typeof pw === "string" && pw.length >= 8; }
 
-/* email */
+/* ---------- email ---------- */
 export async function sendEmail(env: Env, to: string, subject: string, html: string) {
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const payload: Record<string, unknown> = {
@@ -168,27 +155,27 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
     };
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type":"application/json" },
       body: JSON.stringify(payload),
     });
-    if (!r.ok) console.warn("sendEmail failed:", r.status, await r.text().catch(() => ""));
+    if (!r.ok) console.warn("sendEmail failed:", r.status, await r.text().catch(()=> ""));
     return;
   }
   console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
 }
 
-/* db helpers */
+/* ---------- db helpers ---------- */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
     `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
-  )
-    .bind(email.toLowerCase())
-    .first<{ id: string; email: string; password_hash: string; created_at: number }>();
+  ).bind(email.toLowerCase()).first<{
+    id: string; email: string; password_hash: string; created_at: number;
+  }>();
 }
 export const db: any = (env: Env) => env.DB;
 db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
-/* sessions */
+/* ---------- sessions ---------- */
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
 export async function getUserFromSession(req: Request, env: Env): Promise<Session | null> {
@@ -201,24 +188,22 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
          JOIN users u ON u.id = s.user_id
         WHERE s.id = ?
         LIMIT 1`
-    )
-      .bind(sid)
-      .first<{ sid: string; exp: any; uid: string; email: string }>();
+    ).bind(sid).first<{ sid: string; exp: any; uid: string; email: string }>();
     if (!row) return null;
 
-    const nowSec = Math.floor(Date.now() / 1000);
+    const nowSec = Math.floor(Date.now()/1000);
     let valid = false;
     if (typeof row.exp === "number") valid = row.exp > nowSec;
     else if (row.exp && /^\d+$/.test(String(row.exp))) valid = Number(row.exp) > nowSec;
     else if (typeof row.exp === "string") {
       const t = Date.parse(row.exp);
-      valid = !Number.isNaN(t) && t / 1000 > nowSec;
+      valid = !Number.isNaN(t) && t/1000 > nowSec;
     }
     if (!valid) return null;
 
     const email = (row.email || "").toLowerCase();
     const role: "user" | "admin" =
-      env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
+      (env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase()) ? "admin" : "user";
     return { sub: row.uid, email, role, iat: nowSec };
   } catch (e) {
     console.warn("getUserFromSession error:", e);
@@ -228,12 +213,12 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
 
 export async function requireAuth(req: Request, env: Env): Promise<Session> {
   const sess = await getUserFromSession(req, env);
-  if (!sess) throw json({ ok: false, error: "Unauthorized" }, 401);
+  if (!sess) throw json({ ok:false, error: "Unauthorized" }, 401);
   return sess;
 }
 export async function requireAdmin(req: Request, env: Env): Promise<Session> {
   const sess = await getUserFromSession(req, env);
-  if (!sess || sess.role !== "admin") throw json({ ok: false, error: "Forbidden" }, 403);
+  if (!sess || sess.role !== "admin") throw json({ ok:false, error: "Forbidden" }, 403);
   return sess;
 }
 /** exported for callers that want a nullable session */
@@ -241,7 +226,7 @@ export async function requireUser(req: Request, env: Env): Promise<Session | nul
   return getUserFromSession(req, env);
 }
 
-/* session creation — with FK-safe retry */
+/* ---------- session creation & cookie setter (synchronous) ---------- */
 export async function createSession(
   env: Env,
   session: { sub: string; email: string; role: "user" | "admin" },
@@ -250,32 +235,26 @@ export async function createSession(
 ): Promise<string> {
   const sidBytes = new Uint8Array(32);
   crypto.getRandomValues(sidBytes);
-  const sid = btoa(String.fromCharCode(...sidBytes))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-  const expSec = Math.floor(Date.now() / 1000) + maxAgeSec;
+  const sid = btoa(String.fromCharCode(...sidBytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+  const expSec = Math.floor(Date.now()/1000) + maxAgeSec;
 
-  // Try normal insert; if a D1 FK quirk trips, retry with PRAGMA foreign_keys=OFF
   try {
     await env.DB.prepare(
-      `INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, datetime('now'), ?)`
-    )
-      .bind(sid, session.sub, expSec)
-      .run();
+      `INSERT INTO sessions (id, user_id, created_at, expires_at)
+       VALUES (?, ?, datetime('now'), ?)`
+    ).bind(sid, session.sub, expSec).run();
   } catch (e: any) {
+    // Rare D1 FK hiccup: retry with foreign keys disabled once
     const msg = String(e?.message || "");
     if (/FOREIGN KEY constraint failed/i.test(msg)) {
       try {
-        await env.DB.prepare(`PRAGMA foreign_keys = OFF`).run();
+        await env.DB.exec("PRAGMA foreign_keys=OFF;");
         await env.DB.prepare(
-          `INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, datetime('now'), ?)`
-        )
-          .bind(sid, session.sub, expSec)
-          .run();
+          `INSERT INTO sessions (id, user_id, created_at, expires_at)
+           VALUES (?, ?, datetime('now'), ?)`
+        ).bind(sid, session.sub, expSec).run();
       } finally {
-        // best effort turn it back on for subsequent statements
-        await env.DB.prepare(`PRAGMA foreign_keys = ON`).run().catch(() => {});
+        await env.DB.exec("PRAGMA foreign_keys=ON;");
       }
     } else {
       throw e;
@@ -285,44 +264,43 @@ export async function createSession(
   return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
 
-export function setCookie(
+/** IMPORTANT: now synchronous — always await this in callers */
+export async function setCookie(
   resOrHeaders: Response | Headers,
   arg2: string | Env,
   session?: { sub: string; email: string; role: "user" | "admin" } | Request | string | URL,
   reqOrUrl?: Request | string | URL | number,
   maybeMaxAge?: number
-) {
-  if (typeof arg2 === "string") return headerSetCookie(resOrHeaders, arg2);
+): Promise<void> {
+  if (typeof arg2 === "string") {
+    headerSetCookie(resOrHeaders, arg2);
+    return;
+  }
   const env = arg2 as Env;
-  let sess:
-    | { sub: string; email: string; role: "user" | "admin" }
-    | undefined;
+  let sess: { sub: string; email: string; role: "user" | "admin" } | undefined;
   let urlLike: Request | string | URL | undefined;
   let maxAge: number | undefined;
 
   if (session && typeof (session as any).sub === "string") {
     sess = session as any;
     if (typeof reqOrUrl === "number") maxAge = reqOrUrl as number;
-    else {
-      urlLike = reqOrUrl as any;
-      maxAge = typeof maybeMaxAge === "number" ? maybeMaxAge : undefined;
-    }
+    else { urlLike = reqOrUrl as any; maxAge = typeof maybeMaxAge === "number" ? maybeMaxAge : undefined; }
   } else {
     console.warn("setCookie: expected a session object as 3rd argument");
     return;
   }
-  createSession(env, sess, urlLike, maxAge).then((cookie) => headerSetCookie(resOrHeaders, cookie));
+
+  const cookie = await createSession(env, sess, urlLike, maxAge);
+  headerSetCookie(resOrHeaders, cookie);
 }
 
 export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
   headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
 }
 
-/* misc */
+/* ---------- misc ---------- */
 export function randomTokenHex(len = 32): string {
   const a = new Uint8Array(len);
   crypto.getRandomValues(a);
-  return Array.from(a)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return Array.from(a).map(b => b.toString(16).padStart(2,"0")).join("");
 }
