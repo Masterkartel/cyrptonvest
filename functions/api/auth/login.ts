@@ -19,22 +19,18 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     }
 
     const u = await getUserByEmail(ctx.env, String(email));
-    if (!u) {
-      // Don't leak which part is wrong
-      return bad("Invalid email or password", 400);
-    }
+    if (!u) return bad("Invalid email or password", 400);
 
     const ok = await verifyPassword(String(password), String(u.password_hash || ""));
     if (!ok) return bad("Invalid email or password", 400);
 
-    // Build response first
     const res = json({
       ok: true,
       user: { id: u.id, email: u.email },
     });
 
-    // Set session cookie (createSession inside _utils handles FK retry)
-    setCookie(
+    // ⬇️ IMPORTANT: await so Set-Cookie lands on this response
+    await setCookie(
       res,
       ctx.env,
       {
@@ -46,13 +42,12 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
             ? "admin"
             : "user",
       },
-      ctx.request // for domain/secure attributes
+      ctx.request
     );
 
     return res;
   } catch (e: any) {
     const msg = String(e?.message || "");
-    // Normalize DB messages so UI doesn't show scary internals
     if (/FOREIGN KEY constraint failed/i.test(msg)) {
       return bad("Service temporarily unavailable. Please try again.", 503);
     }
