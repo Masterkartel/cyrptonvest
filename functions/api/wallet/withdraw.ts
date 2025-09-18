@@ -1,44 +1,45 @@
-// Creates a pending "withdraw" transaction for the signed-in user
+// functions/api/wallet/withdraw.ts
 import { json, bad, requireAuth, type Env } from "../../_utils";
 
-function rid(): string {
-  const a = new Uint8Array(16);
-  crypto.getRandomValues(a);
-  return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
+type Body = {
+  amount_cents?: number;
+  currency?: string;      // "USD"
+  network?: string;       // "BTC" | "USDT-TRC20" | "ETH-ERC20"
+  address?: string;       // destination address (required)
+};
 
-export const onRequestPost: PagesFunction<Env> = async (ctx) => {
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    const sess = await requireAuth(ctx.request, ctx.env);
+    const sess = await requireAuth(request, env);
 
-    const body = await ctx.request.json<any>().catch(() => ({}));
-    const amount_cents = Math.max(0, Number(body?.amount_cents || 0) | 0);
-    const currency = String(body?.currency || "USD");
-    const network  = String(body?.network || "").slice(0, 32);
-    const address  = String(body?.address || "").slice(0, 120);
+    let body: Body = {};
+    try { body = await request.json(); } catch { return bad("Invalid JSON body", 400); }
 
-    if (!amount_cents || !address) return bad("amount_cents and address are required", 400);
+    const amount_cents = Math.trunc(Number(body.amount_cents || 0));
+    if (!Number.isFinite(amount_cents) || amount_cents <= 0) {
+      return bad("amount_cents must be a positive integer", 400);
+    }
 
-    // Optional balance check: don’t block if you prefer manual review only
-    const w = await ctx.env.DB
-      .prepare(`SELECT balance_cents FROM wallets WHERE user_id = ? LIMIT 1`)
-      .bind(sess.sub)
-      .first<{ balance_cents: number }>();
-    const bal = Number(w?.balance_cents || 0);
-    if (bal < amount_cents) return bad("Insufficient balance", 400);
+    const currency = String(body.currency || "USD").toUpperCase();
+    const network  = String(body.network  || "").trim();
+    const address  = String(body.address  || "").trim();
+    if (!network) return bad("network is required", 400);
+    if (!address) return bad("address is required", 400);
 
-    const id = rid();
-    const ref = [`net=${network||"manual"}`, `addr=${address}`].filter(Boolean).join(" | ");
+    // You could validate address formats per network here if needed.
 
-    await ctx.env.DB.prepare(
+    const id = (crypto as any).randomUUID?.() ?? String(Date.now());
+    const created_ms = Date.now();
+
+    await env.DB.prepare(
       `INSERT INTO transactions (id, user_id, kind, amount_cents, currency, status, ref, created_at)
-       VALUES (?, ?, 'withdraw', ?, ?, 'pending', ?, CAST(strftime('%s','now') AS INTEGER))`
-    ).bind(id, sess.sub, amount_cents, currency, ref).run();
+       VALUES (?, ?, 'withdrawal', ?, ?, 'pending', ?, ?)`
+    ).bind(id, sess.sub, amount_cents, currency, network, created_ms).run();
 
-    // NOTE: we’re NOT deducting balance yet; admin approval will move funds.
+    // Keep wallet unchanged until admin approves/completes.
     return json({ ok: true, id, status: "pending" });
   } catch (e: any) {
-    if (e?.status === 401) return json({ ok: false, error: "Unauthorized" }, 401);
-    return bad("Unable to request withdrawal", 500);
+    console.error("withdraw error:", e?.stack || e);
+    return json({ ok: false, error: "Unable to request withdrawal" }, 500);
   }
 };
