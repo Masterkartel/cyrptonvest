@@ -8,60 +8,48 @@ import {
   type Env,
 } from "../../_utils";
 
-/**
- * D1 can be empty on first deploys; if the `sessions` table is missing,
- * inserts throw and you see a generic 503. We create it if needed.
- */
-async function ensureSessionsTable(env: Env) {
-  await env.DB.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      expires_at INTEGER NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-  `);
-}
-
-/** Parse either JSON or form-urlencoded bodies safely */
+/** Read credentials from JSON or form posts */
 async function readCredentials(req: Request) {
   let email = "";
   let password = "";
   const ct = (req.headers.get("content-type") || "").toLowerCase();
 
-  try {
-    if (ct.includes("application/json")) {
-      const body = await req.json<any>();
+  const tryJson = async () => {
+    const body = await req.json<any>().catch(() => null);
+    if (body) {
       email = String(body?.email ?? "").trim().toLowerCase();
       password = String(body?.password ?? "");
-    } else if (ct.includes("application/x-www-form-urlencoded")) {
-      const form = await req.formData();
+    }
+  };
+  const tryForm = async () => {
+    const form = await req.formData().catch(() => null);
+    if (form) {
       email = String(form.get("email") ?? "").trim().toLowerCase();
       password = String(form.get("password") ?? "");
-    } else {
-      // try JSON anyway (some clients forget the header)
-      try {
-        const body = await req.json<any>();
-        email = String(body?.email ?? "").trim().toLowerCase();
-        password = String(body?.password ?? "");
-      } catch {
-        // and finally try form
-        try {
-          const form = await req.formData();
-          email = String(form.get("email") ?? "").trim().toLowerCase();
-          password = String(form.get("password") ?? "");
-        } catch {
-          // fall through
-        }
-      }
     }
-  } catch {
-    // ignore; validated below
-  }
+  };
 
+  if (ct.includes("application/json")) await tryJson();
+  else if (ct.includes("application/x-www-form-urlencoded")) await tryForm();
+  else {
+    await tryJson();
+    if (!email) await tryForm();
+  }
   return { email, password };
+}
+
+/** Ensure sessions table exists (use single statements to avoid driver quirks) */
+async function ensureSessionsTable(env: Env) {
+  await env.DB.exec(`CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    expires_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+  await env.DB.exec(
+    `CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`
+  );
 }
 
 export const onRequestOptions: PagesFunction = async () =>
@@ -75,41 +63,52 @@ export const onRequestOptions: PagesFunction = async () =>
   });
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  // Read credentials (supports JSON and form posts)
-  const { email, password } = await readCredentials(request);
-  if (!email || !password) return bad("Email and password are required", 400);
+  try {
+    const { email, password } = await readCredentials(request);
+    if (!email || !password) return bad("Email and password are required", 400);
 
-  // Look up user
-  const user = await env.DB.prepare(
-    `SELECT id, email, password_hash FROM users WHERE lower(email) = ? LIMIT 1`
-  )
-    .bind(email)
-    .first<{ id: string; email: string; password_hash: string }>();
+    // Look up user
+    const user = await env.DB.prepare(
+      `SELECT id, email, password_hash FROM users WHERE lower(email) = ? LIMIT 1`
+    )
+      .bind(email)
+      .first<{ id: string; email: string; password_hash: string }>();
 
-  if (!user) return bad("Invalid credentials", 400);
+    if (!user) return bad("Invalid credentials", 400);
 
-  // Verify password (bcrypt / salted sha256 / sha256 / plain)
-  const ok = await verifyPassword(password, user.password_hash);
-  if (!ok) return bad("Invalid credentials", 400);
+    // Verify password (supports bcrypt/salted sha256/sha256/plain)
+    const ok = await verifyPassword(password, user.password_hash);
+    if (!ok) return bad("Invalid credentials", 400);
 
-  // Make sure sessions table exists before insert (prevents 503)
-  await ensureSessionsTable(env);
+    // Make sure sessions table exists (prevents 500 on first writes)
+    await ensureSessionsTable(env);
 
-  // Role
-  const role: "user" | "admin" =
-    env.ADMIN_EMAIL &&
-    user.email &&
-    user.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
-      ? "admin"
-      : "user";
+    // Determine role
+    const role: "user" | "admin" =
+      env.ADMIN_EMAIL &&
+      user.email &&
+      user.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
+        ? "admin"
+        : "user";
 
-  // Create session + cookie
-  const cookie = await createSession(env, { sub: user.id, email: user.email, role }, request);
+    // Create session + cookie
+    const cookie = await createSession(
+      env,
+      { sub: user.id, email: user.email, role },
+      request
+    );
 
-  // Respond
-  const res = json({ ok: true, user: { id: user.id, email: user.email, role } });
-  headerSetCookie(res, cookie);
-  // light CORS so fetch() from the login page never chokes
-  res.headers.set("access-control-allow-origin", "*");
-  return res;
+    const res = json({
+      ok: true,
+      user: { id: user.id, email: user.email, role },
+    });
+    headerSetCookie(res, cookie);
+    res.headers.set("access-control-allow-origin", "*");
+    return res;
+  } catch (err: any) {
+    // Return a clear JSON error instead of throwing (stops generic “service_unavailable”)
+    const message =
+      typeof err?.message === "string" ? err.message : "Login failed";
+    return json({ ok: false, error: "SERVICE_ERROR", detail: message }, 500);
+  }
 };
