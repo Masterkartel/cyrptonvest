@@ -224,7 +224,21 @@ export async function requireUser(req: Request, env: Env): Promise<Session | nul
   return getUserFromSession(req, env);
 }
 
-/* session creation */
+/* ───────────────────────── session creation (self-healing) ───────────────────────── */
+
+async function ensureSessionsTable(env: Env) {
+  // Create the sessions table if it does not exist yet.
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,   -- ISO timestamp
+      expires_at INTEGER NOT NULL, -- unix seconds
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `).run();
+}
+
 export async function createSession(
   env: Env,
   session: { sub: string; email: string; role: "user" | "admin" },
@@ -234,13 +248,34 @@ export async function createSession(
   const sidBytes = new Uint8Array(32);
   crypto.getRandomValues(sidBytes);
   const sid = btoa(String.fromCharCode(...sidBytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
-  const expSec = Math.floor(Date.now()/1000) + maxAgeSec;
-  await env.DB.prepare(
-    `INSERT INTO sessions (id, user_id, created_at, expires_at)
-     VALUES (?, ?, datetime('now'), ?)`
-  ).bind(sid, session.sub, expSec).run();
+
+  const nowSec = Math.floor(Date.now()/1000);
+  const expSec = nowSec + maxAgeSec;
+  const nowIso = new Date().toISOString();
+
+  // Try insert → on failure, ensure schema and retry once.
+  try {
+    await env.DB
+      .prepare(`INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`)
+      .bind(sid, session.sub, nowIso, expSec)
+      .run();
+  } catch (e1: any) {
+    try {
+      await ensureSessionsTable(env);
+      await env.DB
+        .prepare(`INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`)
+        .bind(sid, session.sub, nowIso, expSec)
+        .run();
+    } catch (e2: any) {
+      // Bubble a clean error so callers can map to 503 gracefully.
+      console.error("createSession failed:", e1?.message || e1, "->", e2?.message || e2);
+      throw new Error("session_insert_failed");
+    }
+  }
+
   return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
+
 export function setCookie(
   resOrHeaders: Response | Headers,
   arg2: string | Env,
@@ -264,6 +299,7 @@ export function setCookie(
   }
   createSession(env, sess, urlLike, maxAge).then((cookie) => headerSetCookie(resOrHeaders, cookie));
 }
+
 export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
   headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
 }
