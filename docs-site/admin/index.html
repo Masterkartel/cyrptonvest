@@ -21,13 +21,23 @@
     .tb-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
     .brand{display:flex;align-items:center;gap:10px;font-weight:800}
     .brand img{width:22px;height:22px}
-    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#121a33;
-      padding:.35rem .6rem;border-radius:999px;color:#d1d5db}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#121a33;
+      padding:.35rem .55rem;border-radius:999px;color:#d1d5db}
     .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:9px 12px;font-weight:700;cursor:pointer;transition:transform .15s ease, box-shadow .2s ease}
     .btn:hover{transform:translateY(-1px)}
     .btn-primary{background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827}
     .btn-ghost{background:#121a33;border:1px solid var(--line);color:#d1d5db}
     .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* tiny copy icon button in brand color */
+    .icon-btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:22px;height:22px;border-radius:999px;
+      border:1px solid var(--brand); background:transparent; color:var(--brand);
+      cursor:pointer; font-size:12px; line-height:1;
+      transition:transform .12s ease, background .12s ease, color .12s ease;
+    }
+    .icon-btn:hover{ transform:translateY(-1px); background:rgba(245,158,11,.12); }
 
     .section{padding:18px 0}
     .cards{display:grid;grid-template-columns:2fr 1fr;gap:16px}
@@ -51,11 +61,12 @@
 
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
-
     table{width:100%;border-collapse:collapse}
     th,td{padding:10px;border-bottom:1px solid #172042;vertical-align:middle}
     th{text-align:left}
+    .status{padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:#101a34}
     .row{display:flex;gap:8px;flex-wrap:wrap}
+    .ok{color:var(--ok)} .bad{color:var(--bad)}
     .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
     .spinner{width:14px;height:14px;border-radius:50%;border:2px solid #2a3a66;border-top-color:#f59e0b;animation:sp .8s linear infinite}
     @keyframes sp{to{transform:rotate(360deg)}}
@@ -63,11 +74,9 @@
     .error{padding:10px;border:1px solid #592323;background:#2a0e0e;color:#fca5a5;border-radius:12px}
     .note{font-size:12px;color:#9aa4b2}
 
-    .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-    .dim{font-size:12px;color:#aab3c2}
-    .nowrap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
-    .copy-btn{border:1px solid var(--line);background:#101a34;border-radius:8px;padding:2px 6px;cursor:pointer}
-    .copy-btn:hover{background:#132043}
+    /* user list as tidy rows */
+    .user-row{display:grid;grid-template-columns:1.4fr .9fr .9fr .6fr;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #172042}
+    @media (max-width:820px){ .user-row{grid-template-columns:1fr;gap:8px} .user-actions{justify-content:flex-start} }
   </style>
 </head>
 <body>
@@ -122,7 +131,7 @@
             <div id="users"></div>
           </div>
 
-          <!-- Pending Transactions -->
+          <!-- Pending transactions -->
           <div class="card">
             <div class="bar">
               <div class="row" style="align-items:center;gap:10px">
@@ -184,11 +193,8 @@
 
   <script>
     const $=s=>document.querySelector(s);
-    function toast(msg){
-      const t=document.createElement('div');
-      t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)';
-      t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200);
-    }
+    function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200); }
+
     async function api(path,opts){
       try{
         const r=await fetch(path,{credentials:'include',...opts});
@@ -233,12 +239,14 @@
       $('#btn-adjust')?.addEventListener('click', adjust);
     }
 
-    function fmtMoney(cents, cur){ return `$${((cents||0)/100).toFixed(2)} ${cur||'USD'}`; }
-    function fmtCreated(ms){ return ms ? new Date(ms).toLocaleString() : '—'; }
-
-    // Copy helper
-    async function copy(text){
-      try{ await navigator.clipboard.writeText(text); toast('Copied'); }catch{ toast('Copy failed'); }
+    // Helpers used in user list
+    function copyToClipboard(text){
+      navigator.clipboard?.writeText(text).then(()=>toast('Copied')).catch(()=>toast('Copy failed'));
+    }
+    function usdCents(n){ return `$${(Number(n||0)/100).toFixed(2)}`; }
+    function formatCreatedAt(sec){
+      const ms = Number(sec||0)*1000;
+      return ms ? new Date(ms).toLocaleString() : '—';
     }
 
     // Users
@@ -248,40 +256,62 @@
       $('#users-status').innerHTML = '<span class="spinner"></span> Loading users…';
       const q=$('#u-q').value?.trim() || '';
       const res = await api('/api/admin/users' + (q?`?q=${encodeURIComponent(q)}`:''));
-      if(!res.ok){
-        $('#users-status').style.display='none';
-        $('#users-error').style.display='block';
-        $('#users-error').textContent=(res.data?.error||'Failed to load users'); return;
-      }
+      if(!res.ok){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent=(res.data?.error||'Failed to load users'); return; }
 
       const users = res.data.users || [];
-      const rows = users.map(u=>`
-        <tr>
-          <td>
-            <div class="nowrap dim" title="${u.email}">
-              ${u.email}
-              <button class="copy-btn" onclick="copy('${u.email}')">⧉</button>
-            </div>
-            <div class="mono dim nowrap" title="${u.id}">
-              ${u.id}
-              <button class="copy-btn" onclick="copy('${u.id}')">⧉</button>
-            </div>
-          </td>
-          <td class="mono">${fmtMoney(u.balance_cents, u.currency)}</td>
-          <td>${fmtCreated(u.created_at_ms)}</td>
-          <td><button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button></td>
-        </tr>`).join('');
 
-      $('#users').innerHTML = `<table>
-        <thead><tr><th>User</th><th>Balance</th><th>Created</th><th>Action</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody>
-      </table>`;
+      const rows = users.map(u=>{
+        const emailPill = `
+          <div class="pill" style="min-width:0;max-width:100%">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${u.email}</span>
+            <button class="icon-btn" title="Copy email" onclick="copyToClipboard('${u.email}')">⧉</button>
+          </div>`;
+        const idPill = `
+          <div class="pill" style="min-width:0;max-width:100%">
+            <span style="font-family:ui-monospace,Menlo,Consolas;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${u.id}</span>
+            <button class="icon-btn" title="Copy ID" onclick="copyToClipboard('${u.id}')">⧉</button>
+          </div>`;
 
+        return `
+          <div class="user-row">
+            <div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                ${emailPill}
+              </div>
+              <div style="margin-top:6px">${idPill}</div>
+              <div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <label style="display:inline-flex;gap:6px;align-items:center">
+                  <input type="checkbox" ${u.disallow_starter ? 'checked':''} onchange="toggleLimit('${u.id}','starter',this.checked)"/> Starter
+                </label>
+                <label style="display:inline-flex;gap:6px;align-items:center">
+                  <input type="checkbox" ${u.disallow_growth ? 'checked':''} onchange="toggleLimit('${u.id}','growth',this.checked)"/> Growth
+                </label>
+                <label style="display:inline-flex;gap:6px;align-items:center">
+                  <input type="checkbox" ${u.disallow_pro ? 'checked':''} onchange="toggleLimit('${u.id}','pro',this.checked)"/> Pro
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-weight:700">${usdCents(u.balance_cents||0)}</div>
+              <div class="muted" style="font-size:12px">${(u.currency||'USD')}</div>
+            </div>
+
+            <div class="muted">${formatCreatedAt(u.created_at)}</div>
+
+            <div class="user-actions" style="display:flex;justify-content:flex-end">
+              <button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      $('#users').innerHTML = rows || `<div class="empty">No users yet</div>`;
       $('#users-meta').textContent = `${users.length} user${users.length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
       $('#users-status').style.display='none';
     }
 
-    // Transactions (pending)
+    // Transactions
     async function loadTx(){
       $('#tx-error').style.display='none';
       $('#tx-status').style.display='inline-flex';
@@ -289,35 +319,21 @@
 
       const kind = $('#t-kind').value;
       const res = await api('/api/admin/transactions?status=pending' + (kind==='all'?'':`&kind=${kind}`));
-      if(!res.ok){
-        $('#tx-status').style.display='none';
-        $('#tx-error').style.display='block';
-        $('#tx-error').textContent=(res.data?.error||'Failed to load transactions'); return;
-      }
+      if(!res.ok){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent=(res.data?.error||'Failed to load transactions'); return; }
 
-      const txs = res.data.transactions || [];
-      const rows = txs.map(t=>`
-        <tr>
-          <td class="mono">${t.id}</td>
-          <td class="nowrap dim" title="${t.user_email||t.user_id}">
-            ${(t.user_email||t.user_id)||'—'}
-          </td>
-          <td>${t.kind}</td>
-          <td class="mono">${fmtMoney(t.amount_cents, t.currency)}</td>
-          <td class="mono">${t.ref||''}</td>
-          <td><span class="pill" style="padding:2px 8px">${t.status}</span></td>
-          <td>${fmtCreated(t.created_at_ms || t.created_at)}</td>
-          <td class="row">
+      const rows = (res.data.transactions||[]).map(t=>`
+        <div class="user-row" style="grid-template-columns:1.2fr .8fr .6fr .6fr">
+          <div><span class="pill" style="gap:8px">${t.user_email||t.user_id}</span></div>
+          <div>${t.kind}</div>
+          <div>${usdCents(t.amount_cents)} ${(t.currency||'USD')}</div>
+          <div class="row" style="justify-content:flex-end">
             <button class="btn btn-primary" onclick="approve('${t.id}')">Approve</button>
             <button class="btn btn-ghost" onclick="rejectTx('${t.id}')">Reject</button>
-          </td>
-        </tr>`).join('');
+          </div>
+        </div>`).join('');
 
-      $('#tx').innerHTML = `<table>
-        <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Note</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
-
-      $('#tx-meta').textContent = `${txs.length} pending • updated ${new Date().toLocaleTimeString()}`;
+      $('#tx').innerHTML = rows || `<div class="empty">No pending items</div>`;
+      $('#tx-meta').textContent = `${(res.data.transactions||[]).length} pending • updated ${new Date().toLocaleTimeString()}`;
       $('#tx-status').style.display='none';
     }
 
@@ -331,6 +347,24 @@
       if(res.ok){ toast('Rejected'); loadTx(); } else toast(res.data?.error || 'Failed');
     }
 
+    // Limits
+    async function toggleLimit(userId, plan, checked){
+      // Read current checkboxes in that row to build full payload
+      const row = [...document.querySelectorAll('.user-row')].find(r => r.textContent.includes(userId));
+      // Fallback: query by inputs order (we render Starter/Growth/Pro in order)
+      const inputs = row ? row.querySelectorAll('input[type=checkbox]') : [];
+      const payload = {
+        user_id: userId,
+        disallow_starter: plan==='starter'? (checked?1:0) : (inputs[0]?.checked?1:0),
+        disallow_growth:  plan==='growth' ? (checked?1:0) : (inputs[1]?.checked?1:0),
+        disallow_pro:     plan==='pro'    ? (checked?1:0) : (inputs[2]?.checked?1:0)
+      };
+      const r = await fetch('/api/admin/limits', {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload)
+      });
+      if(r.ok){ toast('Updated'); } else { toast('Failed to update'); }
+    }
+
     // Quick fill when clicking "Adjust"
     window.promptAdjust = (id,email)=>{
       $('#adj-ident').value = email || id || '';
@@ -338,7 +372,7 @@
       window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
     }
 
-    // Wallet adjust (balance only)
+    // Wallet adjust
     async function adjust(){
       const ident=$('#adj-ident').value.trim();
       const rawAmt=$('#adj-amt').value;
@@ -347,7 +381,7 @@
 
       const amt = Number(rawAmt);
       if(!ident || !Number.isFinite(amt) || amt===0){
-        $('#adj-msg').textContent='Enter a user id/email and a non-zero amount';
+        $('#adj-msg').textContent='amount_cents must be a non-zero integer';
         return;
       }
 
