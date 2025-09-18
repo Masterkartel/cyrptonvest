@@ -6,12 +6,27 @@ import {
   headerSetCookie,
   verifyPassword,
   type Env,
-} from "../../_utils";
+} from "../_utils";
+
+/** Make sure the sessions table exists (id, user_id, created_at, expires_at) */
+async function ensureSessionsTable(env: Env) {
+  // SQLite/D1 is fine with IF NOT EXISTS and flexible column types
+  await env.DB.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      expires_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+  `);
+}
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const { request, env } = ctx;
 
-  // Handle OPTIONS quickly (CORS preflight is set in _middleware)
+  // CORS preflight (CORS headers handled in _middleware)
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204 });
   }
@@ -36,30 +51,40 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       .bind(email)
       .first<{ id: string; email: string; password_hash: string }>();
 
+    // Avoid leaking which field failed
     if (!user) return bad("Invalid credentials", 400);
 
-    // 3) Verify password
+    // 3) Verify password (supports bcrypt, s256, legacy sha256, plain)
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) return bad("Invalid credentials", 400);
 
-    // 4) Determine role (email match to ADMIN_EMAIL is admin)
-    const adminEmail = (env.ADMIN_EMAIL || "").toLowerCase();
-    const role: "user" | "admin" =
-      adminEmail && user.email.toLowerCase() === adminEmail ? "admin" : "user";
+    // 4) Ensure sessions table exists (prevents crashes on fresh DBs)
+    await ensureSessionsTable(env);
 
-    // 5) Create session (stored in D1) and build cookie for this host
+    // 5) Determine role
+    const role: "user" | "admin" =
+      env.ADMIN_EMAIL && user.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
+        ? "admin"
+        : "user";
+
+    // 6) Create session + cookie with correct Domain/Secure
     const cookie = await createSession(
       env,
-      { sub: user.id, email: user.email, role, iat: Math.floor(Date.now() / 1000) },
+      { sub: user.id, email: user.email, role },
       request
     );
 
-    // 6) Respond
-    const res = json({ ok: true, user: { id: user.id, email: user.email, role } });
+    // 7) Respond JSON + Set-Cookie
+    const res = json({
+      ok: true,
+      user: { id: user.id, email: user.email, role },
+    });
     headerSetCookie(res, cookie);
     return res;
   } catch (err: any) {
+    // Log to CF logs for debugging
     console.error("login error:", err?.message || err);
+    // Keep generic message for clients
     return bad("service_unavailable", 503);
   }
 };
