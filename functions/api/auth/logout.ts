@@ -1,13 +1,21 @@
 // functions/api/auth/logout.ts
-import { json, destroySession, type Env } from "../../_utils";
+import { json, parseCookies, cookieName, destroySessionRecord, destroySession, type Env } from "../../_utils";
 
-export const onRequestPost: PagesFunction<Env> = async (ctx) => {
-  // Build a JSON response first
-  const res = json({ ok: true });
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  try {
+    const cookies = parseCookies(request);
+    const sid = cookies[cookieName];
 
-  // Expire the cv_session cookie with matching attributes (domain/secure)
-  // This uses the request URL to mirror cookie attrs correctly.
-  destroySession(res, ctx.request);
+    // 1) Drop DB record (best-effort)
+    if (sid) {
+      try { await destroySessionRecord(env, sid); } catch {}
+    }
 
-  return res;
+    // 2) Return a response with an expired cookie for the client
+    const res = json({ ok: true });
+    destroySession(res, request);
+    return res;
+  } catch (e: any) {
+    return json({ ok: false, error: `Logout failed: ${e?.message || e}` }, 500);
+  }
 };
