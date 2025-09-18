@@ -10,57 +10,60 @@ import {
   type Env,
 } from "../../_utils";
 
-export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+type ReqBody = { email?: string; password?: string };
+
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    // Parse JSON
-    const body = await request.json().catch(() => ({} as any));
-    const emailRaw = String(body.email || "").trim();
-    const password = String(body.password || "");
-
-    const email = emailRaw.toLowerCase();
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!emailOk) return bad("Enter a valid email address", 400);
-    if (password.length < 8) return bad("Password must be at least 8 characters", 400);
-
-    // Already registered?
-    const existing = await getUserByEmail(env, email);
-    if (existing) return bad("Email is already registered", 409);
-
-    // Hash & insert (LET D1 ASSIGN ID)
-    const hash = await hashPasswordBcrypt(password);
-    const created_at = Math.floor(Date.now() / 1000);
-
-    const result = await env.DB.prepare(
-      `INSERT INTO users (email, password_hash, created_at)
-       VALUES (?, ?, ?)`
-    ).bind(email, hash, created_at).run();
-
-    // Determine the new user's id
-    let id: number | string | null =
-      typeof result.lastRowId !== "undefined" ? Number(result.lastRowId) : null;
-
-    if (!id) {
-      // Fallback lookup
-      const lookup = await getUserByEmail(env, email);
-      if (!lookup) return bad("Could not create account. Please try again.", 500);
-      id = lookup.id as any;
+    // --- Parse & validate body ---
+    let body: ReqBody = {};
+    try {
+      body = (await request.json()) as ReqBody;
+    } catch {
+      return bad("Invalid JSON body", 400);
     }
 
-    // Create session cookie
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return bad("Enter a valid email address", 400);
+    }
+    if (password.length < 8) {
+      return bad("Password must be at least 8 characters", 400);
+    }
+
+    // --- Uniqueness check ---
+    const exists = await getUserByEmail(env, email);
+    if (exists) return bad("Email is already registered", 409);
+
+    // --- Create user ---
+    const id = randomTokenHex(16); // string id; sessions code supports string/number
+    const password_hash = await hashPasswordBcrypt(password);
+    const created_at = Math.floor(Date.now() / 1000);
+
+    await env.DB.prepare(
+      `INSERT INTO users (id, email, password_hash, created_at)
+       VALUES (?, ?, ?, ?)`
+    )
+      .bind(id, email, password_hash, created_at)
+      .run();
+
+    // --- Create session + Set-Cookie ---
     const role: "user" | "admin" =
       env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
 
-    const res = json({ ok: true, user: { id, email, role } });
-    await setCookie(res, env, { sub: id, email, role, iat: Math.floor(Date.now() / 1000) }, request);
+    const res = json({ ok: true, user: { id, email, role } }, 200);
+    // setCookie overload: (res, env, session, reqOrUrl?)
+    await setCookie(res, env, { sub: id, email, role }, request);
 
-    // Send welcome email (optional)
-    const base = (env as any).WEB_BASE_URL?.replace(/\/+$/, "") || new URL(request.url).origin;
-    const dash = `${base}/dashboard/#plans`;
-    const first = email.split("@")[0] || "there";
-
-    const html = `
-<!doctype html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8">
+    // --- Send welcome email (best-effort) ---
+    try {
+      const origin = new URL(request.url).origin.replace(/\/+$/, "");
+      const dash = `${origin}/dashboard/#plans`;
+      const first = email.split("@")[0] || "there";
+      const html = `
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>a{color:#f59e0b;text-decoration:none}</style>
 </head><body style="margin:0;background:#0b0f19;color:#e6edf3;font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0f19"><tr><td align="center" style="padding:24px">
@@ -71,7 +74,7 @@ linear-gradient(180deg,#101934,#0c1226);border:1px solid #27335a;border-radius:1
   <tr><td style="padding:16px 20px;border-bottom:1px solid #1d2640">
     <table width="100%"><tr>
       <td style="font-weight:800;font-size:16px;color:#e6edf3">
-        <img src="${base}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
+        <img src="${origin}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
       </td>
       <td align="right" style="color:#9aa4b2;font-size:12px">Welcome aboard</td>
     </tr></table>
@@ -88,10 +91,14 @@ linear-gradient(180deg,#101934,#0c1226);border:1px solid #27335a;border-radius:1
   </td></tr>
   <tr><td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">© ${new Date().getFullYear()} Cyrptonvest. All rights reserved.</td></tr>
 </table></td></tr></table></body></html>`;
-    await sendEmail(env, email, "Welcome to Cyrptonvest 🎉", html);
+      await sendEmail(env, email, "Welcome to Cyrptonvest 🎉", html);
+    } catch (e) {
+      // Non-fatal; just log
+      console.warn("signup email failed:", e);
+    }
 
     return res;
-  } catch (err: any) {
+  } catch (err) {
     console.error("signup error:", err);
     return bad("Could not create account. Please try again.", 500);
   }
