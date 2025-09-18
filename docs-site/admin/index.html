@@ -30,8 +30,7 @@
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
     .section{padding:18px 0}
-    .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .cards .card:first-child{grid-column:1 / span 1}
+    .cards{display:grid;grid-template-columns:2fr 1fr;gap:16px}
     @media (max-width:980px){.cards{grid-template-columns:1fr}}
     .card{
       background:
@@ -53,6 +52,10 @@
     input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0a1122;color:#e6edf3;outline:none}
     input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--ring)}
 
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #172042;vertical-align:middle}
+    th{text-align:left}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
     .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
     .spinner{width:14px;height:14px;border-radius:50%;border:2px solid #2a3a66;border-top-color:#f59e0b;animation:sp .8s linear infinite}
     @keyframes sp{to{transform:rotate(360deg)}}
@@ -60,18 +63,11 @@
     .error{padding:10px;border:1px solid #592323;background:#2a0e0e;color:#fca5a5;border-radius:12px}
     .note{font-size:12px;color:#9aa4b2}
 
-    /* Users list as neat pills */
-    .u-list{display:grid;grid-template-columns:1fr;gap:12px}
-    .u-pill{border:1px solid var(--line);background:#0d1530;border-radius:12px;padding:10px}
-    .u-top{display:flex;gap:8px;align-items:center;justify-content:space-between}
-    .u-email{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
-    .copy{border:1px solid var(--line);background:#101a34;border-radius:8px;padding:2px 6px;cursor:pointer}
-    .u-id{font-family:ui-monospace,Menlo,Consolas; font-size:12px; color:#cbd5e1; display:flex; align-items:center; gap:6px}
-    .chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);background:#101a34;border-radius:999px;padding:4px 8px;font-size:12px}
-    .locks{display:flex;gap:12px;align-items:center;margin-top:8px}
-    .locks label{display:inline-flex;gap:6px;align-items:center;font-size:12px}
-    .actions{display:flex;gap:8px;align-items:center;margin-top:8px}
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+    .dim{font-size:12px;color:#aab3c2}
+    .nowrap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+    .copy-btn{border:1px solid var(--line);background:#101a34;border-radius:8px;padding:2px 6px;cursor:pointer}
+    .copy-btn:hover{background:#132043}
   </style>
 </head>
 <body>
@@ -109,7 +105,46 @@
       <!-- App -->
       <div id="app" style="display:none">
         <div class="cards">
-          <!-- Wallet adjust -->
+          <!-- Users -->
+          <div class="card">
+            <div class="bar">
+              <div class="row" style="align-items:center;gap:10px">
+                <h3 style="margin:0">Users</h3>
+                <span id="users-meta" class="note"></span>
+              </div>
+              <div class="row">
+                <input id="u-q" placeholder="Search email…" style="width:220px">
+                <button id="btn-users-refresh" class="btn btn-ghost">Refresh</button>
+              </div>
+            </div>
+            <div id="users-status" class="note" style="display:none"><span class="spinner"></span> Loading users…</div>
+            <div id="users-error" class="error" style="display:none"></div>
+            <div id="users"></div>
+          </div>
+
+          <!-- Pending Transactions -->
+          <div class="card">
+            <div class="bar">
+              <div class="row" style="align-items:center;gap:10px">
+                <h3 style="margin:0">Pending transactions</h3>
+                <span id="tx-meta" class="note"></span>
+              </div>
+              <div class="row">
+                <select id="t-kind">
+                  <option value="all">All</option>
+                  <option value="deposit">Deposits</option>
+                  <option value="withdraw">Withdrawals</option>
+                </select>
+                <button id="btn-tx-refresh" class="btn btn-ghost">Refresh</button>
+              </div>
+            </div>
+            <div id="tx-status" class="note" style="display:none"><span class="spinner"></span> Loading transactions…</div>
+            <div id="tx-error" class="error" style="display:none"></div>
+            <div id="tx"></div>
+          </div>
+        </div>
+
+        <div class="section">
           <div class="card">
             <h3 style="margin:0 0 8px">Wallet adjustment</h3>
             <div class="grid2">
@@ -139,76 +174,6 @@
             <div style="height:10px"></div>
             <button id="btn-adjust" class="btn btn-primary">Apply change</button>
             <p id="adj-msg" class="muted" style="margin:8px 0 0"></p>
-            <p class="note">amount_cents must be a non-zero integer</p>
-          </div>
-
-          <!-- Profit adjust (reporting only) -->
-          <div class="card">
-            <h3 style="margin:0 0 8px">Profit adjustment (reporting)</h3>
-            <div class="grid2">
-              <div>
-                <label class="muted">User ID (UUID) or Email</label>
-                <input id="pf-ident" placeholder="uuid-or-email@example.com"/>
-              </div>
-              <div>
-                <label class="muted">Amount (USD)</label>
-                <input id="pf-amt" type="number" step="0.01" placeholder="50.00"/>
-              </div>
-            </div>
-            <div class="grid2" style="margin-top:10px">
-              <div>
-                <label class="muted">Note</label>
-                <input id="pf-note" placeholder="Reason / reference"/>
-              </div>
-              <div>
-                <label class="muted">Direction</label>
-                <select id="pf-direction">
-                  <option value="credit">Credit (+)</option>
-                  <option value="debit">Debit (−)</option>
-                </select>
-              </div>
-            </div>
-            <div style="height:10px"></div>
-            <button id="btn-profit" class="btn btn-primary">Record profit</button>
-            <span id="pf-msg" class="muted" style="margin-left:8px"></span>
-          </div>
-
-          <!-- Users -->
-          <div class="card" style="grid-column:1 / span 1">
-            <div class="bar">
-              <div class="row" style="align-items:center;gap:10px">
-                <h3 style="margin:0">Users</h3>
-                <span id="users-meta" class="note"></span>
-              </div>
-              <div class="row">
-                <input id="u-q" placeholder="Search email…" style="width:220px">
-                <button id="btn-users-refresh" class="btn btn-ghost">Refresh</button>
-              </div>
-            </div>
-            <div id="users-status" class="note" style="display:none"><span class="spinner"></span> Loading users…</div>
-            <div id="users-error" class="error" style="display:none"></div>
-            <div id="users" class="u-list"></div>
-          </div>
-
-          <!-- Transactions (pending) -->
-          <div class="card">
-            <div class="bar">
-              <div class="row" style="align-items:center;gap:10px">
-                <h3 style="margin:0">Pending transactions</h3>
-                <span id="tx-meta" class="note"></span>
-              </div>
-              <div class="row">
-                <select id="t-kind">
-                  <option value="all">All</option>
-                  <option value="deposit">Deposits</option>
-                  <option value="withdraw">Withdrawals</option>
-                </select>
-                <button id="btn-tx-refresh" class="btn btn-ghost">Refresh</button>
-              </div>
-            </div>
-            <div id="tx-status" class="note" style="display:none"><span class="spinner"></span> Loading transactions…</div>
-            <div id="tx-error" class="error" style="display:none"></div>
-            <div id="tx"></div>
           </div>
         </div>
       </div>
@@ -219,7 +184,11 @@
 
   <script>
     const $=s=>document.querySelector(s);
-    function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200); }
+    function toast(msg){
+      const t=document.createElement('div');
+      t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)';
+      t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200);
+    }
     async function api(path,opts){
       try{
         const r=await fetch(path,{credentials:'include',...opts});
@@ -262,13 +231,15 @@
       $('#t-kind')?.addEventListener('change', ()=>loadTx());
       $('#u-q')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadUsers(); });
       $('#btn-adjust')?.addEventListener('click', adjust);
-      $('#btn-profit')?.addEventListener('click', recordProfit);
     }
 
-    // Helpers
-    function fmtMoney(c){ return `$${((c||0)/100).toFixed(2)}`; }
-    function fmtSec(sec){ return sec ? new Date(Number(sec)*1000).toLocaleString() : '—'; }
-    function copy(text){ navigator.clipboard.writeText(text).then(()=>toast('Copied')); }
+    function fmtMoney(cents, cur){ return `$${((cents||0)/100).toFixed(2)} ${cur||'USD'}`; }
+    function fmtCreated(ms){ return ms ? new Date(ms).toLocaleString() : '—'; }
+
+    // Copy helper
+    async function copy(text){
+      try{ await navigator.clipboard.writeText(text); toast('Copied'); }catch{ toast('Copy failed'); }
+    }
 
     // Users
     async function loadUsers(){
@@ -277,40 +248,40 @@
       $('#users-status').innerHTML = '<span class="spinner"></span> Loading users…';
       const q=$('#u-q').value?.trim() || '';
       const res = await api('/api/admin/users' + (q?`?q=${encodeURIComponent(q)}`:''));
-      if(!res.ok){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent=(res.data?.error||'Failed to load users'); return; }
+      if(!res.ok){
+        $('#users-status').style.display='none';
+        $('#users-error').style.display='block';
+        $('#users-error').textContent=(res.data?.error||'Failed to load users'); return;
+      }
 
-      const list = (res.data.users||[]).map(u=>`
-        <div class="u-pill">
-          <div class="u-top">
-            <div class="u-email" title="${u.email}">${u.email}</div>
-            <div class="chips">
-              <span class="chip">${fmtMoney(u.balance_cents)}</span>
-              <span class="chip" style="color:var(--ok)">Profit ${fmtMoney(u.profit_cents)}</span>
-              <span class="chip" title="${fmtSec(u.created_at)}">${fmtSec(u.created_at)}</span>
-              <button class="copy" onclick="copy('${u.email}')">⧉</button>
+      const users = res.data.users || [];
+      const rows = users.map(u=>`
+        <tr>
+          <td>
+            <div class="nowrap dim" title="${u.email}">
+              ${u.email}
+              <button class="copy-btn" onclick="copy('${u.email}')">⧉</button>
             </div>
-          </div>
-          <div class="u-id">
-            <span>${u.id}</span>
-            <button class="copy" onclick="copy('${u.id}')">⧉</button>
-          </div>
-          <div class="locks">
-            <label><input type="checkbox" ${u.disallow_starter ? 'checked':''} onchange="toggleLimit('${u.id}','starter',this.checked)"/> Starter</label>
-            <label><input type="checkbox" ${u.disallow_growth ? 'checked':''} onchange="toggleLimit('${u.id}','growth',this.checked)"/> Growth</label>
-            <label><input type="checkbox" ${u.disallow_pro ? 'checked':''} onchange="toggleLimit('${u.id}','pro',this.checked)"/> Pro</label>
-          </div>
-          <div class="actions">
-            <button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button>
-          </div>
-        </div>
-      `).join('');
+            <div class="mono dim nowrap" title="${u.id}">
+              ${u.id}
+              <button class="copy-btn" onclick="copy('${u.id}')">⧉</button>
+            </div>
+          </td>
+          <td class="mono">${fmtMoney(u.balance_cents, u.currency)}</td>
+          <td>${fmtCreated(u.created_at_ms)}</td>
+          <td><button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button></td>
+        </tr>`).join('');
 
-      $('#users').innerHTML = list || `<div class="empty">No users</div>`;
-      $('#users-meta').textContent = `${(res.data.users||[]).length} user${(res.data.users||[]).length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
+      $('#users').innerHTML = `<table>
+        <thead><tr><th>User</th><th>Balance</th><th>Created</th><th>Action</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody>
+      </table>`;
+
+      $('#users-meta').textContent = `${users.length} user${users.length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
       $('#users-status').style.display='none';
     }
 
-    // Transactions
+    // Transactions (pending)
     async function loadTx(){
       $('#tx-error').style.display='none';
       $('#tx-status').style.display='inline-flex';
@@ -318,27 +289,35 @@
 
       const kind = $('#t-kind').value;
       const res = await api('/api/admin/transactions?status=pending' + (kind==='all'?'':`&kind=${kind}`));
-      if(!res.ok){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent=(res.data?.error||'Failed to load transactions'); return; }
+      if(!res.ok){
+        $('#tx-status').style.display='none';
+        $('#tx-error').style.display='block';
+        $('#tx-error').textContent=(res.data?.error||'Failed to load transactions'); return;
+      }
 
-      const rows = (res.data.transactions||[]).map(t=>`
+      const txs = res.data.transactions || [];
+      const rows = txs.map(t=>`
         <tr>
-          <td style="font-family:ui-monospace,Menlo,Consolas">${t.id}</td>
-          <td>${t.user_email||t.user_id}</td>
-          <td>${t.ref ? t.ref : t.kind}</td>
-          <td>${fmtMoney(t.amount_cents)} ${t.currency}</td>
-          <td><span class="status">${t.status}</span></td>
-          <td>${fmtSec(t.created_at)}</td>
+          <td class="mono">${t.id}</td>
+          <td class="nowrap dim" title="${t.user_email||t.user_id}">
+            ${(t.user_email||t.user_id)||'—'}
+          </td>
+          <td>${t.kind}</td>
+          <td class="mono">${fmtMoney(t.amount_cents, t.currency)}</td>
+          <td class="mono">${t.ref||''}</td>
+          <td><span class="pill" style="padding:2px 8px">${t.status}</span></td>
+          <td>${fmtCreated(t.created_at_ms || t.created_at)}</td>
           <td class="row">
             <button class="btn btn-primary" onclick="approve('${t.id}')">Approve</button>
             <button class="btn btn-ghost" onclick="rejectTx('${t.id}')">Reject</button>
           </td>
         </tr>`).join('');
 
-      $('#tx').innerHTML = `<table style="width:100%;border-collapse:collapse">
-        <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
+      $('#tx').innerHTML = `<table>
+        <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Note</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
 
-      $('#tx-meta').textContent = `${(res.data.transactions||[]).length} pending • updated ${new Date().toLocaleTimeString()}`;
+      $('#tx-meta').textContent = `${txs.length} pending • updated ${new Date().toLocaleTimeString()}`;
       $('#tx-status').style.display='none';
     }
 
@@ -352,28 +331,14 @@
       if(res.ok){ toast('Rejected'); loadTx(); } else toast(res.data?.error || 'Failed');
     }
 
-    // Limits
-    async function toggleLimit(userId, plan, checked){
-      const payload = {
-        user_id: userId,
-        // We send *only* the changed flag; backend can merge,
-        // or you can expand to send all 3 like before.
-        [`disallow_${plan}`]: checked ? 1 : 0
-      };
-      const r = await fetch('/api/admin/limits', {
-        method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload)
-      });
-      if(r.ok){ toast('Updated'); } else { toast('Failed to update'); }
-    }
-
     // Quick fill when clicking "Adjust"
     window.promptAdjust = (id,email)=>{
       $('#adj-ident').value = email || id || '';
       $('#adj-amt').focus();
-      window.scrollTo({top: 0, behavior:'smooth'});
+      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
     }
 
-    // Wallet adjust
+    // Wallet adjust (balance only)
     async function adjust(){
       const ident=$('#adj-ident').value.trim();
       const rawAmt=$('#adj-amt').value;
@@ -405,32 +370,6 @@
       }else{
         $('#adj-msg').textContent = res.data?.error || 'Failed to apply change';
       }
-    }
-
-    // Profit record (writes a profit/* transaction; does NOT change wallet)
-    async function recordProfit(){
-      const ident=$('#pf-ident').value.trim();
-      const rawAmt=$('#pf-amt').value;
-      const note=$('#pf-note').value.trim();
-      const dir=$('#pf-direction').value;
-
-      const amt = Number(rawAmt);
-      if(!ident || !Number.isFinite(amt) || amt<=0){
-        $('#pf-msg').textContent='Enter a user id/email and amount > 0';
-        return;
-      }
-      const cents = Math.round(amt*100);
-
-      const body = ident.includes('@')
-        ? { email: ident, amount_cents: cents, note, dir }
-        : { user_id: ident, amount_cents: cents, note, dir };
-
-      const res = await api('/api/admin/profit/adjust',{
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
-      });
-
-      $('#pf-msg').textContent = res.ok ? 'Recorded ✅' : (res.data?.error || 'Failed');
-      if(res.ok) loadUsers();
     }
 
     // boot
