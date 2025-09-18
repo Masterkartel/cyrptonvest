@@ -1,21 +1,29 @@
 // functions/api/auth/logout.ts
-import { json, parseCookies, cookieName, destroySessionRecord, destroySession, type Env } from "../../_utils";
+import {
+  json,
+  parseCookies,
+  cookieName,
+  destroySession,        // sets expired cookie on the response
+  destroySessionRecord,  // removes session row from D1
+  type Env,
+} from "../../_utils";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const cookies = parseCookies(request);
     const sid = cookies[cookieName];
 
-    // 1) Drop DB record (best-effort)
+    // Remove DB record if present
     if (sid) {
-      try { await destroySessionRecord(env, sid); } catch {}
+      await destroySessionRecord(env, sid);
     }
 
-    // 2) Return a response with an expired cookie for the client
-    const res = json({ ok: true });
+    // Build response and append expired cookie header
+    const res = json({ ok: true }, 200);
     destroySession(res, request);
     return res;
   } catch (e: any) {
-    return json({ ok: false, error: `Logout failed: ${e?.message || e}` }, 500);
+    console.error("logout error:", e);
+    return json({ ok: false, error: "Logout failed" }, 500);
   }
 };
