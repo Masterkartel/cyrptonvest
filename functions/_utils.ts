@@ -2,19 +2,16 @@
 
 export type Env = {
   DB: D1Database;
-  AUTH_COOKIE_SECRET: string; // legacy
+  AUTH_COOKIE_SECRET: string;
   ADMIN_EMAIL?: string;
   ADMIN_PASSWORD?: string;
-
-  // Email (Resend)
-  RESEND_API_KEY?: string;          // re_****************
-  MAIL_FROM?: string;               // "Cyrptonvest <noreply@cyrptonvest.com>"
-  REPLY_TO?: string;                // "support@cyrptonvest.com"
+  RESEND_API_KEY?: string;
+  MAIL_FROM?: string;
+  REPLY_TO?: string;
 };
 
 const COOKIE_NAME = "cv_session";
 
-/* ───────── Response helpers ───────── */
 export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -25,7 +22,6 @@ export function bad(message = "Bad request", status = 400) {
   return json({ ok: false, error: message }, status);
 }
 
-/* ───────── Cookie helpers ───────── */
 export function parseCookies(req: Request): Record<string, string> {
   const raw = req.headers.get("cookie") || "";
   const out: Record<string, string> = {};
@@ -93,28 +89,24 @@ function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
   return `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
-/* ───────── Password helpers ───────── */
+/* hashing */
 function tsc(a: string, b: string) {
   if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  let out = 0; for (let i=0;i<a.length;i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
-
 export async function sha256HexStr(s: string) {
   const data = new TextEncoder().encode(s);
   const buf = await crypto.subtle.digest("SHA-256", data);
   const bytes = new Uint8Array(buf);
-  return Array.from(bytes).map(b => b.toString(16).padStart(2,"0")).join("");
+  return Array.from(bytes).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-
 export async function hashPassword(plain: string) {
   const hex = await sha256HexStr(plain);
   return `sha256$${hex}`;
 }
 export async function hashPasswordS256(plain: string) {
-  const saltBytes = new Uint8Array(12);
-  crypto.getRandomValues(saltBytes);
+  const saltBytes = new Uint8Array(12); crypto.getRandomValues(saltBytes);
   const salt = Array.from(saltBytes).map(b=>b.toString(16).padStart(2,"0")).join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
@@ -137,9 +129,7 @@ export async function verifyPassword(plain: string, stored: string) {
     }
     if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
     return tsc(stored, plain);
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 export async function hashPasswordBcrypt(plain: string) {
   try {
@@ -147,15 +137,11 @@ export async function hashPasswordBcrypt(plain: string) {
     const bcrypt = (await import("bcryptjs")).default;
     const salt = await bcrypt.genSalt(10);
     return await bcrypt.hash(plain, salt);
-  } catch {
-    return await hashPasswordS256(plain);
-  }
+  } catch { return await hashPasswordS256(plain); }
 }
-export function isReasonablePassword(pw: string) {
-  return typeof pw === "string" && pw.length >= 8;
-}
+export function isReasonablePassword(pw: string) { return typeof pw === "string" && pw.length >= 8; }
 
-/* ───────── Email (Resend) ───────── */
+/* email */
 export async function sendEmail(env: Env, to: string, subject: string, html: string) {
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const payload: Record<string, unknown> = {
@@ -167,22 +153,16 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
     };
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type":"application/json" },
       body: JSON.stringify(payload),
     });
-    if (!r.ok) {
-      const text = await r.text().catch(()=> "");
-      console.warn("sendEmail failed:", r.status, text);
-    }
+    if (!r.ok) console.warn("sendEmail failed:", r.status, await r.text().catch(()=> ""));
     return;
   }
   console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
 }
 
-/* ───────── DB helpers ───────── */
+/* db */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
     `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
@@ -193,14 +173,13 @@ export async function getUserByEmail(env: Env, email: string) {
 export const db: any = (env: Env) => env.DB;
 db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
-/* ───────── Sessions ───────── */
+/* sessions */
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
 export async function getUserFromSession(req: Request, env: Env): Promise<Session | null> {
   try {
     const sid = parseCookies(req)[COOKIE_NAME];
     if (!sid) return null;
-
     const row = await env.DB.prepare(
       `SELECT s.id as sid, s.expires_at as exp, u.id as uid, u.email as email
          FROM sessions s
@@ -221,7 +200,7 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
     if (!valid) return null;
 
     const email = (row.email || "").toLowerCase();
-    const role: "user"|"admin" =
+    const role: "user" | "admin" =
       (env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase()) ? "admin" : "user";
     return { sub: row.uid, email, role, iat: nowSec };
   } catch (e) {
@@ -240,12 +219,12 @@ export async function requireAdmin(req: Request, env: Env): Promise<Session> {
   if (!sess || sess.role !== "admin") throw json({ ok:false, error: "Forbidden" }, 403);
   return sess;
 }
-/** still exported for callers that want a nullable session */
+/** exported for callers that want a nullable session */
 export async function requireUser(req: Request, env: Env): Promise<Session | null> {
   return getUserFromSession(req, env);
 }
 
-/* ───────── Session creation / cookie ───────── */
+/* session creation */
 export async function createSession(
   env: Env,
   session: { sub: string; email: string; role: "user" | "admin" },
@@ -256,12 +235,10 @@ export async function createSession(
   crypto.getRandomValues(sidBytes);
   const sid = btoa(String.fromCharCode(...sidBytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
   const expSec = Math.floor(Date.now()/1000) + maxAgeSec;
-
   await env.DB.prepare(
     `INSERT INTO sessions (id, user_id, created_at, expires_at)
      VALUES (?, ?, datetime('now'), ?)`
   ).bind(sid, session.sub, expSec).run();
-
   return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
 export function setCookie(
@@ -272,7 +249,6 @@ export function setCookie(
   maybeMaxAge?: number
 ) {
   if (typeof arg2 === "string") return headerSetCookie(resOrHeaders, arg2);
-
   const env = arg2 as Env;
   let sess: { sub: string; email: string; role: "user" | "admin" } | undefined;
   let urlLike: Request | string | URL | undefined;
@@ -280,24 +256,19 @@ export function setCookie(
 
   if (session && typeof (session as any).sub === "string") {
     sess = session as any;
-    if (typeof reqOrUrl === "number") {
-      maxAge = reqOrUrl as number;
-    } else {
-      urlLike = reqOrUrl as any;
-      maxAge = typeof maybeMaxAge === "number" ? maybeMaxAge : undefined;
-    }
+    if (typeof reqOrUrl === "number") maxAge = reqOrUrl as number;
+    else { urlLike = reqOrUrl as any; maxAge = typeof maybeMaxAge === "number" ? maybeMaxAge : undefined; }
   } else {
     console.warn("setCookie: expected a session object as 3rd argument");
     return;
   }
-
   createSession(env, sess, urlLike, maxAge).then((cookie) => headerSetCookie(resOrHeaders, cookie));
 }
 export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
   headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
 }
 
-/* ───────── Misc ───────── */
+/* misc */
 export function randomTokenHex(len = 32): string {
   const a = new Uint8Array(len);
   crypto.getRandomValues(a);
