@@ -11,7 +11,7 @@ import {
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const { request, env } = ctx;
 
-  // Preflight (CORS handled in _middleware; we just return 204 here)
+  // Preflight
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204 });
   }
@@ -29,36 +29,42 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   }
 
   try {
-    // 2) Look up user
+    // 2) Look up user (defensive: coalesce email to empty string)
     const user = await env.DB.prepare(
-      `SELECT id, email, password_hash FROM users WHERE lower(email) = ? LIMIT 1`
+      `SELECT id, COALESCE(email,'') AS email, COALESCE(password_hash,'') AS password_hash
+         FROM users
+        WHERE lower(email) = ?
+        LIMIT 1`
     )
       .bind(email)
       .first<{ id: string; email: string; password_hash: string }>();
 
-    if (!user) return bad("Invalid credentials", 400);
+    if (!user || !user.id) return bad("Invalid credentials", 400);
 
-    // 3) Verify password
-    const ok = await verifyPassword(password, user.password_hash);
+    // 3) Verify password (handles bcrypt/s256/legacy/plain)
+    const ok = await verifyPassword(password, user.password_hash || "");
     if (!ok) return bad("Invalid credentials", 400);
 
-    // 4) Determine role
-    const role: "user" | "admin" =
-      env.ADMIN_EMAIL &&
-      user.email &&
-      user.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()
-        ? "admin"
-        : "user";
+    // 4) Determine role (never throw on weird/null values)
+    const userEmailLc = String(user.email || "").trim().toLowerCase();
+    const adminEmailLc = String(env.ADMIN_EMAIL || "").trim().toLowerCase();
+    const role: "user" | "admin" = adminEmailLc && userEmailLc === adminEmailLc ? "admin" : "user";
 
-    // 5) Create session + cookie with correct Domain/Secure for this request
-    const cookie = await createSession(
-      env,
-      { sub: user.id, email: user.email, role },
-      request
-    );
+    // 5) Create session + cookie (guard against failures)
+    let cookie = "";
+    try {
+      cookie = await createSession(
+        env,
+        { sub: user.id, email: userEmailLc, role },
+        request
+      );
+    } catch (e) {
+      console.error("createSession error:", e);
+      return bad("service_unavailable", 503);
+    }
 
-    // 6) Send JSON + Set-Cookie
-    const res = json({ ok: true, user: { id: user.id, email: user.email, role } });
+    // 6) Respond
+    const res = json({ ok: true, user: { id: user.id, email: userEmailLc, role } });
     headerSetCookie(res, cookie);
     return res;
   } catch (err: any) {
