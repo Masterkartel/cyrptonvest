@@ -1,20 +1,13 @@
-// functions/api/wallet/withdraw.ts
 import { json, bad, requireAuth, type Env } from "../../_utils";
 import { ensureWallet, hexId16 } from "../../_db";
 
-type Body = {
-  amount_cents?: number;
-  currency?: string;        // "USD"
-  network?: string;         // "BTC" | "USDT-TRC20" | "ETH-ERC20"
-  address?: string;         // destination
-};
+type Body = { amount_cents?: number; currency?: string; network?: string; address?: string; };
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const sess = await requireAuth(ctx.request, ctx.env);
-    let body: Body = {};
-    try { body = await ctx.request.json<Body>(); } catch {}
 
+    let body: Body = {}; try { body = await ctx.request.json<Body>(); } catch {}
     const amount = Math.trunc(Number(body.amount_cents || 0));
     if (!Number.isFinite(amount) || amount <= 0) return bad("amount_cents must be a positive integer", 400);
 
@@ -24,15 +17,8 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     if (!network) return bad("network is required", 400);
     if (!address) return bad("address is required", 400);
 
-    // 1) Ensure wallet
     const walletId = await ensureWallet(ctx.env, String(sess.sub), currency);
 
-    // (Optional) pre-check funds using posted balance view before queuing:
-    // const bal = await ctx.env.DB.prepare(`SELECT current_balance_cents FROM v_wallet_reconcile WHERE user_id=?`)
-    //  .bind(String(sess.sub)).first<number>("current_balance_cents");
-    // if ((bal ?? 0) < amount) return bad("Insufficient funds", 400);
-
-    // 2) Insert pending withdrawal into txs
     const txId = hexId16();
     const memo = `WITHDRAW ${network} → ${address.slice(0, 8)}…`;
 
