@@ -221,12 +221,11 @@ export async function requireAdmin(req: Request, env: Env): Promise<Session> {
   if (!sess || sess.role !== "admin") throw json({ ok:false, error: "Forbidden" }, 403);
   return sess;
 }
-/** exported for callers that want a nullable session */
 export async function requireUser(req: Request, env: Env): Promise<Session | null> {
   return getUserFromSession(req, env);
 }
 
-/* ---------- session creation & cookie setter (synchronous) ---------- */
+/* ---------- session creation (FK-safe) ---------- */
 export async function createSession(
   env: Env,
   session: { sub: string; email: string; role: "user" | "admin" },
@@ -244,18 +243,18 @@ export async function createSession(
        VALUES (?, ?, datetime('now'), ?)`
     ).bind(sid, session.sub, expSec).run();
   } catch (e: any) {
-    // Rare D1 FK hiccup: retry with foreign keys disabled once
+    // If the DB enforces FK strictly and it races with user creation,
+    // retry as one batch with FK checks disabled only for the insert.
     const msg = String(e?.message || "");
     if (/FOREIGN KEY constraint failed/i.test(msg)) {
-      try {
-        await env.DB.exec("PRAGMA foreign_keys=OFF;");
-        await env.DB.prepare(
+      await env.DB.batch([
+        env.DB.prepare("PRAGMA foreign_keys=OFF;"),
+        env.DB.prepare(
           `INSERT INTO sessions (id, user_id, created_at, expires_at)
            VALUES (?, ?, datetime('now'), ?)`
-        ).bind(sid, session.sub, expSec).run();
-      } finally {
-        await env.DB.exec("PRAGMA foreign_keys=ON;");
-      }
+        ).bind(sid, session.sub, expSec),
+        env.DB.prepare("PRAGMA foreign_keys=ON;"),
+      ]);
     } else {
       throw e;
     }
@@ -264,7 +263,7 @@ export async function createSession(
   return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
 
-/** IMPORTANT: now synchronous — always await this in callers */
+/** Always await this so Set-Cookie is present on the response */
 export async function setCookie(
   resOrHeaders: Response | Headers,
   arg2: string | Env,
@@ -292,10 +291,6 @@ export async function setCookie(
 
   const cookie = await createSession(env, sess, urlLike, maxAge);
   headerSetCookie(resOrHeaders, cookie);
-}
-
-export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
-  headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
 }
 
 /* ---------- misc ---------- */
