@@ -50,7 +50,7 @@
     .muted{color:var(--muted)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
-    /* Top wallet/deposit/withdraw switch */
+    /* Top switch */
     .switch{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
     .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700;transition:background .2s ease,transform .15s ease}
     .switch button:active{transform:scale(.98)}
@@ -69,7 +69,7 @@
     .kpi:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(0,0,0,.24);border-color:#2a3761}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* Deposit addresses line: marquee with actions fixed visible */
+    /* Deposit addresses */
     .addr-group{display:grid;gap:10px}
     .addr-line{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;
       border-bottom:1px dashed #203054;padding:6px 0;transition:background .2s ease,border-color .2s ease}
@@ -103,7 +103,7 @@
     .tab-panel{display:none}
     .tab-panel.active{display:block}
 
-    /* Hero (unchanged, just close button) */
+    /* Hero */
     .hero{background:
       radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
       radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.18), transparent 55%),
@@ -447,7 +447,6 @@
     function initBottomTabs(){
       const btnPlans = $('#btn-tab-plans');
       const btnTx    = $('#btn-tab-tx');
-      const panels   = { plans: '#panel-plans', tx:'#panel-tx' };
       function setTab(which){
         btnPlans.classList.toggle('active', which==='plans');
         btnTx.classList.toggle('active', which==='tx');
@@ -458,7 +457,7 @@
       btnTx.addEventListener('click', ()=>setTab('tx'));
     }
 
-    // Calculator pills (mobile-friendly)
+    // Calculator pills
     function attachCalcSoft(id, rate, min, max){
       const amt = $('#'+id+'-amt');
       const warn = $('#'+id+'-warn');
@@ -555,24 +554,41 @@
       }catch{ toast('Network error'); }
     }
 
-    // Transactions table (type Credit/Debit, responsive)
+    // ▼▼ CHANGED: Transactions table (Type + Ref for withdrawals) ▼▼
+    function inferMethodFromRef(ref){
+      const r = String(ref||'').trim();
+      if(!r) return '';
+      if(r.startsWith('bc1') || r.startsWith('1') || r.startsWith('3')) return 'BTC';
+      if(r.startsWith('0x')) return 'ETH-ERC20';
+      if(/^T[a-zA-Z0-9]{25,36}$/.test(r)) return 'USDT-TRC20';
+      return '';
+    }
+
     async function renderTransactionsTable(targetId, limit){
       const target = document.getElementById(targetId);
       try{
         const data = await api('/api/transactions');
         const txs = data.transactions || [];
         const rows = txs.slice(0,limit||50).map(t=>{
-          const credit = (t.amount_cents||0) >= 0;
-          const typ = credit ? 'Credit' : 'Debit';
-          const amt = Math.abs(t.amount_cents||0);
+          const kind = String(t.kind||'').toLowerCase();
+          // Prefer semantic kind; fallback to sign if needed
+          let typ = (kind.includes('withdraw') || kind.includes('debit')) ? 'Debit' : 'Credit';
+
+          // Amount displayed as absolute
+          const amt = Math.abs(Number(t.amount_cents||0));
           const when = new Date(t.created_at||0).toLocaleString();
-          const ref = (t.ref||'');
+          let refText = String(t.ref||'');
+          if (kind.includes('withdraw')) {
+            const method = (t.network || inferMethodFromRef(refText) || 'Withdrawal');
+            refText = method;
+          }
+
           return `<tr>
             <td>${when}</td>
             <td>${typ}</td>
             <td>$${(amt/100).toFixed(2)} ${t.currency||'USD'}</td>
             <td>${t.status||''}</td>
-            <td class="ref">${ref}</td>
+            <td class="ref">${refText}</td>
           </tr>`;
         }).join('');
         target.innerHTML = `
@@ -597,6 +613,7 @@
         target.innerHTML = '<div class="muted" style="padding:10px">Failed to load transactions</div>';
       }
     }
+    // ▲▲ CHANGED SECTION ENDS ▲▲
 
     // Totals + addresses
     async function fetchTotals(){
@@ -615,13 +632,11 @@
     }
 
     async function renderEverything(){
-      // Session bits (avatar/email already set in ensureAuth)
-
       const totals = await fetchTotals();
       $('#total-assets').innerHTML  = `$${(totals.balance/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
       $('#wd-balance').textContent  = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
 
-      // Hard-coded fallback addresses (as before)
+      // Fallback addresses kept
       const a = {
         btc_addr:   totals.btc_addr   || "bc1qcqy3f6z3qjglyt8qalmphrd4p6rz4jy6m0q0ye",
         trc20_addr: totals.trc20_addr || "TTxwizHvUPUuJdmSmJREpaSYrwsderWp5V",
@@ -636,7 +651,7 @@
 
       await renderTransactionsTable('tx-table', 50);
 
-      // Plans (unchanged ranges)
+      // Plans
       const planCard = (id, name, min, max, rate, hours)=>`
         <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;transition:transform .25s ease, box-shadow .25s ease">
           <strong>${name}</strong>
