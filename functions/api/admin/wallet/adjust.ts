@@ -1,4 +1,3 @@
-// functions/api/admin/wallet/adjust.ts
 import { json, bad, requireAdmin, type Env } from "../../../_utils";
 import { ensureWallet, hexId16 } from "../../../_db";
 
@@ -7,14 +6,11 @@ type Body =
   | { user_id: string;  delta_cents: number | string; note?: string };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  // 1) Admin gate
   try { await requireAdmin(request, env); } catch { return json({ ok:false, error:"Forbidden" }, 403); }
 
-  // 2) Parse
-  let body: Body;
-  try { body = await request.json<Body>(); } catch { return bad("Invalid JSON body", 400); }
+  let body: Body; try { body = await request.json<Body>(); } catch { return bad("Invalid JSON body", 400); }
 
-  // 3) Resolve canonical user_id
+  // Find the real user_id from DB
   let userId: string | null = null;
   if ("email" in body && body.email) {
     const row = await env.DB.prepare(`SELECT id FROM users WHERE lower(email)=? LIMIT 1`)
@@ -30,32 +26,31 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return bad("Provide user_id or email", 400);
   }
 
-  // 4) Validate delta
   const rawDelta = (body as any).delta_cents;
   const delta = Math.trunc(Number(typeof rawDelta === "string" ? rawDelta.trim() : rawDelta));
   if (!Number.isFinite(delta) || delta === 0) return bad("delta_cents must be a non-zero integer", 400);
 
-  const currency = "USD";
   const note = String((body as any).note || "").slice(0, 200);
+  const currency = "USD";
 
-  // 5) Ensure wallet (creates if missing)
+  // Make sure wallet exists
   const walletId = await ensureWallet(env, userId, currency);
 
-  // 6) Update wallet balance
+  // Update wallet balance
   await env.DB.prepare(
-    `UPDATE wallets SET balance_cents = COALESCE(balance_cents,0) + ?,
-                        updated_at = datetime('now')
-      WHERE id = ?`
+    `UPDATE wallets
+       SET balance_cents = COALESCE(balance_cents,0) + ?,
+           updated_at = datetime('now')
+     WHERE id = ?`
   ).bind(delta, walletId).run();
 
-  // 7) Record an adjustment in txs (posted immediately)
+  // Record an adjustment in txs (posted now)
   const txId = hexId16();
   await env.DB.prepare(
     `INSERT INTO txs (id, user_id, wallet_id, amount_cents, kind, status, memo, created_at)
      VALUES (?, ?, ?, ?, 'adjustment', 'posted', ?, datetime('now'))`
   ).bind(txId, userId, walletId, Math.abs(delta), note || "admin adjustment").run();
 
-  // 8) Return updated wallet
   const wallet = await env.DB.prepare(
     `SELECT balance_cents, currency FROM wallets WHERE id=? LIMIT 1`
   ).bind(walletId).first<{ balance_cents: number; currency: string }>();
