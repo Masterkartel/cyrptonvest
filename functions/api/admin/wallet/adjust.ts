@@ -6,13 +6,14 @@ type Body =
   | { user_id: string; delta_cents: number | string; note?: string };
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
+  // auth
   try {
     await requireAdmin(ctx.request, ctx.env);
   } catch {
     return json({ ok: false, error: "Forbidden" }, 403);
   }
 
-  // Parse body
+  // parse
   let body: Body;
   try {
     body = await ctx.request.json<Body>();
@@ -20,7 +21,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     return bad("Invalid JSON body", 400);
   }
 
-  // Resolve user_id
+  // resolve user_id
   let user_id = "";
   if ("user_id" in body && body.user_id) {
     user_id = String(body.user_id).trim();
@@ -35,49 +36,58 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     return bad("Provide user_id or email", 400);
   }
 
-  // Coerce delta_cents
+  // delta
   const raw = (body as any).delta_cents;
   const delta = Math.trunc(Number(typeof raw === "string" ? raw.trim() : raw));
   if (!Number.isFinite(delta) || delta === 0) {
     return bad("delta_cents must be a non-zero integer", 400);
   }
-
   const note = String((body as any).note || "").slice(0, 200);
   const currency = "USD";
 
-  // Ensure wallet exists
-  await ctx.env.DB.prepare(
-    `INSERT INTO wallets (user_id, balance_cents, currency)
-     VALUES (?, 0, ?)
-     ON CONFLICT(user_id) DO NOTHING`
-  ).bind(user_id, currency).run();
+  // tx id/time
+  const txId = (crypto as any).randomUUID?.() ?? String(Date.now());
+  const created_sec = Math.floor(Date.now() / 1000);
 
-  // Update balance
-  await ctx.env.DB.prepare(
-    `UPDATE wallets
-        SET balance_cents = COALESCE(balance_cents,0) + ?
-      WHERE user_id = ?`
-  ).bind(delta, user_id).run();
+  // do all writes atomically
+  const db = ctx.env.DB;
+  try {
+    await db.batch([
+      // ensure wallet row (robust across missing UNIQUE until we add it)
+      db.prepare(
+        `INSERT OR IGNORE INTO wallets (user_id, balance_cents, currency)
+         VALUES (?, 0, ?)`
+      ).bind(user_id, currency),
 
-  // Read back
-  const wallet = await ctx.env.DB.prepare(
+      // update balance (can be +/-)
+      db.prepare(
+        `UPDATE wallets
+           SET balance_cents = COALESCE(balance_cents,0) + ?
+         WHERE user_id = ?`
+      ).bind(delta, user_id),
+
+      // insert transaction (store absolute amount for display)
+      db.prepare(
+        `INSERT INTO transactions (id, user_id, kind, amount_cents, currency, status, ref, created_at)
+         VALUES (?, ?, 'admin_adjust', ?, ?, 'cleared', ?, ?)`
+      ).bind(txId, user_id, Math.abs(delta), currency, note, created_sec),
+    ]);
+  } catch (e: any) {
+    const msg = String(e?.message || e || "");
+    // common hints
+    if (msg.includes("FOREIGN KEY")) {
+      return bad("Foreign key constraint failed (user may not exist).", 409);
+    }
+    if (msg.includes("no such table")) {
+      return bad("Missing tables: run schema migration for wallets/transactions.", 500);
+    }
+    return bad(`Adjust failed: ${msg}`, 500);
+  }
+
+  // read back balance
+  const wallet = await db.prepare(
     `SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`
   ).bind(user_id).first<{ balance_cents: number; currency: string }>();
-
-  // Record transaction
-  const txId = crypto.randomUUID?.() ?? String(Date.now());
-  const created_sec = Math.floor(Date.now() / 1000);
-  await ctx.env.DB.prepare(
-    `INSERT INTO transactions (id, user_id, kind, amount_cents, currency, status, ref, created_at)
-     VALUES (?, ?, 'admin_adjust', ?, ?, 'cleared', ?, ?)`
-  ).bind(
-    txId,
-    user_id,
-    Math.abs(delta),
-    currency,
-    note,
-    created_sec
-  ).run();
 
   return json({
     ok: true,
@@ -92,7 +102,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       amount_cents: Math.abs(delta),
       currency,
       note,
-      created_at: created_sec * 1000, // ms for UI
+      created_at: created_sec * 1000,
     },
   });
 };
