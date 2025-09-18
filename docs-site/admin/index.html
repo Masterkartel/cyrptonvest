@@ -241,7 +241,7 @@
       $('#btn-adjust')?.addEventListener('click', adjust);
     }
 
-    /* Time helpers: normalize seconds/ms/TEXT → ms, then format */
+    /* Time helpers */
     function toMs(anyVal){
       if(anyVal==null) return 0;
       const n = Number(anyVal);
@@ -254,7 +254,7 @@
       return ms ? new Date(ms).toLocaleString() : '—';
     }
 
-    /* Copy helper (email/id) */
+    /* Copy helper */
     function copyText(text){
       try{
         navigator.clipboard.writeText(text);
@@ -263,6 +263,7 @@
         prompt('Copy:', text);
       }
     }
+    window.copyText = copyText;
 
     // Users
     async function loadUsers(){
@@ -328,34 +329,40 @@
         <tbody>${rows || '<tr><td colspan="5" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody>
       </table>`;
 
-      // Bind lock toggles (after rendering)
-      document.querySelectorAll('.lock-cb').forEach(cb=>{
-        cb.addEventListener('change', async (e)=>{
-          const el = e.currentTarget as HTMLInputElement;
-          const userId = el.getAttribute('data-user')!;
-          const plan = el.getAttribute('data-plan')!;
-          const checked = el.checked;
+      // Bind lock toggles
+      document.querySelectorAll('.lock-cb').forEach(function(cb){
+        cb.addEventListener('change', async function(e){
+          var el = e.currentTarget;
+          var userId = el.getAttribute('data-user');
+          var plan = el.getAttribute('data-plan');
+          var checked = el.checked;
 
-          // Gather current row state
-          const row = el.closest('tr');
-          const cbs = row ? row.querySelectorAll('.lock-cb') : null;
-          const get = (p:string)=> (Array.from(cbs||[]) as HTMLInputElement[]).find(x=>x.getAttribute('data-plan')===p)?.checked ? 1:0;
-          const payload = {
+          var row = el.closest('tr');
+          var cbs = row ? row.querySelectorAll('.lock-cb') : null;
+          function get(planName){
+            if(!cbs) return 0;
+            for(var i=0;i<cbs.length;i++){
+              var x = cbs[i];
+              if(x.getAttribute('data-plan')===planName) return x.checked ? 1 : 0;
+            }
+            return 0;
+          }
+
+          var payload = {
             user_id: userId,
             disallow_starter: plan==='starter' ? (checked?1:0) : get('starter'),
             disallow_growth:  plan==='growth'  ? (checked?1:0) : get('growth'),
             disallow_pro:     plan==='pro'     ? (checked?1:0) : get('pro')
           };
 
-          const r = await fetch('/api/admin/limits',{
+          var r = await fetch('/api/admin/limits',{
             method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include',
             body: JSON.stringify(payload)
           });
           if(r.ok){ toast('Updated'); }
           else{
             toast('Failed to update');
-            // revert UI
-            el.checked = !checked;
+            el.checked = !checked; // revert
           }
         });
       });
@@ -453,9 +460,6 @@
         $('#adj-msg').textContent = res.data?.error || 'Failed to apply change';
       }
     }
-
-    // expose copy for inline handlers
-    window.copyText = copyText;
 
     // boot
     gate();
