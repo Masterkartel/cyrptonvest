@@ -6,11 +6,10 @@ import {
   headerSetCookie,
   verifyPassword,
   type Env,
-} from "../_utils";
+} from "../../_utils";
 
-/** Make sure the sessions table exists (id, user_id, created_at, expires_at) */
+/** Ensure the sessions table exists so inserts don't crash on fresh DBs */
 async function ensureSessionsTable(env: Env) {
-  // SQLite/D1 is fine with IF NOT EXISTS and flexible column types
   await env.DB.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -26,7 +25,7 @@ async function ensureSessionsTable(env: Env) {
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const { request, env } = ctx;
 
-  // CORS preflight (CORS headers handled in _middleware)
+  // Preflight (CORS is handled by _middleware)
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204 });
   }
@@ -51,14 +50,13 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       .bind(email)
       .first<{ id: string; email: string; password_hash: string }>();
 
-    // Avoid leaking which field failed
     if (!user) return bad("Invalid credentials", 400);
 
-    // 3) Verify password (supports bcrypt, s256, legacy sha256, plain)
+    // 3) Verify password (bcrypt, s256, sha256, plain)
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) return bad("Invalid credentials", 400);
 
-    // 4) Ensure sessions table exists (prevents crashes on fresh DBs)
+    // 4) Ensure sessions table exists (prevents 503 on fresh DBs)
     await ensureSessionsTable(env);
 
     // 5) Determine role
@@ -67,24 +65,19 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
         ? "admin"
         : "user";
 
-    // 6) Create session + cookie with correct Domain/Secure
+    // 6) Create session + cookie
     const cookie = await createSession(
       env,
       { sub: user.id, email: user.email, role },
       request
     );
 
-    // 7) Respond JSON + Set-Cookie
-    const res = json({
-      ok: true,
-      user: { id: user.id, email: user.email, role },
-    });
+    // 7) Return JSON + Set-Cookie
+    const res = json({ ok: true, user: { id: user.id, email: user.email, role } });
     headerSetCookie(res, cookie);
     return res;
   } catch (err: any) {
-    // Log to CF logs for debugging
     console.error("login error:", err?.message || err);
-    // Keep generic message for clients
     return bad("service_unavailable", 503);
   }
 };
