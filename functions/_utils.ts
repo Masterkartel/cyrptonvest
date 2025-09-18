@@ -1,21 +1,27 @@
 // functions/_utils.ts
-// Shared helpers for Cloudflare Pages Functions
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers for Cloudflare Pages Functions (D1-backed sessions)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type Env = {
   DB: D1Database;
-  AUTH_COOKIE_SECRET: string; // legacy, not used by DB sessions
+
+  // Optional / legacy
+  AUTH_COOKIE_SECRET: string;
+
+  // Admin marker
   ADMIN_EMAIL?: string;
   ADMIN_PASSWORD?: string;
 
-  // Optional for email sending (Resend)
-  RESEND_API_KEY?: string;          // re_****************
-  MAIL_FROM?: string;               // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
-  REPLY_TO?: string;                // e.g. "support@cyrptonvest.com"
+  // Outbound email (Resend)
+  RESEND_API_KEY?: string;    // re_****************
+  MAIL_FROM?: string;         // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
+  REPLY_TO?: string;          // e.g. "support@cyrptonvest.com"
 };
 
 const COOKIE_NAME = "cv_session";
 
-/* ═════════════════ Response helpers ═════════════════ */
+/* ── Response helpers ─────────────────────────────────────────────────────── */
 export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -26,7 +32,10 @@ export function bad(message = "Bad request", status = 400) {
   return json({ ok: false, error: message }, status);
 }
 
-/* ═════════════════ Cookie helpers ═════════════════ */
+/* ── Cookie helpers ───────────────────────────────────────────────────────── */
+export const cookieName = COOKIE_NAME;
+
+/** Accepts a Request or raw cookie string. */
 export function parseCookies(reqOrString: Request | string): Record<string, string> {
   const raw =
     typeof reqOrString === "string"
@@ -39,14 +48,13 @@ export function parseCookies(reqOrString: Request | string): Record<string, stri
   });
   return out;
 }
-export const cookieName = COOKIE_NAME;
 
 export function headerSetCookie(resOrHeaders: Response | Headers, value: string) {
   if (resOrHeaders instanceof Response) resOrHeaders.headers.append("set-cookie", value);
   else resOrHeaders.append("set-cookie", value);
 }
 
-/* Build a cookie string with domain/secure heuristics for Pages */
+/** Build a Set-Cookie string for the current host (handles Domain/Secure). */
 export function buildCookieFromSid(
   reqOrUrl: Request | string | URL | undefined,
   sid: string,
@@ -60,10 +68,9 @@ export function buildCookieFromSid(
         ? new URL(reqOrUrl)
         : reqOrUrl instanceof URL
         ? reqOrUrl
-        : new URL((reqOrUrl as Request)?.url || "https://x.example");
+        : new URL((reqOrUrl as Request)?.url || "https://example.invalid");
     const host = url.hostname;
     secureAttr = url.protocol === "https:" ? "; Secure" : "";
-    // Avoid Domain on *.pages.dev and localhost (host-only cookie)
     const isPagesDev = /\.pages\.dev$/i.test(host);
     const isLocal = host === "localhost" || /^[0-9.]+$/.test(host) || host.endsWith(".localhost");
     if (!isPagesDev && !isLocal) {
@@ -74,12 +81,12 @@ export function buildCookieFromSid(
       }
     }
   } catch {
-    // best-effort cookie if URL missing/invalid
+    // fall through
   }
   return `${COOKIE_NAME}=${sid}; Path=/; Max-Age=${maxAgeSec}; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
-/* Build an *expiring* cookie with matching attributes (for logout) */
+/** Build an *expired* cookie with matching attributes (for logout). */
 function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
   let domainAttr = "";
   let secureAttr = "; Secure";
@@ -89,7 +96,7 @@ function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
         ? new URL(reqOrUrl)
         : reqOrUrl instanceof URL
         ? reqOrUrl
-        : new URL((reqOrUrl as Request)?.url || "https://x.example");
+        : new URL((reqOrUrl as Request)?.url || "https://example.invalid");
     const host = url.hostname;
     secureAttr = url.protocol === "https:" ? "; Secure" : "";
     const isPagesDev = /\.pages\.dev$/i.test(host);
@@ -101,15 +108,18 @@ function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
         domainAttr = `; Domain=.${registrable}`;
       }
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
-/* ═════════════════ Password / hashing helpers ═════════════════ */
+/** Convenience for older code that wants to “clear cookie now”. */
+export function clearCookie(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
+  headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
+}
 
-// Constant-time compare to avoid timing leaks
+/* ── Password / hashing helpers ───────────────────────────────────────────── */
+
+// Constant-time compare
 function tsc(a: string, b: string) {
   if (a.length !== b.length) return false;
   let out = 0;
@@ -117,7 +127,6 @@ function tsc(a: string, b: string) {
   return out === 0;
 }
 
-// sha256 hex
 export async function sha256HexStr(s: string) {
   const data = new TextEncoder().encode(s);
   const buf = await crypto.subtle.digest("SHA-256", data);
@@ -125,13 +134,13 @@ export async function sha256HexStr(s: string) {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Original (legacy) hash function: unsalted sha256$<hex> */
+/** Legacy: unsalted sha256$<hex> */
 export async function hashPassword(plain: string) {
   const hex = await sha256HexStr(plain);
   return `sha256$${hex}`;
 }
 
-/** Stronger salted hash used by reset flow if bcrypt isn't available */
+/** Strong salted SHA-256 (fallback if bcrypt unavailable). */
 export async function hashPasswordS256(plain: string) {
   const saltBytes = new Uint8Array(12);
   crypto.getRandomValues(saltBytes);
@@ -140,31 +149,22 @@ export async function hashPasswordS256(plain: string) {
   return `s256:${salt}$${hex}`;
 }
 
-/**
- * Tries multiple formats:
- * - bcrypt: "$2a$" / "$2b$"  (only if bcryptjs present)
- * - salted sha256: "s256:<salt>$<hex>"
- * - legacy sha256: "sha256$<hex>"
- * - plain: "plain:<pw>" or bare match
- */
+/** Verify across all stored formats (bcrypt / s256 / sha256 / plain). */
 export async function verifyPassword(plain: string, stored: string) {
   if (!stored || !plain) return false;
   try {
     if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
-      // @ts-ignore dynamic import (optional dep)
+      // @ts-ignore optional dep at runtime
       const bcrypt = (await import("bcryptjs")).default;
       return await bcrypt.compare(plain, stored);
     }
     if (stored.startsWith("s256:")) {
       const [salt, hex] = stored.slice(5).split("$");
       if (!salt || !hex) return false;
-      const digest = await sha256HexStr(salt + plain);
-      return tsc(digest, hex);
+      return tsc(await sha256HexStr(salt + plain), hex);
     }
     if (stored.startsWith("sha256$")) {
-      const want = stored.slice(7);
-      const got = await sha256HexStr(plain);
-      return tsc(got, want);
+      return tsc(await sha256HexStr(plain), stored.slice(7));
     }
     if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
     return tsc(stored, plain);
@@ -174,10 +174,9 @@ export async function verifyPassword(plain: string, stored: string) {
   }
 }
 
-/** Preferred hasher for resets: bcrypt if available; fallback to s256 */
 export async function hashPasswordBcrypt(plain: string) {
   try {
-    // @ts-ignore optional dep
+    // @ts-ignore optional dep at runtime
     const bcrypt = (await import("bcryptjs")).default;
     const salt = await bcrypt.genSalt(10);
     return await bcrypt.hash(plain, salt);
@@ -186,105 +185,97 @@ export async function hashPasswordBcrypt(plain: string) {
   }
 }
 
-/** Minimal password strength rule */
 export function isReasonablePassword(pw: string) {
   return typeof pw === "string" && pw.length >= 8;
 }
 
-/* ═════════════════ Email helper (Resend) ═════════════════ */
+/* ── Email helper (Resend) ────────────────────────────────────────────────── */
 export async function sendEmail(env: Env, to: string, subject: string, html: string) {
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const payload: Record<string, unknown> = {
-      from: env.MAIL_FROM, // e.g. "Cyrptonvest <noreply@cyrptonvest.com>"
+      from: env.MAIL_FROM,
       to: [to],
       subject,
       html,
+      ...(env.REPLY_TO ? { reply_to: env.REPLY_TO } : {}),
     };
-    if (env.REPLY_TO) (payload as any).reply_to = env.REPLY_TO;
-
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!r.ok) {
-      const text = await r.text().catch(() => "");
-      console.warn("sendEmail failed:", r.status, text);
-    }
+    if (!r.ok) console.warn("sendEmail failed:", r.status, await r.text().catch(() => ""));
     return;
   }
   console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
 }
 
-/* ═════════════════ D1 convenience ═════════════════ */
+/* ── D1 helpers ───────────────────────────────────────────────────────────── */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
-    `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
-  ).bind(email.toLowerCase()).first<{
-    id: string | number;
-    email: string;
-    password_hash: string;
-    created_at: number | string | null;
-  }>();
+    `SELECT id, email, password_hash, created_at
+       FROM users
+      WHERE lower(email) = ?
+      LIMIT 1`
+  )
+    .bind(email.toLowerCase())
+    .first<{
+      id: number | string;
+      email: string;
+      password_hash: string;
+      created_at: number | string | null;
+    }>();
 }
 
-/**
- * db – flexible export:
- *  - call like a function:   db(env).prepare("SELECT 1")
- *  - or legacy helper:       db.getUserByEmail(env, email)
- */
+/** Function-style accessor + attached helpers for convenience. */
 export const db: any = (env: Env) => env.DB;
 db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
-/* ═════════════════ Sessions (DB-backed) ═════════════════ */
+/* ── Sessions (DB-backed) ─────────────────────────────────────────────────── */
+export type Session = { sub: string | number; email: string; role: "user" | "admin"; iat: number };
 
-export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
-
-/** Read session from D1 using the cookie SID. */
+/** Read session from D1 using cookie SID. */
 export async function getUserFromSession(req: Request, env: Env): Promise<Session | null> {
   try {
     const sid = parseCookies(req)[COOKIE_NAME];
     if (!sid) return null;
 
-    // Cast both sides to TEXT so INTEGER/TEXT IDs match
+    // CAST both sides so INTEGER/TEXT ids still join
     const row = await env.DB.prepare(
       `SELECT s.id as sid, s.expires_at as exp, u.id as uid, u.email as email
          FROM sessions s
          JOIN users u ON CAST(u.id AS TEXT) = CAST(s.user_id AS TEXT)
         WHERE s.id = ?
         LIMIT 1`
-    ).bind(sid).first<{ sid: string; exp: any; uid: string | number; email: string }>();
+    )
+      .bind(sid)
+      .first<{ sid: string; exp: any; uid: number | string; email: string }>();
 
     if (!row) return null;
 
     const nowSec = Math.floor(Date.now() / 1000);
     let valid = false;
-
     if (typeof row.exp === "number") valid = row.exp > nowSec;
     else if (row.exp && /^\d+$/.test(String(row.exp))) valid = Number(row.exp) > nowSec;
     else if (typeof row.exp === "string") {
       const t = Date.parse(row.exp);
       valid = !Number.isNaN(t) && t / 1000 > nowSec;
     }
-
     if (!valid) return null;
 
     const email = (row.email || "").toLowerCase();
     const role: "user" | "admin" =
       env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
 
-    return { sub: String(row.uid), email, role, iat: nowSec };
+    return { sub: row.uid, email, role, iat: nowSec };
   } catch (e) {
     console.warn("getUserFromSession error:", e);
     return null;
   }
 }
 
-/** Require a logged-in user */
-export async function requireAuth(req: Request, env: Env): Promise<Session> {
+export async function requireAuth(req: Request, env: Env): Promise<Sess
+ion> {
   const sess = await getUserFromSession(req, env);
   if (!sess) throw json({ ok: false, error: "Unauthorized" }, 401);
   return sess;
@@ -298,12 +289,7 @@ export async function requireAdmin(req: Request, env: Env) {
   return sess;
 }
 
-/* ═════════ Session create/destroy helpers ═════════ */
-
-/**
- * createSession(env, session[, reqOrUrl][, maxAgeSec])
- * - Generates a new SID, inserts into D1 sessions, and returns a cookie string.
- */
+/** Create a session row and return a Set-Cookie string. (FIXED: keep id type) */
 export async function createSession(
   env: Env,
   session: { sub: string | number; email: string; role: "user" | "admin" },
@@ -317,29 +303,24 @@ export async function createSession(
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  // Store times as INTEGER seconds
   const nowSec = Math.floor(Date.now() / 1000);
   const expSec = nowSec + maxAgeSec;
 
-  // Always store user_id as TEXT
-  const userIdText = String(session.sub);
-
+  // IMPORTANT: keep original type of user id (INTEGER vs TEXT)
   await env.DB.prepare(
     `INSERT INTO sessions (id, user_id, created_at, expires_at)
      VALUES (?, ?, ?, ?)`
-  ).bind(sid, userIdText, nowSec, expSec).run();
+  )
+    .bind(sid, session.sub, nowSec, expSec)
+    .run();
 
-  // Return cookie with correct Domain/Secure for this request
   return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
 
 /**
- * setCookie(...)
- * - Overloaded:
- *   1) setCookie(resOrHeaders, cookieString)
- *      -> appends Set-Cookie with provided string
- *   2) setCookie(resOrHeaders, env, session[, reqOrUrl][, maxAgeSec])
- *      -> creates session cookie (with proper Domain/Secure) and appends it
+ * Overload:
+ *  1) setCookie(res, cookieString)
+ *  2) setCookie(res, env, session[, reqOrUrl][, maxAgeSec])
  */
 export async function setCookie(
   resOrHeaders: Response | Headers,
@@ -352,17 +333,13 @@ export async function setCookie(
     headerSetCookie(resOrHeaders, arg2);
     return;
   }
-
-  // Mode 2: (env, session[, reqOrUrl][, maxAge])
   const env = arg2 as Env;
 
-  // detect parameter positions
   let sess: { sub: string | number; email: string; role: "user" | "admin" } | undefined;
   let urlLike: Request | string | URL | undefined;
   let maxAge: number | undefined;
 
   if (session && typeof (session as any).email === "string") {
-    // session provided
     sess = session as any;
     if (typeof reqOrUrl === "number") {
       maxAge = reqOrUrl as number;
@@ -379,13 +356,12 @@ export async function setCookie(
   headerSetCookie(resOrHeaders, cookie);
 }
 
-/** destroySession(resOrHeaders[, reqOrUrl]) → clears the cookie on client with matching attributes */
+/** Clears the cookie on the client (does not touch DB). */
 export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
-  const expired = buildExpiredCookie(reqOrUrl);
-  headerSetCookie(resOrHeaders, expired);
+  headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
 }
 
-/** Delete the session row in DB (optional but good hygiene) */
+/** Deletes a session row in DB (optional hygiene). */
 export async function destroySessionRecord(env: Env, sid: string) {
   try {
     await env.DB.prepare(`DELETE FROM sessions WHERE id = ?`).bind(sid).run();
@@ -394,7 +370,7 @@ export async function destroySessionRecord(env: Env, sid: string) {
   }
 }
 
-/* ═════════ Reset helpers (tokens) ═════════ */
+/* ── Tokens ───────────────────────────────────────────────────────────────── */
 export function randomTokenHex(len = 32): string {
   const a = new Uint8Array(len);
   crypto.getRandomValues(a);
