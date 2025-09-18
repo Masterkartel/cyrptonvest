@@ -141,27 +141,6 @@ export async function hashPasswordBcrypt(plain: string) {
 }
 export function isReasonablePassword(pw: string) { return typeof pw === "string" && pw.length >= 8; }
 
-/* email */
-export async function sendEmail(env: Env, to: string, subject: string, html: string) {
-  if (env.RESEND_API_KEY && env.MAIL_FROM) {
-    const payload: Record<string, unknown> = {
-      from: env.MAIL_FROM,
-      to: [to],
-      subject,
-      html,
-      ...(env.REPLY_TO ? { reply_to: env.REPLY_TO } : {}),
-    };
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type":"application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) console.warn("sendEmail failed:", r.status, await r.text().catch(()=> ""));
-    return;
-  }
-  console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
-}
-
 /* db */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
@@ -170,8 +149,6 @@ export async function getUserByEmail(env: Env, email: string) {
     id: string; email: string; password_hash: string; created_at: number;
   }>();
 }
-export const db: any = (env: Env) => env.DB;
-db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
 /* sessions */
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
@@ -203,8 +180,7 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
     const role: "user" | "admin" =
       (env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase()) ? "admin" : "user";
     return { sub: row.uid, email, role, iat: nowSec };
-  } catch (e) {
-    console.warn("getUserFromSession error:", e);
+  } catch {
     return null;
   }
 }
@@ -219,26 +195,11 @@ export async function requireAdmin(req: Request, env: Env): Promise<Session> {
   if (!sess || sess.role !== "admin") throw json({ ok:false, error: "Forbidden" }, 403);
   return sess;
 }
-/** exported for callers that want a nullable session */
 export async function requireUser(req: Request, env: Env): Promise<Session | null> {
   return getUserFromSession(req, env);
 }
 
-/* ───────────────────────── session creation (self-healing) ───────────────────────── */
-
-async function ensureSessionsTable(env: Env) {
-  // Create the sessions table if it does not exist yet.
-  await env.DB.prepare(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,   -- ISO timestamp
-      expires_at INTEGER NOT NULL, -- unix seconds
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-  `).run();
-}
-
+/* session creation */
 export async function createSession(
   env: Env,
   session: { sub: string; email: string; role: "user" | "admin" },
@@ -248,34 +209,13 @@ export async function createSession(
   const sidBytes = new Uint8Array(32);
   crypto.getRandomValues(sidBytes);
   const sid = btoa(String.fromCharCode(...sidBytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
-
-  const nowSec = Math.floor(Date.now()/1000);
-  const expSec = nowSec + maxAgeSec;
-  const nowIso = new Date().toISOString();
-
-  // Try insert → on failure, ensure schema and retry once.
-  try {
-    await env.DB
-      .prepare(`INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`)
-      .bind(sid, session.sub, nowIso, expSec)
-      .run();
-  } catch (e1: any) {
-    try {
-      await ensureSessionsTable(env);
-      await env.DB
-        .prepare(`INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`)
-        .bind(sid, session.sub, nowIso, expSec)
-        .run();
-    } catch (e2: any) {
-      // Bubble a clean error so callers can map to 503 gracefully.
-      console.error("createSession failed:", e1?.message || e1, "->", e2?.message || e2);
-      throw new Error("session_insert_failed");
-    }
-  }
-
+  const expSec = Math.floor(Date.now()/1000) + maxAgeSec;
+  await env.DB.prepare(
+    `INSERT INTO sessions (id, user_id, created_at, expires_at)
+     VALUES (?, ?, datetime('now'), ?)`
+  ).bind(sid, session.sub, expSec).run();
   return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
-
 export function setCookie(
   resOrHeaders: Response | Headers,
   arg2: string | Env,
@@ -299,14 +239,6 @@ export function setCookie(
   }
   createSession(env, sess, urlLike, maxAge).then((cookie) => headerSetCookie(resOrHeaders, cookie));
 }
-
 export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
   headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
-}
-
-/* misc */
-export function randomTokenHex(len = 32): string {
-  const a = new Uint8Array(len);
-  crypto.getRandomValues(a);
-  return Array.from(a).map(b => b.toString(16).padStart(2,"0")).join("");
 }
