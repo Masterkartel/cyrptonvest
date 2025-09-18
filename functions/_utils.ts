@@ -112,7 +112,7 @@ function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
   return `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
-/** Convenience for older code that wants to “clear cookie now”. */
+/** Convenience “clear cookie now”. */
 export function clearCookie(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
   headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
 }
@@ -274,8 +274,7 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
   }
 }
 
-export async function requireAuth(req: Request, env: Env): Promise<Sess
-ion> {
+export async function requireAuth(req: Request, env: Env): Promise<Session> {
   const sess = await getUserFromSession(req, env);
   if (!sess) throw json({ ok: false, error: "Unauthorized" }, 401);
   return sess;
@@ -289,7 +288,7 @@ export async function requireAdmin(req: Request, env: Env) {
   return sess;
 }
 
-/** Create a session row and return a Set-Cookie string. (FIXED: keep id type) */
+/** Create a session row and return a Set-Cookie string. (Keeps user id type) */
 export async function createSession(
   env: Env,
   session: { sub: string | number; email: string; role: "user" | "admin" },
@@ -306,7 +305,6 @@ export async function createSession(
   const nowSec = Math.floor(Date.now() / 1000);
   const expSec = nowSec + maxAgeSec;
 
-  // IMPORTANT: keep original type of user id (INTEGER vs TEXT)
   await env.DB.prepare(
     `INSERT INTO sessions (id, user_id, created_at, expires_at)
      VALUES (?, ?, ?, ?)`
