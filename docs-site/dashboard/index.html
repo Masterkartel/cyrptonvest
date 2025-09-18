@@ -554,7 +554,7 @@
       }catch{ toast('Network error'); }
     }
 
-    // Transactions: smarter Type + more space for Status/Ref
+    // Transactions: smart Type + adjusted widths for perfect alignment
     async function renderTransactionsTable(targetId, limit){
       const target = document.getElementById(targetId);
       try{
@@ -564,7 +564,7 @@
           const kind = String(t.kind||'').toLowerCase();
           const cents = Number(t.amount_cents||0);
 
-          // Determine Credit/Debit: prefer sign, fallback to keywords
+          // Type from sign, fallback to keywords
           let typ = cents < 0 ? 'Debit'
                     : (kind.includes('withdraw') || kind.includes('debit')) ? 'Debit'
                     : 'Credit';
@@ -572,18 +572,18 @@
           const amt = Math.abs(cents);
           const when = new Date(t.created_at||0).toLocaleString();
 
-          // Ref: show Deposit / Withdrawal if applicable
+          // Ref label for common actions
           let refText = '';
           if (kind.includes('withdraw')) refText = 'Withdrawal';
           else if (kind.includes('deposit')) refText = 'Deposit';
           else refText = String(t.ref||'');
 
           return `<tr>
-            <td>${when}</td>
-            <td>${typ}</td>
-            <td>$${(amt/100).toFixed(2)} ${t.currency||'USD'}</td>
-            <td>${t.status||''}</td>
-            <td class="ref">${refText}</td>
+            <td style="padding:8px 10px">${when}</td>
+            <td style="padding:8px 10px">${typ}</td>
+            <td style="padding:8px 10px">$${(amt/100).toFixed(2)} ${t.currency||'USD'}</td>
+            <td style="padding:8px 10px">${t.status||''}</td>
+            <td class="ref" style="padding:8px 10px">${refText}</td>
           </tr>`;
         }).join('');
 
@@ -592,11 +592,11 @@
             <table style="width:100%;border-collapse:collapse;table-layout:fixed">
               <thead>
                 <tr>
-                  <th style="text-align:left;padding:10px;border-bottom:1px solid #172042;width:26%">Time</th>
-                  <th style="padding:10px;border-bottom:1px solid #172042;width:12%">Type</th>
-                  <th style="padding:10px;border-bottom:1px solid #172042;width:18%">Amount</th>
-                  <th style="padding:10px;border-bottom:1px solid #172042;width:20%">Status</th>
-                  <th style="padding:10px;border-bottom:1px solid #172042;width:24%">Ref</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:26%">Time</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:12%">Type</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:18%">Amount</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:18%">Status</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:26%">Ref</th>
                 </tr>
               </thead>
               <tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody>
