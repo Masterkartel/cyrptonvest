@@ -6,7 +6,7 @@ import {
   hashPasswordBcrypt,
   getUserByEmail,
   randomTokenHex,
-  sendEmail,        // make sure _utils exports this
+  sendEmail,
   type Env
 } from "../../_utils";
 
@@ -14,9 +14,13 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const { env, request } = ctx;
 
-    // 1) Parse body (and defend against non-JSON)
+    // 1) Parse body (defend against non-JSON)
     let body: any = {};
-    try { body = await request.json(); } catch { return bad("Invalid JSON body", 400); }
+    try {
+      body = await request.json();
+    } catch {
+      return bad("Invalid JSON body", 400);
+    }
 
     const emailRaw = (body.email || "").trim();
     const password = String(body.password || "");
@@ -43,13 +47,15 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
 
     await stmt.run();
 
-    // 5) Create session cookie
+    // 5) Create session cookie (admin role if matches ADMIN_EMAIL)
     const role = email === (env.ADMIN_EMAIL || "").toLowerCase() ? "admin" : "user";
     const res = json({ ok: true, user: { id, email, role } });
     await setCookie(res, env, { sub: id, email, role, iat: Math.floor(Date.now() / 1000) });
 
-    // 6) Welcome email (PNG logo + absolute URL). Await during testing to see errors in logs.
-    const base = (env as any).WEB_BASE_URL?.replace(/\/+$/, "") || new URL(request.url).origin;
+    // 6) Send WELCOME email (await during testing so errors show up in logs)
+    const base =
+      (env as any).WEB_BASE_URL?.replace(/\/+$/, "") ||
+      new URL(request.url).origin;
     const dash = `${base}/dashboard/#plans`;
     const first = email.split("@")[0] || "there";
 
