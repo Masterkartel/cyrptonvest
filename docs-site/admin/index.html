@@ -55,7 +55,7 @@
     th,td{padding:10px;border-bottom:1px solid #172042;vertical-align:middle}
     th{text-align:left}
     .status{padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:#101a34}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .ok{color:var(--ok)} .bad{color:var(--bad)}
     .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
     .spinner{width:14px;height:14px;border-radius:50%;border:2px solid #2a3a66;border-top-color:#f59e0b;animation:sp .8s linear infinite}
@@ -64,9 +64,21 @@
     .error{padding:10px;border:1px solid #592323;background:#2a0e0e;color:#fca5a5;border-radius:12px}
     .note{font-size:12px;color:#9aa4b2}
 
-    .cell-user{font-size:12px;line-height:1.4}
-    .cell-user .id{color:#9aa4b2}
-    .copy{font-weight:800;color:#f59e0b;cursor:pointer;margin-left:6px}
+    /* Copy icon (yellow, bold, no pill) */
+    .copy-ic{
+      cursor:pointer;font-weight:800;display:inline-flex;align-items:center;gap:4px;
+      user-select:none;line-height:1
+    }
+    .copy-ic::before{
+      content:"⧉"; /* two-squares look */
+      color:var(--brand);
+      font-weight:900;
+      font-size:13px;
+    }
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+    .tiny{font-size:12px;color:#cbd5e1}
+    .dim{color:#9aa4b2}
+    .nowrap{white-space:nowrap}
   </style>
 </head>
 <body>
@@ -142,6 +154,40 @@
             <div id="tx"></div>
           </div>
         </div>
+
+        <!-- Wallet adjustment -->
+        <div class="section">
+          <div class="card">
+            <h3 style="margin:0 0 8px">Wallet adjustment</h3>
+            <div class="grid2">
+              <div>
+                <label class="muted">User ID (UUID) or Email</label>
+                <input id="adj-ident" placeholder="uuid-or-email@example.com"/>
+              </div>
+              <div>
+                <label class="muted">Amount (USD)</label>
+                <input id="adj-amt" type="number" step="0.01" placeholder="100.00"/>
+              </div>
+            </div>
+            <div class="grid2" style="margin-top:10px">
+              <div>
+                <label class="muted">Note</label>
+                <input id="adj-note" placeholder="Reason / reference"/>
+              </div>
+              <div>
+                <label class="muted">Direction</label>
+                <select id="adj-direction">
+                  <option value="auto">Auto (use + / − sign)</option>
+                  <option value="credit">Force credit (+)</option>
+                  <option value="debit">Force debit (−)</option>
+                </select>
+              </div>
+            </div>
+            <div style="height:10px"></div>
+            <button id="btn-adjust" class="btn btn-primary">Apply change</button>
+            <p id="adj-msg" class="muted" style="margin:8px 0 0"></p>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -192,66 +238,130 @@
       $('#btn-tx-refresh')?.addEventListener('click', ()=>loadTx());
       $('#t-kind')?.addEventListener('change', ()=>loadTx());
       $('#u-q')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadUsers(); });
+      $('#btn-adjust')?.addEventListener('click', adjust);
     }
 
-    // Users
-    function fmtCreated(sec){
-      const n = Number(sec||0);
-      const ms = n>0 && n<1e12 ? n*1000 : n;
+    /* Time helpers: normalize seconds/ms/TEXT → ms, then format */
+    function toMs(anyVal){
+      if(anyVal==null) return 0;
+      const n = Number(anyVal);
+      if(Number.isFinite(n)) return (n>0 && n<1e12) ? n*1000 : n;
+      const t = Date.parse(String(anyVal));
+      return Number.isFinite(t) ? t : 0;
+    }
+    function formatCreated(anyVal){
+      const ms = toMs(anyVal);
       return ms ? new Date(ms).toLocaleString() : '—';
     }
 
+    /* Copy helper (email/id) */
+    function copyText(text){
+      try{
+        navigator.clipboard.writeText(text);
+        toast('Copied');
+      }catch{
+        prompt('Copy:', text);
+      }
+    }
+
+    // Users
     async function loadUsers(){
       $('#users-error').style.display='none';
       $('#users-status').style.display='inline-flex';
       $('#users-status').innerHTML = '<span class="spinner"></span> Loading users…';
       const q=$('#u-q').value?.trim() || '';
       const res = await api('/api/admin/users' + (q?`?q=${encodeURIComponent(q)}`:''));
-      if(!res.ok){ $('#users-status').style.display='none'; $('#users-error').style.display='block'; $('#users-error').textContent=(res.data?.error||'Failed to load users'); return; }
+      if(!res.ok){
+        $('#users-status').style.display='none';
+        $('#users-error').style.display='block';
+        $('#users-error').textContent=(res.data?.error||'Failed to load users');
+        return;
+      }
 
-      const rows = (res.data.users||[]).map(u=>`
+      const users = res.data.users || [];
+      const rows = users.map(u=>{
+        const createdCell = formatCreated(u.created_at_ms ?? u.created_at);
+        const idCell = `
+          <div class="tiny mono">${u.id}
+            <span class="copy-ic" title="Copy ID" onclick="copyText('${u.id}')"></span>
+          </div>`;
+        const emailCell = `
+          <div class="nowrap">${u.email}
+            <span class="copy-ic" title="Copy email" onclick="copyText('${u.email}')"></span>
+          </div>`;
+        const locksCell = `
+          <label class="nowrap" style="display:inline-flex;gap:6px;align-items:center">
+            <input type="checkbox" ${u.disallow_starter ? 'checked':''}
+              data-user="${u.id}" data-plan="starter" class="lock-cb"/> Starter
+          </label>
+          &nbsp;•&nbsp;
+          <label class="nowrap" style="display:inline-flex;gap:6px;align-items:center">
+            <input type="checkbox" ${u.disallow_growth ? 'checked':''}
+              data-user="${u.id}" data-plan="growth" class="lock-cb"/> Growth
+          </label>
+          &nbsp;•&nbsp;
+          <label class="nowrap" style="display:inline-flex;gap:6px;align-items:center">
+            <input type="checkbox" ${u.disallow_pro ? 'checked':''}
+              data-user="${u.id}" data-plan="pro" class="lock-cb"/> Pro
+          </label>`;
+        const actions = `<button class="btn btn-ghost" onclick="promptAdjust('${u.id}','${u.email}')">Adjust</button>`;
+        return `
         <tr>
-          <td class="cell-user">
-            <div>${u.email}<span class="copy" title="Copy email" onclick="navigator.clipboard.writeText('${u.email}');">⧉</span></div>
-            <div class="id">${u.id}<span class="copy" title="Copy ID" onclick="navigator.clipboard.writeText('${u.id}');">⧉</span></div>
-          </td>
-          <td>$${((u.balance_cents||0)/100).toFixed(2)}</td>
-          <td>
-            <label style="display:inline-flex;gap:6px;align-items:center">
-              <input type="checkbox" ${u.disallow_starter ? 'checked':''} onchange="toggleLimit('${u.id}','starter',this.checked)"/> Starter
-            </label>
-            &nbsp;•&nbsp;
-            <label style="display:inline-flex;gap:6px;align-items:center">
-              <input type="checkbox" ${u.disallow_growth ? 'checked':''} onchange="toggleLimit('${u.id}','growth',this.checked)"/> Growth
-            </label>
-            &nbsp;•&nbsp;
-            <label style="display:inline-flex;gap:6px;align-items:center">
-              <input type="checkbox" ${u.disallow_pro ? 'checked':''} onchange="toggleLimit('${u.id}','pro',this.checked)"/> Pro
-            </label>
-          </td>
-          <td>${fmtCreated(u.created_at)}</td>
-        </tr>`).join('');
+          <td>${emailCell}${idCell}</td>
+          <td>$${((u.balance_cents||0)/100).toFixed(2)} ${u.currency||'USD'}</td>
+          <td>${locksCell}</td>
+          <td>${createdCell}</td>
+          <td class="row">${actions}</td>
+        </tr>`;
+      }).join('');
 
       $('#users').innerHTML = `<table>
-        <thead><tr><th>User</th><th>Balance</th><th>Plan Locks</th><th>Created</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody></table>`;
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Balance</th>
+            <th>Plan Locks</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="5" class="muted"><div class="empty">No users yet</div></td></tr>'}</tbody>
+      </table>`;
 
-      $('#users-meta').textContent = `${(res.data.users||[]).length} user${(res.data.users||[]).length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
-      $('#users-status').style.display='none';
-    }
+      // Bind lock toggles (after rendering)
+      document.querySelectorAll('.lock-cb').forEach(cb=>{
+        cb.addEventListener('change', async (e)=>{
+          const el = e.currentTarget as HTMLInputElement;
+          const userId = el.getAttribute('data-user')!;
+          const plan = el.getAttribute('data-plan')!;
+          const checked = el.checked;
 
-    // Plan lock toggle (admin → DB)
-    async function toggleLimit(userId, plan, checked){
-      const payload = {
-        user_id: userId,
-        disallow_starter: plan==='starter' ? (checked?1:0) : undefined,
-        disallow_growth:  plan==='growth'  ? (checked?1:0) : undefined,
-        disallow_pro:     plan==='pro'     ? (checked?1:0) : undefined
-      };
-      const r = await fetch('/api/admin/limits', {
-        method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload)
+          // Gather current row state
+          const row = el.closest('tr');
+          const cbs = row ? row.querySelectorAll('.lock-cb') : null;
+          const get = (p:string)=> (Array.from(cbs||[]) as HTMLInputElement[]).find(x=>x.getAttribute('data-plan')===p)?.checked ? 1:0;
+          const payload = {
+            user_id: userId,
+            disallow_starter: plan==='starter' ? (checked?1:0) : get('starter'),
+            disallow_growth:  plan==='growth'  ? (checked?1:0) : get('growth'),
+            disallow_pro:     plan==='pro'     ? (checked?1:0) : get('pro')
+          };
+
+          const r = await fetch('/api/admin/limits',{
+            method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include',
+            body: JSON.stringify(payload)
+          });
+          if(r.ok){ toast('Updated'); }
+          else{
+            toast('Failed to update');
+            // revert UI
+            el.checked = !checked;
+          }
+        });
       });
-      if(r.ok){ toast('Updated'); } else { toast('Failed to update'); }
+
+      $('#users-meta').textContent = `${users.length} user${users.length===1?'':'s'} • updated ${new Date().toLocaleTimeString()}`;
+      $('#users-status').style.display='none';
     }
 
     // Transactions
@@ -262,17 +372,23 @@
 
       const kind = $('#t-kind').value;
       const res = await api('/api/admin/transactions?status=pending' + (kind==='all'?'':`&kind=${kind}`));
-      if(!res.ok){ $('#tx-status').style.display='none'; $('#tx-error').style.display='block'; $('#tx-error').textContent=(res.data?.error||'Failed to load transactions'); return; }
+      if(!res.ok){
+        $('#tx-status').style.display='none';
+        $('#tx-error').style.display='block';
+        $('#tx-error').textContent=(res.data?.error||'Failed to load transactions');
+        return;
+      }
 
-      const rows = (res.data.transactions||[]).map(t=>`
+      const list = res.data.transactions || [];
+      const rows = list.map(t=>`
         <tr>
-          <td style="font-family:ui-monospace,Menlo,Consolas">${t.id}</td>
+          <td class="mono">${t.id}</td>
           <td>${t.user_email||t.user_id}</td>
           <td>${t.kind}</td>
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>${t.ref||''}</td>
           <td><span class="status">${t.status}</span></td>
-          <td>${fmtCreated(t.created_at)}</td>
+          <td>${formatCreated(t.created_at)}</td>
           <td class="row">
             <button class="btn btn-primary" onclick="approve('${t.id}')">Approve</button>
             <button class="btn btn-ghost" onclick="rejectTx('${t.id}')">Reject</button>
@@ -283,10 +399,11 @@
         <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Ref</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
 
-      $('#tx-meta').textContent = `${(res.data.transactions||[]).length} pending • updated ${new Date().toLocaleTimeString()}`;
+      $('#tx-meta').textContent = `${list.length} pending • updated ${new Date().toLocaleTimeString()}`;
       $('#tx-status').style.display='none';
     }
 
+    // Approve / Reject
     async function approve(id){
       const res=await api('/api/admin/transactions',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'completed'})});
       if(res.ok){ toast('Approved'); loadTx(); loadUsers(); } else toast(res.data?.error || 'Failed');
@@ -295,6 +412,50 @@
       const res=await api('/api/admin/transactions',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'failed'})});
       if(res.ok){ toast('Rejected'); loadTx(); } else toast(res.data?.error || 'Failed');
     }
+
+    // Quick fill when clicking "Adjust"
+    window.promptAdjust = (id,email)=>{
+      $('#adj-ident').value = email || id || '';
+      $('#adj-amt').focus();
+      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+    }
+
+    // Wallet adjust
+    async function adjust(){
+      const ident=$('#adj-ident').value.trim();
+      const rawAmt=$('#adj-amt').value;
+      const note=$('#adj-note').value.trim();
+      const direction=$('#adj-direction').value;
+
+      const amt = Number(rawAmt);
+      if(!ident || !Number.isFinite(amt) || amt===0){
+        $('#adj-msg').textContent='Enter a user id/email and a non-zero amount';
+        return;
+      }
+
+      let cents = Math.round(Math.abs(amt) * 100);
+      if(direction==='debit') cents = -cents;
+      else if(direction==='auto') cents = Math.round(amt*100);
+
+      const body = ident.includes('@')
+        ? { email: ident, delta_cents: cents, note }
+        : { user_id: ident, delta_cents: cents, note };
+
+      const res = await api('/api/admin/wallet/adjust',{
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+
+      if(res.ok){
+        $('#adj-msg').textContent='Applied ✅';
+        $('#adj-amt').value=''; $('#adj-note').value='';
+        loadUsers();
+      }else{
+        $('#adj-msg').textContent = res.data?.error || 'Failed to apply change';
+      }
+    }
+
+    // expose copy for inline handlers
+    window.copyText = copyText;
 
     // boot
     gate();
