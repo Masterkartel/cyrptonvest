@@ -243,8 +243,6 @@ export async function createSession(
        VALUES (?, ?, datetime('now'), ?)`
     ).bind(sid, session.sub, expSec).run();
   } catch (e: any) {
-    // If the DB enforces FK strictly and it races with user creation,
-    // retry as one batch with FK checks disabled only for the insert.
     const msg = String(e?.message || "");
     if (/FOREIGN KEY constraint failed/i.test(msg)) {
       await env.DB.batch([
@@ -291,6 +289,13 @@ export async function setCookie(
 
   const cookie = await createSession(env, sess, urlLike, maxAge);
   headerSetCookie(resOrHeaders, cookie);
+}
+
+/* ---------- logout helper (exported) ---------- */
+export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
+  // expire the cookie on the client; (optional) also clean server rows later via TTL
+  const expired = buildExpiredCookie(reqOrUrl);
+  headerSetCookie(resOrHeaders, expired);
 }
 
 /* ---------- misc ---------- */
