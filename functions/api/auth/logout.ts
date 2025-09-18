@@ -1,29 +1,30 @@
 // functions/api/auth/logout.ts
-import {
-  json,
-  parseCookies,
-  cookieName,
-  destroySession,        // sets expired cookie on the response
-  destroySessionRecord,  // removes session row from D1
-  type Env,
-} from "../../_utils";
+import { json, parseCookies, cookieName, type Env } from "../../_utils";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
+    // Get session id from cookie
     const cookies = parseCookies(request);
     const sid = cookies[cookieName];
 
-    // Remove DB record if present
+    // Best-effort: delete session row (ignore errors)
     if (sid) {
-      await destroySessionRecord(env, sid);
+      try {
+        await env.DB.prepare(`DELETE FROM sessions WHERE id = ?`).bind(sid).run();
+      } catch {}
     }
 
-    // Build response and append expired cookie header
-    const res = json({ ok: true }, 200);
-    destroySession(res, request);
-    return res;
+    // Expire cookie (host-scoped; no Domain attribute required)
+    const { protocol } = new URL(request.url);
+    const secure = protocol === "https:" ? "; Secure" : "";
+    const expired =
+      `${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secure}`;
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "content-type": "application/json", "set-cookie": expired },
+    });
   } catch (e: any) {
-    console.error("logout error:", e);
-    return json({ ok: false, error: "Logout failed" }, 500);
+    return json({ ok: false, error: `Logout failed: ${e?.message || e}` }, 500);
   }
 };
