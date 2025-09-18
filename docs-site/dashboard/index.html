@@ -134,7 +134,7 @@
     @media (max-width: 640px){
       .row{grid-template-columns:1fr}
       .addr-scroll{font-size:12px}
-      #tx-table table{font-size:13px}
+      #tx-table table{font-size:12px}
       .hero h1{font-size:24px}
     }
 
@@ -554,16 +554,7 @@
       }catch{ toast('Network error'); }
     }
 
-    // ▼▼ CHANGED: Transactions table (Type + Ref for withdrawals) ▼▼
-    function inferMethodFromRef(ref){
-      const r = String(ref||'').trim();
-      if(!r) return '';
-      if(r.startsWith('bc1') || r.startsWith('1') || r.startsWith('3')) return 'BTC';
-      if(r.startsWith('0x')) return 'ETH-ERC20';
-      if(/^T[a-zA-Z0-9]{25,36}$/.test(r)) return 'USDT-TRC20';
-      return '';
-    }
-
+    // UPDATED: Transactions (Ref label & mobile font already in CSS)
     async function renderTransactionsTable(targetId, limit){
       const target = document.getElementById(targetId);
       try{
@@ -571,17 +562,15 @@
         const txs = data.transactions || [];
         const rows = txs.slice(0,limit||50).map(t=>{
           const kind = String(t.kind||'').toLowerCase();
-          // Prefer semantic kind; fallback to sign if needed
-          let typ = (kind.includes('withdraw') || kind.includes('debit')) ? 'Debit' : 'Credit';
-
-          // Amount displayed as absolute
+          const typ = (kind.includes('withdraw')) ? 'Debit' : 'Credit';
           const amt = Math.abs(Number(t.amount_cents||0));
           const when = new Date(t.created_at||0).toLocaleString();
-          let refText = String(t.ref||'');
-          if (kind.includes('withdraw')) {
-            const method = (t.network || inferMethodFromRef(refText) || 'Withdrawal');
-            refText = method;
-          }
+
+          // SHOW "Deposit" or "Withdrawal" in Ref
+          let refText = '';
+          if (kind.includes('withdraw')) refText = 'Withdrawal';
+          else if (kind.includes('deposit')) refText = 'Deposit';
+          else refText = String(t.ref||'');
 
           return `<tr>
             <td>${when}</td>
@@ -591,6 +580,7 @@
             <td class="ref">${refText}</td>
           </tr>`;
         }).join('');
+
         target.innerHTML = `
           <div style="overflow:auto">
             <table style="width:100%;border-collapse:collapse;table-layout:fixed">
@@ -607,13 +597,11 @@
             </table>
           </div>
         `;
-        // wrap long ref text
         target.querySelectorAll('td.ref').forEach(td=>{ td.style.wordBreak='break-word'; td.style.whiteSpace='normal'; });
       }catch{
         target.innerHTML = '<div class="muted" style="padding:10px">Failed to load transactions</div>';
       }
     }
-    // ▲▲ CHANGED SECTION ENDS ▲▲
 
     // Totals + addresses
     async function fetchTotals(){
