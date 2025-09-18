@@ -1,4 +1,3 @@
-// functions/api/auth/login.ts
 import {
   json,
   bad,
@@ -10,13 +9,8 @@ import {
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
-    const { email, password } = await ctx.request
-      .json()
-      .catch(() => ({} as any));
-
-    if (!email || !password) {
-      return bad("Missing email or password", 400);
-    }
+    const { email, password } = await ctx.request.json().catch(() => ({} as any));
+    if (!email || !password) return bad("Missing email or password", 400);
 
     const u = await getUserByEmail(ctx.env, String(email));
     if (!u) return bad("Invalid email or password", 400);
@@ -24,12 +18,8 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const ok = await verifyPassword(String(password), String(u.password_hash || ""));
     if (!ok) return bad("Invalid email or password", 400);
 
-    const res = json({
-      ok: true,
-      user: { id: u.id, email: u.email },
-    });
+    const res = json({ ok: true, user: { id: u.id, email: u.email } });
 
-    // ⬇️ IMPORTANT: await so Set-Cookie lands on this response
     await setCookie(
       res,
       ctx.env,
@@ -49,6 +39,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   } catch (e: any) {
     const msg = String(e?.message || "");
     if (/FOREIGN KEY constraint failed/i.test(msg)) {
+      // After the batched retry this should be rare; return soft error text.
       return bad("Service temporarily unavailable. Please try again.", 503);
     }
     return bad("SERVICE_ERROR", 503);
