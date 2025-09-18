@@ -9,7 +9,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
       `SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`
     ).bind(sess.sub).first<{ balance_cents: number; currency: string }>();
 
-    // Profit (from profit_ledger if present; otherwise 0)
+    // Profit (optional table)
     let profit_cents = 0;
     try {
       const pr = await ctx.env.DB.prepare(
