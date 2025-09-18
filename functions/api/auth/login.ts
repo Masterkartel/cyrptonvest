@@ -14,42 +14,51 @@ async function readCredentials(req: Request) {
   let password = "";
   const ct = (req.headers.get("content-type") || "").toLowerCase();
 
-  const tryJson = async () => {
+  // Try JSON and form — whichever works
+  if (ct.includes("application/json")) {
     const body = await req.json<any>().catch(() => null);
     if (body) {
       email = String(body?.email ?? "").trim().toLowerCase();
       password = String(body?.password ?? "");
     }
-  };
-  const tryForm = async () => {
+  } else if (ct.includes("application/x-www-form-urlencoded")) {
     const form = await req.formData().catch(() => null);
     if (form) {
       email = String(form.get("email") ?? "").trim().toLowerCase();
       password = String(form.get("password") ?? "");
     }
-  };
-
-  if (ct.includes("application/json")) await tryJson();
-  else if (ct.includes("application/x-www-form-urlencoded")) await tryForm();
-  else {
-    await tryJson();
-    if (!email) await tryForm();
+  } else {
+    const body = await req.json<any>().catch(() => null);
+    if (body) {
+      email = String(body?.email ?? "").trim().toLowerCase();
+      password = String(body?.password ?? "");
+    }
+    if (!email || !password) {
+      const form = await req.formData().catch(() => null);
+      if (form) {
+        email = String(form.get("email") ?? "").trim().toLowerCase();
+        password = String(form.get("password") ?? "");
+      }
+    }
   }
   return { email, password };
 }
 
-/** Ensure sessions table exists (use single statements to avoid driver quirks) */
+/** Ensure sessions table exists using single statements (safer on D1) */
 async function ensureSessionsTable(env: Env) {
-  await env.DB.exec(`CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    expires_at INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`);
-  await env.DB.exec(
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      expires_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`
+  ).run();
+
+  await env.DB.prepare(
     `CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`
-  );
+  ).run();
 }
 
 export const onRequestOptions: PagesFunction = async () =>
@@ -80,7 +89,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) return bad("Invalid credentials", 400);
 
-    // Make sure sessions table exists (prevents 500 on first writes)
+    // Make sure sessions table exists (prevents 500s on first write)
     await ensureSessionsTable(env);
 
     // Determine role
@@ -106,9 +115,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     res.headers.set("access-control-allow-origin", "*");
     return res;
   } catch (err: any) {
-    // Return a clear JSON error instead of throwing (stops generic “service_unavailable”)
-    const message =
+    // Map most-common D1 errors to clear messages (your UI shows only `error`)
+    const msg =
       typeof err?.message === "string" ? err.message : "Login failed";
-    return json({ ok: false, error: "SERVICE_ERROR", detail: message }, 500);
+    const friendly =
+      /no such table: users/i.test(msg)
+        ? "Database not initialized (users)."
+        : /no such table: sessions/i.test(msg)
+        ? "Database not initialized (sessions)."
+        : msg;
+
+    return json({ ok: false, error: friendly }, 500);
   }
 };
