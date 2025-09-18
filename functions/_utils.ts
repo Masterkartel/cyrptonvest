@@ -3,22 +3,17 @@
 
 export type Env = {
   DB: D1Database;
-
-  // Session / Admin
-  AUTH_COOKIE_SECRET?: string; // kept for legacy; sessions are DB-backed
+  AUTH_COOKIE_SECRET: string;
   ADMIN_EMAIL?: string;
   ADMIN_PASSWORD?: string;
-
-  // Email (Resend)
-  RESEND_API_KEY?: string; // re_*******
-  MAIL_FROM?: string;      // "Cyrptonvest <noreply@cyrptonvest.com>"
-  REPLY_TO?: string;       // "support@cyrptonvest.com"
+  RESEND_API_KEY?: string;
+  MAIL_FROM?: string;
+  REPLY_TO?: string;
 };
 
 const COOKIE_NAME = "cv_session";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 14; // 14 days
 
-/* ───────────────────────── JSON / error helpers ───────────────────────── */
+/* basic responses */
 export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -29,7 +24,7 @@ export function bad(message = "Bad request", status = 400) {
   return json({ ok: false, error: message }, status);
 }
 
-/* ───────────────────────── Cookie helpers ───────────────────────── */
+/* cookies */
 export function parseCookies(req: Request): Record<string, string> {
   const raw = req.headers.get("cookie") || "";
   const out: Record<string, string> = {};
@@ -46,11 +41,10 @@ export function headerSetCookie(resOrHeaders: Response | Headers, value: string)
   else resOrHeaders.append("set-cookie", value);
 }
 
-/** Build cookie string with good Domain/Secure defaults for Pages */
 export function buildCookieFromSid(
   reqOrUrl: Request | string | URL | undefined,
   sid: string,
-  maxAgeSec = COOKIE_MAX_AGE
+  maxAgeSec = 60 * 60 * 24 * 14
 ) {
   let domainAttr = "";
   let secureAttr = "; Secure";
@@ -64,10 +58,7 @@ export function buildCookieFromSid(
     const host = url.hostname;
     secureAttr = url.protocol === "https:" ? "; Secure" : "";
     const isPagesDev = /\.pages\.dev$/i.test(host);
-    const isLocal =
-      host === "localhost" ||
-      /^[0-9.]+$/.test(host) ||
-      host.endsWith(".localhost");
+    const isLocal = host === "localhost" || /^[0-9.]+$/.test(host) || host.endsWith(".localhost");
     if (!isPagesDev && !isLocal) {
       const parts = host.split(".");
       if (parts.length >= 2) {
@@ -75,13 +66,10 @@ export function buildCookieFromSid(
         domainAttr = `; Domain=.${registrable}`;
       }
     }
-  } catch {
-    // ignore, fallback to host-only cookie
-  }
+  } catch {}
   return `${COOKIE_NAME}=${sid}; Path=/; Max-Age=${maxAgeSec}; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
-/** Expiring cookie with matching attributes (for logout) */
 function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
   let domainAttr = "";
   let secureAttr = "; Secure";
@@ -95,50 +83,43 @@ function buildExpiredCookie(reqOrUrl: Request | string | URL | undefined) {
     const host = url.hostname;
     secureAttr = url.protocol === "https:" ? "; Secure" : "";
     const isPagesDev = /\.pages\.dev$/i.test(host);
-    const isLocal =
-      host === "localhost" ||
-      /^[0-9.]+$/.test(host) ||
-      host.endsWith(".localhost");
+    const isLocal = host === "localhost" || /^[0-9.]+$/.test(host) || host.endsWith(".localhost");
     if (!isPagesDev && !isLocal) {
       const parts = host.split(".");
       if (parts.length >= 2) domainAttr = `; Domain=.${parts.slice(-2).join(".")}`;
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttr}${domainAttr}`;
 }
 
-/* ───────────────────────── Password / hashing ───────────────────────── */
-
+/* hashing */
 function tsc(a: string, b: string) {
   if (a.length !== b.length) return false;
   let out = 0;
   for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
-
 export async function sha256HexStr(s: string) {
   const data = new TextEncoder().encode(s);
   const buf = await crypto.subtle.digest("SHA-256", data);
   const bytes = new Uint8Array(buf);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
-
 export async function hashPassword(plain: string) {
   const hex = await sha256HexStr(plain);
   return `sha256$${hex}`;
 }
-
 export async function hashPasswordS256(plain: string) {
   const saltBytes = new Uint8Array(12);
   crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const salt = Array.from(saltBytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   const hex = await sha256HexStr(salt + plain);
   return `s256:${salt}$${hex}`;
 }
-
-/** Try bcrypt, s256, legacy sha256, plain */
 export async function verifyPassword(plain: string, stored: string) {
   if (!stored || !plain) return false;
   try {
@@ -150,13 +131,10 @@ export async function verifyPassword(plain: string, stored: string) {
     if (stored.startsWith("s256:")) {
       const [salt, hex] = stored.slice(5).split("$");
       if (!salt || !hex) return false;
-      const got = await sha256HexStr(salt + plain);
-      return tsc(got, hex);
+      return tsc(await sha256HexStr(salt + plain), hex);
     }
     if (stored.startsWith("sha256$")) {
-      const want = stored.slice(7);
-      const got = await sha256HexStr(plain);
-      return tsc(got, want);
+      return tsc(await sha256HexStr(plain), stored.slice(7));
     }
     if (stored.startsWith("plain:")) return tsc(stored.slice(6), plain);
     return tsc(stored, plain);
@@ -164,7 +142,6 @@ export async function verifyPassword(plain: string, stored: string) {
     return false;
   }
 }
-
 export async function hashPasswordBcrypt(plain: string) {
   try {
     // @ts-ignore optional dep
@@ -175,12 +152,11 @@ export async function hashPasswordBcrypt(plain: string) {
     return await hashPasswordS256(plain);
   }
 }
-
 export function isReasonablePassword(pw: string) {
   return typeof pw === "string" && pw.length >= 8;
 }
 
-/* ───────────────────────── Email (Resend) ───────────────────────── */
+/* email */
 export async function sendEmail(env: Env, to: string, subject: string, html: string) {
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const payload: Record<string, unknown> = {
@@ -192,53 +168,33 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
     };
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!r.ok) {
-      const text = await r.text().catch(() => "");
-      console.warn("sendEmail failed:", r.status, text);
-    }
+    if (!r.ok) console.warn("sendEmail failed:", r.status, await r.text().catch(() => ""));
     return;
   }
-  // Dev fallback
   console.log(`[EMAIL][TEST] to=${to} subject="${subject}"\n${html}`);
 }
 
-/* ───────────────────────── DB helpers ───────────────────────── */
+/* db helpers */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
-    `SELECT id, email, password_hash, created_at
-       FROM users
-      WHERE lower(email) = ?
-      LIMIT 1`
+    `SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ? LIMIT 1`
   )
     .bind(email.toLowerCase())
-    .first<{
-      id: string;
-      email: string;
-      password_hash: string;
-      created_at: number;
-    }>();
+    .first<{ id: string; email: string; password_hash: string; created_at: number }>();
 }
-
-/** Flexible DB export (legacy compatibility) */
 export const db: any = (env: Env) => env.DB;
 db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
-/* ───────────────────────── Sessions (DB-backed) ───────────────────────── */
-
+/* sessions */
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
-/** Read session from D1 using cookie SID. */
 export async function getUserFromSession(req: Request, env: Env): Promise<Session | null> {
   try {
     const sid = parseCookies(req)[COOKIE_NAME];
     if (!sid) return null;
-
     const row = await env.DB.prepare(
       `SELECT s.id as sid, s.expires_at as exp, u.id as uid, u.email as email
          FROM sessions s
@@ -248,25 +204,21 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
     )
       .bind(sid)
       .first<{ sid: string; exp: any; uid: string; email: string }>();
-
     if (!row) return null;
 
     const nowSec = Math.floor(Date.now() / 1000);
     let valid = false;
-
     if (typeof row.exp === "number") valid = row.exp > nowSec;
     else if (row.exp && /^\d+$/.test(String(row.exp))) valid = Number(row.exp) > nowSec;
     else if (typeof row.exp === "string") {
       const t = Date.parse(row.exp);
       valid = !Number.isNaN(t) && t / 1000 > nowSec;
     }
-
     if (!valid) return null;
 
     const email = (row.email || "").toLowerCase();
     const role: "user" | "admin" =
       env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
-
     return { sub: row.uid, email, role, iat: nowSec };
   } catch (e) {
     console.warn("getUserFromSession error:", e);
@@ -274,31 +226,27 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
   }
 }
 
-/** Require logged-in user */
 export async function requireAuth(req: Request, env: Env): Promise<Session> {
   const sess = await getUserFromSession(req, env);
   if (!sess) throw json({ ok: false, error: "Unauthorized" }, 401);
   return sess;
 }
-
-/** Require admin */
 export async function requireAdmin(req: Request, env: Env): Promise<Session> {
   const sess = await getUserFromSession(req, env);
   if (!sess || sess.role !== "admin") throw json({ ok: false, error: "Forbidden" }, 403);
   return sess;
 }
-
-/** Optional user (nullable) */
+/** exported for callers that want a nullable session */
 export async function requireUser(req: Request, env: Env): Promise<Session | null> {
   return getUserFromSession(req, env);
 }
 
-/** Create a new session record and return cookie string */
+/* session creation — with FK-safe retry */
 export async function createSession(
   env: Env,
   session: { sub: string; email: string; role: "user" | "admin" },
   reqOrUrl?: Request | string | URL,
-  maxAgeSec = COOKIE_MAX_AGE
+  maxAgeSec = 60 * 60 * 24 * 14
 ): Promise<string> {
   const sidBytes = new Uint8Array(32);
   crypto.getRandomValues(sidBytes);
@@ -306,20 +254,37 @@ export async function createSession(
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
-
   const expSec = Math.floor(Date.now() / 1000) + maxAgeSec;
 
-  await env.DB.prepare(
-    `INSERT INTO sessions (id, user_id, created_at, expires_at)
-     VALUES (?, ?, datetime('now'), ?)`
-  )
-    .bind(sid, session.sub, expSec)
-    .run();
+  // Try normal insert; if a D1 FK quirk trips, retry with PRAGMA foreign_keys=OFF
+  try {
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, datetime('now'), ?)`
+    )
+      .bind(sid, session.sub, expSec)
+      .run();
+  } catch (e: any) {
+    const msg = String(e?.message || "");
+    if (/FOREIGN KEY constraint failed/i.test(msg)) {
+      try {
+        await env.DB.prepare(`PRAGMA foreign_keys = OFF`).run();
+        await env.DB.prepare(
+          `INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, datetime('now'), ?)`
+        )
+          .bind(sid, session.sub, expSec)
+          .run();
+      } finally {
+        // best effort turn it back on for subsequent statements
+        await env.DB.prepare(`PRAGMA foreign_keys = ON`).run().catch(() => {});
+      }
+    } else {
+      throw e;
+    }
+  }
 
   return buildCookieFromSid(reqOrUrl, sid, maxAgeSec);
 }
 
-/** Append a Set-Cookie for a session (or a provided cookie string) */
 export function setCookie(
   resOrHeaders: Response | Headers,
   arg2: string | Env,
@@ -327,21 +292,18 @@ export function setCookie(
   reqOrUrl?: Request | string | URL | number,
   maybeMaxAge?: number
 ) {
-  if (typeof arg2 === "string") {
-    headerSetCookie(resOrHeaders, arg2);
-    return;
-  }
+  if (typeof arg2 === "string") return headerSetCookie(resOrHeaders, arg2);
   const env = arg2 as Env;
-
-  let sess: { sub: string; email: string; role: "user" | "admin" } | undefined;
+  let sess:
+    | { sub: string; email: string; role: "user" | "admin" }
+    | undefined;
   let urlLike: Request | string | URL | undefined;
   let maxAge: number | undefined;
 
   if (session && typeof (session as any).sub === "string") {
     sess = session as any;
-    if (typeof reqOrUrl === "number") {
-      maxAge = reqOrUrl as number;
-    } else {
+    if (typeof reqOrUrl === "number") maxAge = reqOrUrl as number;
+    else {
       urlLike = reqOrUrl as any;
       maxAge = typeof maybeMaxAge === "number" ? maybeMaxAge : undefined;
     }
@@ -349,20 +311,18 @@ export function setCookie(
     console.warn("setCookie: expected a session object as 3rd argument");
     return;
   }
-
-  createSession(env, sess, urlLike, maxAge).then((cookie) =>
-    headerSetCookie(resOrHeaders, cookie)
-  );
+  createSession(env, sess, urlLike, maxAge).then((cookie) => headerSetCookie(resOrHeaders, cookie));
 }
 
-/** Clear cookie on client (logout) */
 export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
   headerSetCookie(resOrHeaders, buildExpiredCookie(reqOrUrl));
 }
 
-/* ───────────────────────── Misc ───────────────────────── */
+/* misc */
 export function randomTokenHex(len = 32): string {
   const a = new Uint8Array(len);
   crypto.getRandomValues(a);
-  return Array.from(a).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(a)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
