@@ -218,7 +218,7 @@ db.getUserByEmail = (env: Env, email: string) => getUserByEmail(env, email);
 
 export type Session = { sub: string; email: string; role: "user" | "admin"; iat: number };
 
-/** Ensure sessions table exists with INTEGER timestamps (matches your PRAGMA). */
+/** Ensure sessions table exists with INTEGER timestamps (matches PRAGMA you showed). */
 export async function ensureSessionsTable(env: Env) {
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS sessions (
@@ -295,7 +295,7 @@ export async function getUserFromSession(req: Request, env: Env): Promise<Sessio
 
     const email = (row.email || "").toLowerCase();
     const role: "user" | "admin" =
-      env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
+      (env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase()) ? "admin" : "user";
 
     return { sub: row.uid, email, role, iat: nowSec };
   } catch (e) {
@@ -329,10 +329,26 @@ export async function destroySessionRecord(env: Env, sid: string) {
   }
 }
 
-/** Destroy cookie on the client */
+/** Destroy cookie on the client (sets expired cookie header) */
 export function destroySession(resOrHeaders: Response | Headers, reqOrUrl?: Request | string | URL) {
   const expired = buildExpiredCookie(reqOrUrl);
   headerSetCookie(resOrHeaders, expired);
+}
+
+/* ═════════ Back-compat shim for older code (signup.ts etc.) ═════════ */
+/**
+ * setCookie(resOrHeaders, env, { sub, email, role }, reqOrUrl?, maxAgeSec?)
+ * Creates a session and appends a Set-Cookie header to the given response/headers.
+ */
+export async function setCookie(
+  resOrHeaders: Response | Headers,
+  env: Env,
+  session: { sub: string; email: string; role: "user" | "admin" },
+  reqOrUrl?: Request | string | URL,
+  maxAgeSec?: number
+) {
+  const cookie = await createSession(env, session, reqOrUrl, maxAgeSec ?? 60 * 60 * 24 * 14);
+  headerSetCookie(resOrHeaders, cookie);
 }
 
 /* ═════════ Misc ═════════ */
