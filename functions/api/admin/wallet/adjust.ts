@@ -30,7 +30,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       `SELECT id FROM users WHERE lower(email) = ? LIMIT 1`
     ).bind(email).first<{ id: string }>();
     if (!row) return bad("User not found", 404);
-    user_id = String(row.id);
+    user_id = row.id;
   } else {
     return bad("Provide user_id or email", 400);
   }
@@ -45,37 +45,44 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const note = String((body as any).note || "").slice(0, 200);
   const currency = "USD";
 
-  // Ensure wallet exists (user_id stored as TEXT)
+  // Ensure wallet exists
   await ctx.env.DB.prepare(
     `INSERT INTO wallets (user_id, balance_cents, currency)
      VALUES (?, 0, ?)
      ON CONFLICT(user_id) DO NOTHING`
-  ).bind(String(user_id), currency).run();
+  ).bind(user_id, currency).run();
 
   // Update balance
   await ctx.env.DB.prepare(
     `UPDATE wallets
         SET balance_cents = COALESCE(balance_cents,0) + ?
       WHERE user_id = ?`
-  ).bind(delta, String(user_id)).run();
+  ).bind(delta, user_id).run();
 
   // Read back
   const wallet = await ctx.env.DB.prepare(
     `SELECT balance_cents, currency FROM wallets WHERE user_id = ? LIMIT 1`
-  ).bind(String(user_id)).first<{ balance_cents: number; currency: string }>();
+  ).bind(user_id).first<{ balance_cents: number; currency: string }>();
 
-  // Record admin adjustment as a cleared transaction
-  const txId = (crypto as any).randomUUID?.() ?? String(Date.now());
+  // Record transaction
+  const txId = crypto.randomUUID?.() ?? String(Date.now());
   const created_sec = Math.floor(Date.now() / 1000);
   await ctx.env.DB.prepare(
     `INSERT INTO transactions (id, user_id, kind, amount_cents, currency, status, ref, created_at)
      VALUES (?, ?, 'admin_adjust', ?, ?, 'cleared', ?, ?)`
-  ).bind(txId, String(user_id), Math.abs(delta), currency, note, created_sec).run();
+  ).bind(
+    txId,
+    user_id,
+    Math.abs(delta),
+    currency,
+    note,
+    created_sec
+  ).run();
 
   return json({
     ok: true,
     wallet: {
-      user_id: String(user_id),
+      user_id,
       balance_cents: Number(wallet?.balance_cents ?? 0),
       currency: wallet?.currency || currency,
     },
@@ -85,7 +92,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       amount_cents: Math.abs(delta),
       currency,
       note,
-      created_at: created_sec * 1000,
+      created_at: created_sec * 1000, // ms for UI
     },
   });
 };
