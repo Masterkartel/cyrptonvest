@@ -24,12 +24,17 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
       200
     );
 
-    // Fetch the user's transactions (newest first)
+    // Read from txs (ledger). Join wallets to provide currency. Map memo -> ref.
     const res = await ctx.env.DB.prepare(
-      `SELECT id, user_id, kind, amount_cents, currency, status, ref, created_at
-         FROM transactions
-        WHERE user_id = ?
-        ORDER BY created_at DESC
+      `SELECT t.id, t.user_id, t.kind, t.amount_cents,
+              COALESCE(w.currency, 'USD') AS currency,
+              t.status,
+              t.memo AS ref,
+              t.created_at
+         FROM txs t
+         LEFT JOIN wallets w ON w.id = t.wallet_id
+        WHERE t.user_id = ?
+        ORDER BY t.created_at DESC
         LIMIT ?`
     )
       .bind(sess.sub, limit)
@@ -54,7 +59,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
         currency: t.currency || "USD",
         status: t.status || "pending",
         ref: t.ref || "",
-        created_at: created, // milliseconds for UI: new Date(t.created_at)
+        created_at: created,
       };
     });
 
