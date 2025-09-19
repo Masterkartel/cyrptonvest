@@ -18,24 +18,35 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
 
     const url = new URL(ctx.request.url);
     const status = (url.searchParams.get("status") || "pending").toLowerCase();
-    const kind = (url.searchParams.get("kind") || "").toLowerCase();
-    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "100", 10) || 100, 1), 200);
+    const kind   = (url.searchParams.get("kind")   || "").toLowerCase();
+    const limit  = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "100", 10) || 100, 1), 200);
 
     const where: string[] = [];
     const binds: any[] = [];
+
     if (status) {
-      where.push("status = ?");
+      // status stored lowercase; tolerate anything user passes
+      where.push("t.status = ?");
       binds.push(status);
     }
     if (kind === "deposit" || kind === "withdraw") {
-      where.push("kind = ?");
+      where.push("t.kind = ?");
       binds.push(kind);
     }
 
     const sql =
-      `SELECT t.id, t.user_id, u.email AS user_email, t.kind, t.amount_cents, t.currency, t.status, t.ref, t.created_at
-         FROM transactions t
-         LEFT JOIN users u ON u.id = t.user_id
+      `SELECT t.id,
+              t.user_id,
+              u.email AS user_email,
+              t.kind,
+              t.amount_cents,
+              COALESCE(w.currency,'USD') AS currency,
+              t.status,
+              t.memo AS ref,
+              t.created_at
+         FROM txs t
+         LEFT JOIN users   u ON u.id = t.user_id
+         LEFT JOIN wallets w ON w.id = t.wallet_id
         ${where.length ? "WHERE " + where.join(" AND ") : ""}
         ORDER BY t.created_at DESC
         LIMIT ?`;
@@ -80,10 +91,14 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
       return bad("Provide id and a valid status", 400);
     }
 
-    // Load tx
+    // Load tx from txs (join to get currency)
     const tx = await ctx.env.DB.prepare(
-      `SELECT id, user_id, kind, amount_cents, currency, status
-         FROM transactions WHERE id = ? LIMIT 1`
+      `SELECT t.id, t.user_id, t.kind, t.amount_cents,
+              COALESCE(w.currency,'USD') AS currency,
+              t.status
+         FROM txs t
+         LEFT JOIN wallets w ON w.user_id = t.user_id
+        WHERE t.id = ? LIMIT 1`
     ).bind(id).first<TxRow>();
 
     if (!tx) return bad("Not found", 404);
@@ -91,13 +106,16 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
 
     // Auto wallet mutation if completing
     if (newStatus === "completed") {
-      const sign = tx.kind === "deposit" ? +1 : tx.kind === "withdraw" ? -1 : 0;
+      const sign =
+        tx.kind === "deposit" ? +1 :
+        (tx.kind === "withdraw" /* tolerate old 'withdrawal' if present */ || tx.kind === "withdrawal") ? -1 :
+        0;
 
       if (sign !== 0) {
-        // Ensure wallet row exists
+        // Ensure wallet row exists for this user/currency
         await ctx.env.DB.prepare(
-          `INSERT INTO wallets (user_id, balance_cents, currency)
-           VALUES (?, 0, ?)
+          `INSERT INTO wallets (id, user_id, balance_cents, currency)
+           VALUES (lower(hex(randomblob(16))), ?, 0, ?)
            ON CONFLICT(user_id) DO NOTHING`
         ).bind(tx.user_id, tx.currency || "USD").run();
 
@@ -120,9 +138,9 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
       }
     }
 
-    // Update status
+    // Update status in txs
     await ctx.env.DB.prepare(
-      `UPDATE transactions SET status = ? WHERE id = ?`
+      `UPDATE txs SET status = ? WHERE id = ?`
     ).bind(newStatus, id).run();
 
     return json({ ok: true });
