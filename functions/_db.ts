@@ -1,4 +1,3 @@
-// functions/_db.ts
 import type { Env } from "./_utils";
 
 export function hexId16() {
