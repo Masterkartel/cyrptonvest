@@ -1,4 +1,3 @@
-// functions/api/admin/transactions.ts
 import { json, bad, requireAdmin, type Env } from "../../_utils";
 
 type TxRow = {
@@ -93,7 +92,7 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
       return bad("Provide id and a valid status", 400);
     }
 
-    // Load tx (include wallet_id, currency via wallet join)
+    // Load tx (we need wallet_id, amount, kind, current status)
     const tx = await ctx.env.DB.prepare(
       `SELECT t.id, t.user_id, t.wallet_id, t.kind, t.amount_cents,
               COALESCE(w.currency,'USD') AS currency,
@@ -103,49 +102,69 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
         WHERE t.id = ? LIMIT 1`
     ).bind(id).first<TxRow>();
 
-    if (!tx) return bad("Not found", 404);
-    if (tx.status === newStatus) return json({ ok: true, transaction: tx });
+    if (!tx) return bad("Transaction not found", 404);
+    if (!tx.wallet_id) return bad("Transaction has no wallet_id", 400);
 
-    // If moving to completed/failed/pending, we always update the tx row.
-    // Only mutate wallet when marking as 'completed'.
-    if (newStatus === "completed") {
-      const kind = String(tx.kind).toLowerCase();
-      const isWithdraw = kind === "withdraw" || kind === "withdrawal" || kind.includes("withdraw");
-      const delta = isWithdraw ? -Math.abs(tx.amount_cents) : +Math.abs(tx.amount_cents);
+    // Decide wallet delta only when completing
+    const kind = String(tx.kind).toLowerCase();
+    const isWithdraw = kind === "withdraw" || kind === "withdrawal" || kind.includes("withdraw");
+    const delta = (newStatus === "completed")
+      ? (isWithdraw ? -Math.abs(tx.amount_cents) : +Math.abs(tx.amount_cents))
+      : 0;
 
-      // Ensure wallet exists (it should — referenced by txs.wallet_id)
-      const w = await ctx.env.DB.prepare(
-        `SELECT id, balance_cents FROM wallets WHERE id = ? LIMIT 1`
-      ).bind(tx.wallet_id).first<{ id: string; balance_cents: number }>();
+    // Start atomic txn so we don't change balance without flipping status
+    await ctx.env.DB.exec("BEGIN");
 
-      if (!w) {
-        return bad("Wallet not found for this transaction", 400);
-      }
+    // 1) Flip status FIRST; only from current status to newStatus.
+    //    If you're approving, require it's currently pending.
+    const statusWhere = (newStatus === "completed" || newStatus === "failed")
+      ? "AND lower(status)='pending'"
+      : ""; // allow toggling back to pending if you want; otherwise enforce previous state as well.
 
+    const upd = await ctx.env.DB.prepare(
+      `UPDATE txs
+          SET status = ?
+        WHERE id = ?
+        ${statusWhere}`
+    ).bind(newStatus, id).run();
+
+    if (upd.meta.changes !== 1) {
+      await ctx.env.DB.exec("ROLLBACK");
+      return bad("Unable to update: transaction not pending or id mismatch", 409);
+    }
+
+    // 2) If marking completed, mutate the exact wallet row
+    if (newStatus === "completed" && delta !== 0) {
       // Overdraft check for withdrawals
       if (delta < 0) {
-        const current = Number(w.balance_cents ?? 0);
+        const w = await ctx.env.DB.prepare(
+          `SELECT balance_cents FROM wallets WHERE id = ? LIMIT 1`
+        ).bind(tx.wallet_id).first<{ balance_cents: number }>();
+        const current = Number(w?.balance_cents ?? 0);
         if (current < Math.abs(delta)) {
+          await ctx.env.DB.exec("ROLLBACK");
           return bad("Insufficient funds for withdrawal", 400);
         }
       }
 
-      // Apply balance to THIS wallet id
-      await ctx.env.DB.prepare(
+      const bal = await ctx.env.DB.prepare(
         `UPDATE wallets
             SET balance_cents = COALESCE(balance_cents,0) + ?
           WHERE id = ?`
       ).bind(delta, tx.wallet_id).run();
+
+      if (bal.meta.changes !== 1) {
+        await ctx.env.DB.exec("ROLLBACK");
+        return bad("Wallet not updated", 409);
+      }
     }
 
-    // Update tx status (pending/completed/failed)
-    await ctx.env.DB.prepare(
-      `UPDATE txs SET status = ? WHERE id = ?`
-    ).bind(newStatus, id).run();
-
+    await ctx.env.DB.exec("COMMIT");
     return json({ ok: true });
   } catch (e: any) {
+    // Try to ensure no partial updates remain
+    try { await (ctx.env.DB as any).exec("ROLLBACK"); } catch {}
     if (e?.status === 403) return json({ ok: false, error: "Forbidden" }, 403);
-    return bad("Unable to update transaction", 500);
+    return bad(`Unable to update transaction: ${String(e)}`, 500);
   }
 };
