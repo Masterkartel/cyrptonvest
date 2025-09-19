@@ -92,21 +92,35 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
 
 /**
  * PATCH /api/admin/transactions
- * Body: { id: string, status: "pending"|"completed"|"failed" }
- * Notes:
- *  - No raw BEGIN/COMMIT (D1 doesn’t support them).
- *  - If status -> completed, we update the specific wallet (by wallet_id) first,
- *    then flip the tx status. If wallet update fails, we don’t change the tx.
+ * Body: { id: string, status: "approve|approved|completed|reject|rejected|failed|pending" }
+ *
+ * Rules:
+ *  - We normalize synonyms: approve/approved -> completed, reject/rejected -> failed.
+ *  - Flip tx status FIRST: UPDATE ... WHERE id=? AND lower(status)='pending'.
+ *    If no row updated, we stop (already processed or bad id) and do NOT touch balance.
+ *  - If new status is 'completed', then adjust the exact wallet (by wallet_id).
  */
 export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   try {
     await requireAdmin(ctx.request, ctx.env);
-    const { id, status } = await ctx.request.json().catch(() => ({}));
-    const newStatus = String(status || "").toLowerCase();
+    const body = await ctx.request.json().catch(() => ({} as any));
+    const id = String(body?.id || "").trim();
+    const raw = String(body?.status || "").trim().toLowerCase();
 
-    if (!id || !["completed", "failed", "pending"].includes(newStatus)) {
-      return bad("Provide id and a valid status", 400);
-    }
+    if (!id || !raw) return bad("Provide id and status", 400);
+
+    // Map UI verbs to canonical statuses
+    const map: Record<string, "pending" | "completed" | "failed"> = {
+      approve: "completed",
+      approved: "completed",
+      completed: "completed",
+      reject: "failed",
+      rejected: "failed",
+      failed: "failed",
+      pending: "pending",
+    };
+    const newStatus = map[raw];
+    if (!newStatus) return bad("Invalid status", 400);
 
     // Load tx (need wallet_id, amount, kind, current status)
     const tx = await ctx.env.DB.prepare(
@@ -122,7 +136,20 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
     if (!tx.wallet_id) return bad("Transaction has no wallet_id", 400);
     if (tx.status === newStatus) return json({ ok: true });
 
-    // If completing, adjust wallet FIRST
+    // 1) Flip status FIRST (only from pending)
+    const updTx = await ctx.env.DB.prepare(
+      `UPDATE txs
+          SET status = ?
+        WHERE id = ?
+          AND lower(status) = 'pending'`
+    ).bind(newStatus, id).run();
+
+    if (updTx.meta.changes !== 1) {
+      // Not pending anymore, or wrong id
+      return bad("Unable to update: not pending or id mismatch", 409);
+    }
+
+    // 2) If completing, adjust wallet AFTER a successful status flip
     if (newStatus === "completed") {
       const kind = String(tx.kind).toLowerCase();
       const isWithdraw = kind === "withdraw" || kind === "withdrawal" || kind.includes("withdraw");
@@ -135,6 +162,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
         ).bind(tx.wallet_id).first<{ balance_cents: number }>();
         const current = Number(w?.balance_cents ?? 0);
         if (current < Math.abs(delta)) {
+          // revert status back to pending if wallet cannot be updated
+          await ctx.env.DB.prepare(`UPDATE txs SET status='pending' WHERE id = ?`).bind(id).run();
           return bad("Insufficient funds for withdrawal", 400);
         }
       }
@@ -146,17 +175,10 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
       ).bind(delta, tx.wallet_id).run();
 
       if (updWallet.meta.changes !== 1) {
+        // revert status if wallet failed to update for any reason
+        await ctx.env.DB.prepare(`UPDATE txs SET status='pending' WHERE id = ?`).bind(id).run();
         return bad("Wallet not updated", 500);
       }
-    }
-
-    // Update tx status LAST
-    const updTx = await ctx.env.DB.prepare(
-      `UPDATE txs SET status = ? WHERE id = ?`
-    ).bind(newStatus, id).run();
-
-    if (updTx.meta.changes !== 1) {
-      return bad("Unable to update tx status", 500);
     }
 
     return json({ ok: true });
