@@ -7,13 +7,18 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const sess = await requireAuth(ctx.request, ctx.env);
 
-    let body: Body = {}; try { body = await ctx.request.json<Body>(); } catch {}
+    let body: Body = {};
+    try { body = await ctx.request.json<Body>(); } catch {}
+
     const amount = Math.trunc(Number(body.amount_cents || 0));
-    if (!Number.isFinite(amount) || amount <= 0) return bad("amount_cents must be a positive integer", 400);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return bad("amount_cents must be a positive integer", 400);
+    }
 
     const currency = (body.currency || "USD").toUpperCase();
     const network  = String(body.network || "").toUpperCase();
     const address  = String(body.address || "").trim();
+
     if (!network) return bad("network is required", 400);
     if (!address) return bad("address is required", 400);
 
@@ -22,9 +27,10 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const txId = hexId16();
     const memo = `WITHDRAW ${network} → ${address.slice(0, 8)}…`;
 
+    // IMPORTANT: use kind 'withdraw' (not 'withdrawal') so admin filters work
     await ctx.env.DB.prepare(
       `INSERT INTO txs (id, user_id, wallet_id, amount_cents, kind, status, memo, created_at)
-       VALUES (?, ?, ?, ?, 'withdrawal', 'pending', ?, datetime('now'))`
+       VALUES (?, ?, ?, ?, 'withdraw', 'pending', ?, datetime('now'))`
     ).bind(txId, String(sess.sub), walletId, amount, memo).run();
 
     return json({ ok: true, id: txId, wallet_id: walletId });
