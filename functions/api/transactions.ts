@@ -4,6 +4,7 @@ import { json, bad, requireAuth, type Env } from "../_utils";
 type TxRow = {
   id: string;
   user_id: string;
+  wallet_id?: string;
   kind: string;
   amount_cents: number;
   currency: string;
@@ -24,9 +25,9 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
       200
     );
 
-    // Read from txs (ledger). Join wallets to provide currency. Map memo -> ref.
+    // Read from txs. Join wallets by wallet_id to expose currency.
     const res = await ctx.env.DB.prepare(
-      `SELECT t.id, t.user_id, t.kind, t.amount_cents,
+      `SELECT t.id, t.user_id, t.wallet_id, t.kind, t.amount_cents,
               COALESCE(w.currency, 'USD') AS currency,
               t.status,
               t.memo AS ref,
@@ -44,12 +45,10 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
       // Normalize created_at → milliseconds for the dashboard UI
       let created = Number(t.created_at ?? 0);
       if (!Number.isFinite(created)) {
-        // If stored as TEXT like "2025-09-18 00:00:00", try Date.parse
         const parsed = Date.parse(String(t.created_at || ""));
         created = Number.isFinite(parsed) ? parsed : 0;
-      } else {
-        // If it's a small number, assume seconds → convert to ms
-        if (created > 0 && created < 1e12) created *= 1000;
+      } else if (created > 0 && created < 1e12) {
+        created *= 1000;
       }
 
       return {
