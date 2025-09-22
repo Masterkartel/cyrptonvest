@@ -513,6 +513,29 @@
       $('#qr-img').src = url;
       $('#qr-addr').textContent = v;
       $('#qr-modal').classList.add('show');
+
+      /* --- ADDED: tiny centered favicon overlay inside the QR (non-intrusive) --- */
+      const frame = document.querySelector('#qr-modal .qr-frame');
+      const old = document.getElementById('qr-logo'); if (old) old.remove();
+      const logo = document.createElement('img');
+      logo.id = 'qr-logo';
+      logo.src = '/favicon.svg';
+      logo.alt = 'logo';
+      Object.assign(logo.style, {
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '36px',
+        height: '36px',
+        background: '#fff',
+        borderRadius: '8px',
+        padding: '4px',
+        boxShadow: '0 2px 10px rgba(0,0,0,.35)',
+        pointerEvents: 'none'
+      });
+      frame.appendChild(logo);
+      /* --- END ADDED --- */
     }
     function closeQr(e){ if(e.target.id==='qr-modal') $('#qr-modal').classList.remove('show'); }
 
