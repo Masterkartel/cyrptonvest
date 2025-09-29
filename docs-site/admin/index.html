@@ -70,7 +70,7 @@
       user-select:none;line-height:1
     }
     .copy-ic::before{
-      content:"⧉";
+      content:"⧉"; /* two-squares look */
       color:var(--brand);
       font-weight:900;
       font-size:13px;
@@ -79,8 +79,19 @@
     .tiny{font-size:12px;color:#cbd5e1}
     .dim{color:#9aa4b2}
     .nowrap{white-space:nowrap}
-    /* NEW: allow long refs to wrap so full value is visible */
-    .breakall{word-break:break-all;white-space:normal}
+
+    /* NEW: horizontal scroll (marquee style) for Ref */
+    .scroll-x {
+      display: inline-block;
+      max-width: 240px;   /* adjust if needed */
+      white-space: nowrap;
+      overflow: hidden;
+      animation: scroll-text 12s linear infinite;
+    }
+    @keyframes scroll-text {
+      0%   { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
   </style>
 </head>
 <body>
@@ -396,8 +407,9 @@
           <td>${t.kind}</td>
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>
-            <div class="breakall mono">${t.ref||''}
-              ${t.ref ? `<span class="copy-ic" title="Copy Ref" onclick="copyText('${t.ref}')"></span>`:''}
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="scroll-x mono" aria-label="${t.ref||''}">${t.ref||''}</div>
+              ${t.ref ? `<span class="copy-ic" title="Copy Ref" onclick="copyText(${JSON.stringify(t.ref)})"></span>`:''}
             </div>
           </td>
           <td><span class="status">${t.status}</span></td>
