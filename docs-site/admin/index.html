@@ -70,7 +70,7 @@
       user-select:none;line-height:1
     }
     .copy-ic::before{
-      content:"⧉"; /* two-squares look */
+      content:"⧉";
       color:var(--brand);
       font-weight:900;
       font-size:13px;
@@ -79,6 +79,8 @@
     .tiny{font-size:12px;color:#cbd5e1}
     .dim{color:#9aa4b2}
     .nowrap{white-space:nowrap}
+    /* NEW: allow long refs to wrap so full value is visible */
+    .breakall{word-break:break-all;white-space:normal}
   </style>
 </head>
 <body>
@@ -394,7 +396,7 @@
           <td>${t.kind}</td>
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>
-            <div class="nowrap">${t.ref||''}
+            <div class="breakall mono">${t.ref||''}
               ${t.ref ? `<span class="copy-ic" title="Copy Ref" onclick="copyText('${t.ref}')"></span>`:''}
             </div>
           </td>
