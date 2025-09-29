@@ -393,7 +393,11 @@
           <td>${t.user_email||t.user_id}</td>
           <td>${t.kind}</td>
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
-          <td>${t.ref||''}</td>
+          <td>
+            <div class="nowrap">${t.ref||''}
+              ${t.ref ? `<span class="copy-ic" title="Copy Ref" onclick="copyText('${t.ref}')"></span>`:''}
+            </div>
+          </td>
           <td><span class="status">${t.status}</span></td>
           <td>${formatCreated(t.created_at)}</td>
           <td class="row">
