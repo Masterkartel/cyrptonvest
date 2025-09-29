@@ -405,7 +405,7 @@
           <td>
             <div class="row" style="gap:6px;flex-wrap:nowrap">
               <div class="ref-ellipsis mono" title="${t.ref||''}">${t.ref||''}</div>
-              ${t.ref ? `<span class="copy-ic" title="Copy Ref" onclick="copyText(${JSON.stringify(t.ref)})"></span>`:''}
+              ${t.ref ? `<span class="copy-ic" title="Copy Ref" onclick='copyText(${JSON.stringify(t.ref)})'></span>`:''}
             </div>
           </td>
           <td><span class="status">${t.status}</span></td>
