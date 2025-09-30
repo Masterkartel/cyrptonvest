@@ -70,7 +70,7 @@
       user-select:none;line-height:1
     }
     .copy-ic::before{
-      content:"⧉"; /* two-squares look */
+      content:"⧉";
       color:var(--brand);
       font-weight:900;
       font-size:13px;
@@ -81,6 +81,16 @@
     .nowrap{white-space:nowrap}
     .tiny .copy-ic{margin-left:6px}
     .nowrap .copy-ic{margin-left:6px}
+
+    /* NEW: never wrap or truncate wallet address */
+    .addr-full{
+      white-space:nowrap;
+      word-break:normal;
+      overflow-wrap:normal;
+      overflow:visible;
+      text-overflow:clip;
+      max-width:none;
+    }
   </style>
 </head>
 <body>
@@ -270,12 +280,9 @@
     /* Extract wallet address ONLY from any Ref string */
     function extractAddress(ref){
       if(!ref) return '';
-      // Prefer content after a right arrow if present
-      let s = String(ref).split('→').pop().trim();
-      // Grab the last long alphanumeric block (addresses are long)
-      const matches = s.match(/[A-Za-z0-9]{20,}/g);
+      let s = String(ref).split('→').pop().trim(); // content after arrow if present
+      const matches = s.match(/[A-Za-z0-9]{20,}/g); // long alphanumeric chunk
       if(matches && matches.length) return matches[matches.length-1];
-      // Fallback: last token
       const parts = s.split(/[\s:]+/).filter(Boolean);
       return parts.length ? parts[parts.length-1] : s;
     }
@@ -285,9 +292,7 @@
       const el = ev.target.closest('.copy-ic[data-ref]');
       if(!el) return;
       const raw = el.getAttribute('data-ref') || '';
-      // value is URL-encoded to avoid HTML quoting issues
-      try{ copyText(decodeURIComponent(raw)); }
-      catch{ copyText(raw); }
+      try{ copyText(decodeURIComponent(raw)); } catch{ copyText(raw); }
     });
 
     // Users
@@ -422,7 +427,8 @@
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>
             <div class="row" style="gap:6px;flex-wrap:nowrap">
-              <div class="mono">${addr}</div>
+              <!-- CHANGED: add addr-full to forbid wrapping -->
+              <div class="mono addr-full">${addr}</div>
               ${addr ? `<span class="copy-ic" title="Copy Address" data-ref="${encodeURIComponent(addr)}"></span>`:''}
             </div>
           </td>
@@ -439,8 +445,8 @@
         <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Ref</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
 
-      $('#tx-meta').textContent = `${list.length || 0} pending • updated ${new Date().toLocaleTimeString()}`;
       $('#tx-status').style.display='none';
+      $('#tx-meta').textContent = `${list.length || 0} pending • updated ${new Date().toLocaleTimeString()}`;
     }
 
     // Approve / Reject
