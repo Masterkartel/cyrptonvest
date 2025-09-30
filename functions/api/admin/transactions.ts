@@ -1,4 +1,3 @@
-// functions/api/admin/transactions.ts
 import { json, bad, requireAdmin, type Env } from "../../_utils";
 
 type TxRow = {
@@ -9,7 +8,7 @@ type TxRow = {
   amount_cents: number;
   currency: string;
   status: "pending" | "approved" | "rejected" | "posted" | string;
-  ref: string | null;
+  ref: string | null;                  // t.memo
   created_at: number | string | null;
   user_email?: string;
 };
@@ -22,12 +21,32 @@ function normalizeStatus(raw: string): "pending" | "approved" | "rejected" | nul
   return null;
 }
 
+// Pull a full address out of WITHDRAW memos, supports TRON and generic long tokens
+function extractAddressFromRef(raw: string | null | undefined): string {
+  const s = String(raw || "").trim();
+  // Prefer content after an arrow if present
+  const tail = s.split("→").pop()?.trim() || s;
+
+  // TRON (TRC20): starts with T, 34 total Base58 chars
+  const tron = tail.match(/T[1-9A-HJ-NP-Za-km-z]{33}/g);
+  if (tron && tron.length) return tron[tron.length - 1];
+
+  // Ethereum-like long hex
+  const hex = tail.match(/0x[a-fA-F0-9]{38,}/g);
+  if (hex && hex.length) return hex[hex.length - 1];
+
+  // Generic long alphanumeric
+  const alnum = tail.match(/[A-Za-z0-9]{20,}/g);
+  if (alnum && alnum.length) return alnum[alnum.length - 1];
+
+  return tail;
+}
+
 /**
  * GET /api/admin/transactions
- * Query params:
- *   - status: pending|approved|rejected|posted (default: pending)
- *   - kind: deposit|withdraw (optional)
- *   - limit: 1..200 (default: 100)
+ * ?status=pending|approved|rejected|posted (default: pending)
+ * ?kind=deposit|withdraw (optional)
+ * ?limit=1..200 (default: 100)
  */
 export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   try {
@@ -40,7 +59,6 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
 
     const where: string[] = [];
     const binds: any[] = [];
-
     if (status) { where.push("t.status = ?"); binds.push(status); }
     if (kind === "deposit" || kind === "withdraw") { where.push("t.kind = ?"); binds.push(kind); }
 
@@ -65,6 +83,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
     const res = await ctx.env.DB.prepare(sql).bind(...binds, limit).all<TxRow>();
 
     const out = (res.results || []).map((t) => {
+      // normalize created_at to ms
       let created = Number(t.created_at ?? 0);
       if (!Number.isFinite(created)) {
         const parsed = Date.parse(String(t.created_at || ""));
@@ -72,6 +91,9 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
       } else if (created > 0 && created < 1e12) {
         created *= 1000;
       }
+
+      const ref_full = extractAddressFromRef(t.ref || "");
+
       return {
         id: t.id,
         user_id: t.user_id,
@@ -81,6 +103,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
         currency: t.currency || "USD",
         status: t.status,
         ref: t.ref || "",
+        ref_full,                 // <-- full, no ellipsis
         created_at: created,
       };
     });
@@ -95,31 +118,17 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
 /**
  * PATCH /api/admin/transactions
  * Body: { id: string, status: "approve|approved|completed|reject|rejected|failed|pending" }
- *
- * Flow (DB constraint-safe):
- *  1) Normalize status -> pending|approved|rejected.
- *  2) Load tx by id (must exist).
- *  3) Flip status FIRST (no alias in UPDATE). If no row changed, stop.
- *  4) If new status is 'approved', adjust wallet by wallet_id:
- *     +amount for deposit, -amount for withdraw.
- *     On any wallet error (incl. overdraft), revert status to the original.
  */
 export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   try {
     await requireAdmin(ctx.request, ctx.env);
 
-    // accept common id/status aliases from UI
     const body = await ctx.request.json().catch(() => ({} as any));
-    const id = String(
-      body?.id ?? body?.txId ?? body?.transactionId ?? body?.tx_id ?? ""
-    ).trim();
-    const newStatus = normalizeStatus(
-      String(body?.status ?? body?.state ?? body?.action ?? "")
-    );
+    const id = String(body?.id ?? body?.txId ?? body?.transactionId ?? body?.tx_id ?? "").trim();
+    const newStatus = normalizeStatus(String(body?.status ?? body?.state ?? body?.action ?? ""));
 
     if (!id || !newStatus) return bad("Provide id and valid status", 400);
 
-    // Load tx (need wallet_id, amount, kind, current status)
     const tx = await ctx.env.DB.prepare(
       `SELECT t.id, t.user_id, t.wallet_id, t.kind, t.amount_cents,
               COALESCE(w.currency,'USD') AS currency,
@@ -135,7 +144,6 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
     const oldStatus = String(tx.status || "").trim().toLowerCase();
     if (oldStatus === newStatus) return json({ ok: true });
 
-    // 1) Flip status FIRST to one of allowed values
     const updTx = await ctx.env.DB.prepare(
       `UPDATE txs SET status = ? WHERE id = ?`
     ).bind(newStatus, id).run();
@@ -144,20 +152,17 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
       return bad("Unable to update tx status", 409);
     }
 
-    // 2) If approving, adjust wallet; revert status on any failure
     if (newStatus === "approved") {
       const kind = String(tx.kind).toLowerCase();
       const isWithdraw = (kind === "withdraw" || kind === "withdrawal" || kind.includes("withdraw"));
       const delta = isWithdraw ? -Math.abs(tx.amount_cents) : +Math.abs(tx.amount_cents);
 
       if (delta < 0) {
-        // overdraft check
         const w = await ctx.env.DB.prepare(
           `SELECT balance_cents FROM wallets WHERE id = ? LIMIT 1`
         ).bind(tx.wallet_id).first<{ balance_cents: number }>();
         const current = Number(w?.balance_cents ?? 0);
         if (current < Math.abs(delta)) {
-          // revert to original status if insufficient funds
           await ctx.env.DB.prepare(`UPDATE txs SET status = ? WHERE id = ?`)
             .bind(oldStatus || "pending", id).run();
           return bad("Insufficient funds for withdrawal", 400);
@@ -171,7 +176,6 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
       ).bind(delta, tx.wallet_id).run();
 
       if (updWallet.meta.changes !== 1) {
-        // revert to original status if wallet update failed
         await ctx.env.DB.prepare(`UPDATE txs SET status = ? WHERE id = ?`)
           .bind(oldStatus || "pending", id).run();
         return bad("Wallet not updated", 500);
