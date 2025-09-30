@@ -82,7 +82,7 @@
     .tiny .copy-ic{margin-left:6px}
     .nowrap .copy-ic{margin-left:6px}
 
-    /* NEW: never wrap or truncate wallet address */
+    /* never wrap or truncate wallet address */
     .addr-full{
       white-space:nowrap;
       word-break:normal;
@@ -266,7 +266,7 @@
       return ms ? new Date(ms).toLocaleString() : '—';
     }
 
-    /* Copy helper (unchanged for existing buttons) */
+    /* Copy helper */
     function copyText(text){
       try{
         navigator.clipboard.writeText(String(text ?? ''));
@@ -285,6 +285,23 @@
       if(matches && matches.length) return matches[matches.length-1];
       const parts = s.split(/[\s:]+/).filter(Boolean);
       return parts.length ? parts[parts.length-1] : s;
+    }
+
+    /* NEW: Extract symbol only (e.g., BTC, USDT, ETH) from the memo prefix */
+    function extractSymbol(ref){
+      if(!ref) return '';
+      const s = String(ref).toUpperCase();
+      const head = s.split('→')[0]; // text before address
+      // Common patterns: "WITHDRAW USDT-TRC20", "DEPOSIT BTC", etc.
+      let m = head.match(/\b(?:WITHDRAW|DEPOSIT)\s+([A-Z0-9]+)(?:-[A-Z0-9]+)?/);
+      if(m && m[1]) return m[1];
+      // Fallback: pick last A-Z0-9 token (2..10 chars) in head
+      const tokens = head.split(/[^A-Z0-9]+/).filter(Boolean);
+      for(let i=tokens.length-1;i>=0;i--){
+        const tok=tokens[i];
+        if(tok.length>=2 && tok.length<=10) return tok;
+      }
+      return '';
     }
 
     /* Delegate copy for the Ref copy icons that use data-ref (safe for long strings) */
@@ -418,7 +435,8 @@
 
       const list = res.data.transactions || [];
       const rows = list.map(t=>{
-        const addr = extractAddress(t.ref||''); // show address only
+        const addr = extractAddress(t.ref||'');           // address only
+        const sym  = extractSymbol(t.ref||'');            // NEW: symbol only (e.g., BTC)
         return `
         <tr>
           <td class="mono">${t.id}</td>
@@ -427,7 +445,7 @@
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>
             <div class="row" style="gap:6px;flex-wrap:nowrap">
-              <!-- CHANGED: add addr-full to forbid wrapping -->
+              ${sym ? `<span class="mono dim">${sym}</span>` : ''}
               <div class="mono addr-full">${addr}</div>
               ${addr ? `<span class="copy-ic" title="Copy Address" data-ref="${encodeURIComponent(addr)}"></span>`:''}
             </div>
