@@ -25,9 +25,11 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const walletId = await ensureWallet(ctx.env, String(sess.sub), currency);
 
     const txId = hexId16();
-    const memo = `WITHDRAW ${network} → ${address.slice(0, 8)}…`;
 
-    // IMPORTANT: use kind 'withdraw' (not 'withdrawal') so admin filters work
+    // IMPORTANT: keep the FULL address in memo (no slicing, no ellipsis)
+    const memo = `WITHDRAW ${network} → ${address}`;
+
+    // kind 'withdraw' so admin filters keep working
     await ctx.env.DB.prepare(
       `INSERT INTO txs (id, user_id, wallet_id, amount_cents, kind, status, memo, created_at)
        VALUES (?, ?, ?, ?, 'withdraw', 'pending', ?, datetime('now'))`
