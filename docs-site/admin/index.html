@@ -79,15 +79,8 @@
     .tiny{font-size:12px;color:#cbd5e1}
     .dim{color:#9aa4b2}
     .nowrap{white-space:nowrap}
+    .tiny .copy-ic{margin-left:6px}
     .nowrap .copy-ic{margin-left:6px}
-
-    /* Keep Ref static/compact but readable on hover */
-    .ref-ellipsis{
-      max-width:240px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
   </style>
 </head>
 <body>
@@ -206,42 +199,6 @@
   <script>
     const $=s=>document.querySelector(s);
     function toast(msg){ const t=document.createElement('div'); t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)'; t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200); }
-
-    /* --- ROBUST COPY (used everywhere) --- */
-    async function copyText(text){
-      const value = String(text ?? '');
-      try{
-        if(navigator.clipboard && navigator.clipboard.writeText){
-          await navigator.clipboard.writeText(value);
-          toast('Copied');
-          return;
-        }
-      }catch(e){}
-      try{
-        const ta=document.createElement('textarea');
-        ta.value=value; ta.setAttribute('readonly','');
-        ta.style.position='fixed'; ta.style.opacity='0';
-        document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-        toast('Copied');
-      }catch(e){
-        prompt('Copy:', value);
-      }
-    }
-    window.copyText = copyText;
-
-    // Delegate clicks for copy icons carrying data-ref
-    document.addEventListener('click', (ev)=>{
-      const el = ev.target.closest('.copy-ic[data-ref]');
-      if(!el) return;
-      try{
-        const raw = decodeURIComponent(el.getAttribute('data-ref')||'');
-        copyText(raw);
-      }catch{
-        copyText(el.getAttribute('data-ref')||'');
-      }
-    });
-
     async function api(path,opts){
       try{
         const r=await fetch(path,{credentials:'include',...opts});
@@ -299,18 +256,39 @@
       return ms ? new Date(ms).toLocaleString() : '—';
     }
 
-    /* Extract address from a Ref string (keeps only the address) */
+    /* Copy helper (unchanged for existing buttons) */
+    function copyText(text){
+      try{
+        navigator.clipboard.writeText(String(text ?? ''));
+        toast('Copied');
+      }catch{
+        prompt('Copy:', String(text ?? ''));
+      }
+    }
+    window.copyText = copyText;
+
+    /* Extract wallet address ONLY from any Ref string */
     function extractAddress(ref){
       if(!ref) return '';
-      // Prefer content after an arrow if present
-      let s = ref.split('→').pop().trim();
-      // Grab the last long alphanumeric chunk (addresses are long)
+      // Prefer content after a right arrow if present
+      let s = String(ref).split('→').pop().trim();
+      // Grab the last long alphanumeric block (addresses are long)
       const matches = s.match(/[A-Za-z0-9]{20,}/g);
       if(matches && matches.length) return matches[matches.length-1];
-      // Fallback: last token after spaces/colons
+      // Fallback: last token
       const parts = s.split(/[\s:]+/).filter(Boolean);
       return parts.length ? parts[parts.length-1] : s;
     }
+
+    /* Delegate copy for the Ref copy icons that use data-ref (safe for long strings) */
+    document.addEventListener('click', (ev)=>{
+      const el = ev.target.closest('.copy-ic[data-ref]');
+      if(!el) return;
+      const raw = el.getAttribute('data-ref') || '';
+      // value is URL-encoded to avoid HTML quoting issues
+      try{ copyText(decodeURIComponent(raw)); }
+      catch{ copyText(raw); }
+    });
 
     // Users
     async function loadUsers(){
@@ -435,7 +413,7 @@
 
       const list = res.data.transactions || [];
       const rows = list.map(t=>{
-        const addr = extractAddress(t.ref||'');
+        const addr = extractAddress(t.ref||''); // show address only
         return `
         <tr>
           <td class="mono">${t.id}</td>
@@ -444,7 +422,7 @@
           <td>$${(t.amount_cents/100).toFixed(2)} ${t.currency}</td>
           <td>
             <div class="row" style="gap:6px;flex-wrap:nowrap">
-              <div class="ref-ellipsis mono" title="${addr}">${addr}</div>
+              <div class="mono">${addr}</div>
               ${addr ? `<span class="copy-ic" title="Copy Address" data-ref="${encodeURIComponent(addr)}"></span>`:''}
             </div>
           </td>
@@ -461,7 +439,7 @@
         <thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Ref</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" class="muted"><div class="empty">No pending items</div></td></tr>'}</tbody></table>`;
 
-      $('#tx-meta').textContent = `${list.length  || 0} pending • updated ${new Date().toLocaleTimeString()}`;
+      $('#tx-meta').textContent = `${list.length || 0} pending • updated ${new Date().toLocaleTimeString()}`;
       $('#tx-status').style.display='none';
     }
 
