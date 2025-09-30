@@ -1,4 +1,3 @@
-// functions/api/transactions.ts
 import { json, bad, requireAuth, type Env } from "../_utils";
 
 type TxRow = {
@@ -9,23 +8,32 @@ type TxRow = {
   amount_cents: number;
   currency: string;
   status: string;
-  ref: string | null;
-  created_at: number | string | null; // could be seconds, ms, or TEXT from D1
+  ref: string | null;                // t.memo (now full)
+  created_at: number | string | null;
 };
+
+function extractAddressFromRef(raw: string | null | undefined): string {
+  const s = String(raw || "").trim();
+  const tail = s.split("→").pop()?.trim() || s;
+  const tron = tail.match(/T[1-9A-HJ-NP-Za-km-z]{33}/g);
+  if (tron && tron.length) return tron[tron.length - 1];
+  const hex = tail.match(/0x[a-fA-F0-9]{38,}/g);
+  if (hex && hex.length) return hex[hex.length - 1];
+  const alnum = tail.match(/[A-Za-z0-9]{20,}/g);
+  if (alnum && alnum.length) return alnum[alnum.length - 1];
+  return tail;
+}
 
 export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   try {
-    // Require an authenticated user (reads session from cookie)
     const sess = await requireAuth(ctx.request, ctx.env);
 
-    // Optional: limit via ?limit=50 (caps at 200)
     const url = new URL(ctx.request.url);
     const limit = Math.min(
       Math.max(parseInt(url.searchParams.get("limit") || "50", 10) || 50, 1),
       200
     );
 
-    // Read from txs. Join wallets by wallet_id to expose currency.
     const res = await ctx.env.DB.prepare(
       `SELECT t.id, t.user_id, t.wallet_id, t.kind, t.amount_cents,
               COALESCE(w.currency, 'USD') AS currency,
@@ -42,7 +50,6 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
       .all<TxRow>();
 
     const out = (res.results || []).map((t) => {
-      // Normalize created_at → milliseconds for the dashboard UI
       let created = Number(t.created_at ?? 0);
       if (!Number.isFinite(created)) {
         const parsed = Date.parse(String(t.created_at || ""));
@@ -51,6 +58,8 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
         created *= 1000;
       }
 
+      const ref_full = extractAddressFromRef(t.ref || "");
+
       return {
         id: t.id,
         kind: t.kind,
@@ -58,6 +67,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
         currency: t.currency || "USD",
         status: t.status || "pending",
         ref: t.ref || "",
+        ref_full,                 // full address for client if needed
         created_at: created,
       };
     });
