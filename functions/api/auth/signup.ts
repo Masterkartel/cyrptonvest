@@ -11,7 +11,24 @@ import {
 } from "../../_utils";
 import { normalizeLocale, EMAIL_I18N } from "../../_i18n";
 
-type ReqBody = { email?: string; password?: string; locale?: string };
+type ReqBody = {
+  email?: string;
+  password?: string;
+  locale?: string;
+  currency?: string;
+};
+
+function normalizeCurrency(input?: string | null): string {
+  const raw = String(input || "").trim().toUpperCase();
+
+  const allowed = new Set([
+    "USD", "KES", "UGX", "TZS", "RWF", "NGN", "GHS", "ZAR",
+    "GBP", "EUR", "CNY", "JPY", "THB", "KRW", "MYR", "SGD",
+    "INR", "SAR", "AED"
+  ]);
+
+  return allowed.has(raw) ? raw : "USD";
+}
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
@@ -26,6 +43,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
     const locale = normalizeLocale(body.locale);
+    const currency = normalizeCurrency(body.currency);
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return bad("Enter a valid email address", 400);
@@ -39,7 +57,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     if (exists) return bad("Email is already registered", 409);
 
     // --- Create user ---
-    const id = randomTokenHex(16); // string id; sessions code supports string/number
+    const id = randomTokenHex(16);
     const password_hash = await hashPasswordBcrypt(password);
     const created_at = Math.floor(Date.now() / 1000);
 
@@ -50,12 +68,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .bind(id, email, password_hash, locale, created_at)
       .run();
 
+    // --- Best-effort wallet currency preference ---
+    try {
+      await env.DB.prepare(
+        `INSERT INTO wallets (user_id, balance_cents, currency)
+         VALUES (?, 0, ?)
+         ON CONFLICT(user_id) DO UPDATE SET currency = excluded.currency`
+      )
+        .bind(id, currency)
+        .run();
+    } catch (e) {
+      console.warn("wallet preference save failed:", e);
+    }
+
     // --- Create session + Set-Cookie ---
     const role: "user" | "admin" =
       env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
 
-    const res = json({ ok: true, user: { id, email, role, locale } }, 200);
-    // setCookie overload: (res, env, session, reqOrUrl?)
+    const res = json({ ok: true, user: { id, email, role, locale, currency } }, 200);
     await setCookie(res, env, { sub: id, email, role }, request);
 
     // --- Send welcome email (best-effort) ---
@@ -97,7 +127,6 @@ linear-gradient(180deg,#101934,#0c1226);border:1px solid #27335a;border-radius:1
 </table></td></tr></table></body></html>`;
       await sendEmail(env, email, t.welcomeSubject, html);
     } catch (e) {
-      // Non-fatal; just log
       console.warn("signup email failed:", e);
     }
 
