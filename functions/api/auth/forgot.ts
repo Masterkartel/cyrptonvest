@@ -2,28 +2,42 @@
 import {
   json, bad, db, getUserByEmail, sendEmail, randomTokenHex, type Env,
 } from "../../_utils";
+import { normalizeLocale, EMAIL_I18N } from "../../_i18n";
+
+type ReqBody = {
+  email?: string;
+  locale?: string;
+  currency?: string;
+};
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const { request, env } = ctx;
-    const { email } = await request.json().catch(() => ({}));
-    if (!email || typeof email !== "string") return bad("Email required", 400);
+    const body = await request.json().catch(() => ({} as ReqBody));
+
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email) return bad("Email required", 400);
 
     const user = await getUserByEmail(env, email);
-    // Always act the same regardless of existence (no user enumeration)
+
+    // Use saved user locale first, fallback to frontend locale
+    const locale = normalizeLocale(user?.locale || body.locale);
+    const t = EMAIL_I18N[locale];
+
+    // Always act the same regardless of existence
     const token = randomTokenHex(32);
     const now = Date.now();
     const expires = now + 1000 * 60 * 30; // 30 minutes
 
     await db(env)
       .prepare("INSERT INTO reset_tokens (email, token, expires_at, created_at) VALUES (?, ?, ?, ?)")
-      .bind(email.toLowerCase(), token, expires, now)
+      .bind(email, token, expires, now)
       .run()
       .catch(() => {});
 
     const base = (env as any).WEB_BASE_URL?.replace(/\/+$/, "") || new URL(request.url).origin;
     const link = `${base}/reset.html?token=${encodeURIComponent(token)}`;
-    const first = (user?.name || email.split("@")[0] || "there");
+    const first = (email.split("@")[0] || "there");
 
     const html = `
     <!doctype html><html><head>
@@ -40,11 +54,11 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
           <td style="font-weight:800;font-size:16px;color:#e6edf3">
             <img src="${base}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
           </td>
-          <td align="right" style="color:#9aa4b2;font-size:12px">Password reset</td>
+          <td align="right" style="color:#9aa4b2;font-size:12px">${t.resetSubject}</td>
         </tr></table>
       </td></tr>
       <tr><td style="padding:22px">
-        <h2 style="margin:0 0 8px">Reset your password</h2>
+        <h2 style="margin:0 0 8px">${t.resetSubject}</h2>
         <p style="margin:0 0 12px;color:#cbd5e1">Hi ${first}, tap the button below to set a new password. This link expires in 30 minutes.</p>
         <a href="${link}" style="display:inline-block;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827;font-weight:800;padding:12px 16px;border-radius:999px">Reset password</a>
         <div style="border:1px solid #1d2640;background:#0f1629;border-radius:12px;padding:12px;margin-top:12px;color:#cbd5e1">
@@ -56,7 +70,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       <tr><td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">© ${new Date().getFullYear()} Cyrptonvest. All rights reserved.</td></tr>
     </table></td></tr></table></body></html>`;
 
-    await sendEmail(env, email, "Reset your Cyrptonvest password", html);
+    await sendEmail(env, email, t.resetSubject, html);
 
     return json({ ok: true, message: "If that account exists, a reset link has been sent." });
   } catch {
