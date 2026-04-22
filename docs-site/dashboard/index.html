@@ -136,17 +136,17 @@
   <header class="topbar">
     <div class="brand"><img src="/assets/logo.svg" alt="logo"> Cyrptonvest</div>
     <div style="display:flex;align-items:center;gap:10px;position:relative">
-      <div class="pill">UTC <span id="clock" style="margin-left:6px">--:--:--</span></div>
+      <div class="pill"><span id="utc-label">UTC</span> <span id="clock" style="margin-left:6px">--:--:--</span></div>
       <div class="pill" id="fx-pill">FX: USD</div>
       <div id="avatar" class="avatar" title="Menu">?</div>
       <nav id="dropdown" class="dropdown">
         <div class="hd" id="dd-email">—</div>
-        <a href="#overview" data-nav>Overview</a>
-        <a href="#wallet" data-nav>Wallet</a>
-        <a href="#plans" data-nav>Plans</a>
-        <a href="#history" data-nav>Transactions</a>
-        <a href="#settings" data-nav>Settings</a>
-        <a href="#support" data-nav>Support</a>
+        <a href="#overview" data-nav id="nav-overview">Overview</a>
+        <a href="#wallet" data-nav id="nav-wallet">Wallet</a>
+        <a href="#plans" data-nav id="nav-plans">Plans</a>
+        <a href="#history" data-nav id="nav-history">Transactions</a>
+        <a href="#settings" data-nav id="nav-settings">Settings</a>
+        <a href="#support" data-nav id="nav-support">Support</a>
         <a href="#" id="menu-logout">Log out</a>
       </nav>
     </div>
@@ -177,17 +177,17 @@
   <section id="hero-wrap" class="section">
     <div class="card hero">
       <button class="hero-x" aria-label="Dismiss" onclick="dismissHero()">✕</button>
-      <h1>
+      <h1 id="hero-title">
         AI-powered trading. Smart bots. Real results.
-        <span class="chip">🤖 AI Bots</span>
-        <span class="chip">📊 Auto-Execution</span>
-        <span class="chip">⚙️ 24/7</span>
+        <span class="chip" id="hero-chip-1">🤖 AI Bots</span>
+        <span class="chip" id="hero-chip-2">📊 Auto-Execution</span>
+        <span class="chip" id="hero-chip-3">⚙️ 24/7</span>
       </h1>
-      <p class="muted"><strong>Cyrptonvest</strong> uses algorithmic strategies and automated trade execution
+      <p class="muted" id="hero-sub"><strong>Cyrptonvest</strong> uses algorithmic strategies and automated trade execution
         to work the markets 24/7. Choose a plan, deposit crypto, and let our bots go to work.
         Track your growth in real time and withdraw securely once your plan completes.</p>
       <div class="hero-actions">
-        <button class="btn" onclick="startInvesting()">Start Investing</button>
+        <button class="btn" id="hero-start-btn" onclick="startInvesting()">Start Investing</button>
       </div>
       <p class="muted" id="fx-note" style="margin:10px 0 0;font-size:12px">Using live FX rates when available.</p>
     </div>
@@ -207,7 +207,7 @@
             <div class="kpi" style="grid-column:1/-1">
               <div class="wallet-icon">💼</div>
               <div>
-                <div class="muted">Total assets</div>
+                <div class="muted" id="wallet-total-assets-label">Total assets</div>
                 <div id="total-assets" style="font-size:28px;font-weight:800">$0.00 <span class="muted" style="font-size:14px">USD</span></div>
               </div>
             </div>
@@ -215,7 +215,7 @@
         </div>
 
         <div id="panel-deposit" class="panel" style="display:none">
-          <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
+          <p class="muted" id="deposit-intro" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
           <div class="addr-group">
             <div class="addr-line">
               <span class="chip">BTC</span>
@@ -249,7 +249,7 @@
           <div style="height:10px"></div>
           <div class="row">
             <div>
-              <label class="muted">TXID / Hash <span style="color:#ef4444">*</span></label>
+              <label class="muted" id="dep-txid-label">TXID / Hash <span style="color:#ef4444">*</span></label>
               <input id="dep-txid" placeholder="Paste TXID here"/>
               <div id="dep-warn" class="field-warn" style="display:none">Enter BOTH TXID and Amount.</div>
             </div>
@@ -260,13 +260,13 @@
             </div>
           </div>
           <div style="height:10px"></div>
-          <button class="btn" onclick="submitDeposit()">I sent funds</button>
-          <p class="muted" style="font-size:12px;margin-top:6px">We credit after network confirmations and review.</p>
+          <button class="btn" id="deposit-submit-btn" onclick="submitDeposit()">I sent funds</button>
+          <p class="muted" id="deposit-review-note" style="font-size:12px;margin-top:6px">We credit after network confirmations and review.</p>
         </div>
 
         <div id="panel-withdraw" class="panel" style="display:none">
           <div class="row">
-            <div><div class="muted">Balance</div><div id="wd-balance" style="font-weight:800;font-size:20px">$0.00 USD</div></div>
+            <div><div class="muted" id="withdraw-balance-label">Balance</div><div id="wd-balance" style="font-weight:800;font-size:20px">$0.00 USD</div></div>
             <div>
               <label class="muted" id="wd-amount-label">Amount</label>
               <input id="wd-amount" type="number" step="0.01" placeholder="50.00"/>
@@ -277,31 +277,31 @@
 
           <div style="display:grid;gap:10px">
             <div>
-              <label class="muted">BTC address</label>
+              <label class="muted" id="wd-btc-label">BTC address</label>
               <div class="addr-line">
                 <input id="wd-btc-addr" placeholder="Enter your BTC address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
-              <button class="btn" onclick="submitWithdrawal('BTC','#wd-btc-addr')">Request BTC withdrawal</button>
+              <button class="btn" id="wd-btc-btn" onclick="submitWithdrawal('BTC','#wd-btc-addr')">Request BTC withdrawal</button>
             </div>
             <div>
-              <label class="muted">USDT-TRC20 address</label>
+              <label class="muted" id="wd-trc-label">USDT-TRC20 address</label>
               <div class="addr-line">
                 <input id="wd-trc-addr" placeholder="Enter your TRC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
-              <button class="btn" onclick="submitWithdrawal('USDT-TRC20','#wd-trc-addr')">Request USDT-TRC20 withdrawal</button>
+              <button class="btn" id="wd-trc-btn" onclick="submitWithdrawal('USDT-TRC20','#wd-trc-addr')">Request USDT-TRC20 withdrawal</button>
             </div>
             <div>
-              <label class="muted">ETH-ERC20 address</label>
+              <label class="muted" id="wd-eth-label">ETH-ERC20 address</label>
               <div class="addr-line">
                 <input id="wd-eth-addr" placeholder="Enter your ERC20 address" style="border:none;background:transparent;padding:0 4px;width:100%;color:var(--text);font-size:13px">
               </div>
               <div style="height:8px"></div>
-              <button class="btn" onclick="submitWithdrawal('ETH-ERC20','#wd-eth-addr')">Request ETH-ERC20 withdrawal</button>
+              <button class="btn" id="wd-eth-btn" onclick="submitWithdrawal('ETH-ERC20','#wd-eth-addr')">Request ETH-ERC20 withdrawal</button>
             </div>
           </div>
-          <p class="muted" style="font-size:12px;margin:10px 0 0"><strong style="color:var(--warn)">⚠ Confirm the destination address carefully.</strong> Blockchain transactions are irreversible once sent.</p>
+          <p class="muted" id="withdraw-warning" style="font-size:12px;margin:10px 0 0"><strong style="color:var(--warn)">⚠ Confirm the destination address carefully.</strong> Blockchain transactions are irreversible once sent.</p>
         </div>
       </div>
     </section>
@@ -320,17 +320,17 @@
 
     <section id="section-settings" class="section hidden">
       <div class="card">
-        <h2>Settings</h2>
-        <p class="muted">Manage your account.</p>
+        <h2 id="settings-title">Settings</h2>
+        <p class="muted" id="settings-sub">Manage your account.</p>
 
         <div class="row">
           <div>
-            <label class="muted">Email</label>
+            <label class="muted" id="settings-email-label">Email</label>
             <input id="set-email" value="" readonly>
-            <div class="field-warn">Email is read-only. Contact support to change it.</div>
+            <div class="field-warn" id="settings-email-note">Email is read-only. Contact support to change it.</div>
           </div>
           <div>
-            <label class="muted">Password</label>
+            <label class="muted" id="settings-password-label">Password</label>
             <input value="********" readonly>
           </div>
         </div>
@@ -344,12 +344,12 @@
 
     <section id="section-support" class="section hidden">
       <div class="card">
-        <h2>Support</h2>
-        <p class="muted">We’re here to help. Reach us anytime.</p>
+        <h2 id="support-title">Support</h2>
+        <p class="muted" id="support-sub">We’re here to help. Reach us anytime.</p>
         <div class="panel">
-          <p>Email: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p>
-          <p>For password issues, use <a href="/forgot.html">Forgot Password</a>.</p>
-          <p>Include your registered email and any relevant TXIDs when contacting us.</p>
+          <p id="support-email-row">Email: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p>
+          <p id="support-forgot-row">For password issues, use <a href="/forgot.html">Forgot Password</a>.</p>
+          <p id="support-txid-row">Include your registered email and any relevant TXIDs when contacting us.</p>
           <p style="margin-top:8px">
             <a href="https://wa.me/15053634200" target="_blank" rel="noopener"
                aria-label="WhatsApp chat +1 (505) 363-4200"
@@ -392,10 +392,381 @@
   <script>
     const $ = (s)=>document.querySelector(s);
 
+    const DASH_I18N = {
+      en: {
+        pageTitle: "Dashboard — Cyrptonvest",
+        metaDescription: "Cyrptonvest dashboard: wallet, deposits, withdrawals, plans, and transactions.",
+        utc: "UTC",
+        fx: "FX",
+        notSignedIn: "(not signed in)",
+
+        navOverview: "Overview",
+        navWallet: "Wallet",
+        navPlans: "Plans",
+        navHistory: "Transactions",
+        navSettings: "Settings",
+        navSupport: "Support",
+        logout: "Log out",
+
+        heroTitle: "AI-powered trading. Smart bots. Real results.",
+        heroChip1: "🤖 AI Bots",
+        heroChip2: "📊 Auto-Execution",
+        heroChip3: "⚙️ 24/7",
+        heroSub: "Cyrptonvest uses algorithmic strategies and automated trade execution to work the markets 24/7. Choose a plan, deposit crypto, and let our bots go to work. Track your growth in real time and withdraw securely once your plan completes.",
+        heroStart: "Start Investing",
+        dismiss: "Dismiss",
+
+        wallet: "Wallet",
+        deposit: "Deposit",
+        withdraw: "Withdraw",
+        totalAssets: "Total assets",
+        amount: "Amount",
+        balance: "Balance",
+
+        depositIntro: "Send funds to one of the addresses below, then submit your TXID and amount.",
+        txidLabel: "TXID / Hash",
+        txidPlaceholder: "Paste TXID here",
+        depositButton: "I sent funds",
+        depositReview: "We credit after network confirmations and review.",
+        depWarnBoth: "Enter BOTH TXID and Amount.",
+
+        btcAddress: "BTC address",
+        trcAddress: "USDT-TRC20 address",
+        ethAddress: "ETH-ERC20 address",
+        btcAddressPlaceholder: "Enter your BTC address",
+        trcAddressPlaceholder: "Enter your TRC20 address",
+        ethAddressPlaceholder: "Enter your ERC20 address",
+        requestBtc: "Request BTC withdrawal",
+        requestTrc: "Request USDT-TRC20 withdrawal",
+        requestEth: "Request ETH-ERC20 withdrawal",
+        withdrawWarningStrong: "⚠ Confirm the destination address carefully.",
+        withdrawWarningRest: "Blockchain transactions are irreversible once sent.",
+
+        plans: "Plans",
+        transactions: "Transactions",
+        loading: "Loading…",
+
+        settingsTitle: "Settings",
+        settingsSub: "Manage your account.",
+        email: "Email",
+        password: "Password",
+        emailReadonly: "Email is read-only. Contact support to change it.",
+        resetPassword: "Reset password",
+
+        supportTitle: "Support",
+        supportSub: "We’re here to help. Reach us anytime.",
+        supportEmailPrefix: "Email:",
+        supportForgot: "For password issues, use Forgot Password.",
+        supportTxids: "Include your registered email and any relevant TXIDs when contacting us.",
+
+        qrAddress: "Address",
+        qrBtc: "Bitcoin (BTC)",
+        qrTrc: "USDT — TRC20",
+        qrEth: "Ethereum (ERC20)",
+
+        fxLive: "Using live FX rates ({date}). Dashboard displays in {currency}, while account values stay in USD internally.",
+        fxCache: "Using cached FX rates. Dashboard displays in {currency}, while account values stay in USD internally.",
+        fxFallback: "Using fallback FX rates. Dashboard displays in {currency}, while account values stay in USD internally.",
+        depHelp: "You enter {currency}. We convert it to USD internally when submitting.",
+        wdHelp: "You enter {currency}. We convert it to USD internally when submitting.",
+
+        enterAmountIn: "Enter an amount in {currency}",
+        notNumber: "Not a number",
+        minimumIs: "Minimum is {amount} (≈ ${usd} USD)",
+        maximumIs: "Maximum is {amount} (≈ ${usd} USD)",
+
+        addressNotAvailable: "Address not available",
+        addressCopied: "Address copied",
+        copyManually: "Copy manually:",
+
+        depositSubmitted: "Deposit submitted ({local} ≈ ${usd} USD)",
+        failedSubmit: "Failed to submit",
+        networkError: "Network error",
+
+        enterWithdrawalAmount: "Enter withdrawal amount in {currency}",
+        enterAddress: "Enter {network} address",
+        withdrawalRequested: "Withdrawal requested ({local} ≈ ${usd} USD)",
+        failedRequest: "Failed to request",
+
+        time: "Time",
+        type: "Type",
+        amountHead: "Amount",
+        status: "Status",
+        ref: "Ref",
+        noTransactions: "No transactions yet",
+        failedTransactions: "Failed to load transactions",
+
+        debit: "Debit",
+        credit: "Credit",
+        withdrawal: "Withdrawal",
+        depositRef: "Deposit",
+
+        starter: "Starter",
+        growth: "Growth",
+        professional: "Professional",
+        range: "Range",
+        profit: "Profit",
+        inHours: "in {hours}h",
+        enterAmountLabel: "Enter amount ({currency})",
+        estimatedReturn: "Estimated return",
+        total: "total",
+        profitWord: "profit",
+        approxTotal: "≈ ${usd} total",
+        start: "Start",
+
+        ifAccountExists: "If that account exists, a reset link has been sent."
+      },
+
+      sw: {
+        pageTitle: "Dashibodi — Cyrptonvest",
+        metaDescription: "Dashibodi ya Cyrptonvest: wallet, uwekaji pesa, utoaji pesa, mipango, na miamala.",
+        utc: "UTC",
+        fx: "FX",
+        notSignedIn: "(hujaingia)",
+
+        navOverview: "Muhtasari",
+        navWallet: "Wallet",
+        navPlans: "Mipango",
+        navHistory: "Miamala",
+        navSettings: "Mipangilio",
+        navSupport: "Msaada",
+        logout: "Toka",
+
+        heroTitle: "Biashara kwa AI. Bots mahiri. Matokeo halisi.",
+        heroChip1: "🤖 AI Bots",
+        heroChip2: "📊 Utekelezaji wa Kiotomatiki",
+        heroChip3: "⚙️ Saa 24/7",
+        heroSub: "Cyrptonvest hutumia mikakati ya algorithimu na utekelezaji wa biashara kiotomatiki kufanya kazi sokoni saa 24/7. Chagua mpango, weka crypto, na uache bots zetu zifanye kazi. Fuatilia ukuaji wako kwa wakati halisi na utoe fedha kwa usalama baada ya mpango wako kukamilika.",
+        heroStart: "Anza Kuwekeza",
+        dismiss: "Funga",
+
+        wallet: "Wallet",
+        deposit: "Weka pesa",
+        withdraw: "Toa pesa",
+        totalAssets: "Jumla ya mali",
+        amount: "Kiasi",
+        balance: "Salio",
+
+        depositIntro: "Tuma fedha kwa mojawapo ya anwani zilizo hapa chini, kisha tuma TXID na kiasi chako.",
+        txidLabel: "TXID / Hash",
+        txidPlaceholder: "Bandika TXID hapa",
+        depositButton: "Nimetuma fedha",
+        depositReview: "Tunaweka salio baada ya uthibitisho wa mtandao na ukaguzi.",
+        depWarnBoth: "Weka TXID na Kiasi vyote viwili.",
+
+        btcAddress: "Anwani ya BTC",
+        trcAddress: "Anwani ya USDT-TRC20",
+        ethAddress: "Anwani ya ETH-ERC20",
+        btcAddressPlaceholder: "Weka anwani yako ya BTC",
+        trcAddressPlaceholder: "Weka anwani yako ya TRC20",
+        ethAddressPlaceholder: "Weka anwani yako ya ERC20",
+        requestBtc: "Omba utoaji wa BTC",
+        requestTrc: "Omba utoaji wa USDT-TRC20",
+        requestEth: "Omba utoaji wa ETH-ERC20",
+        withdrawWarningStrong: "⚠ Hakikisha anwani ya mwisho kwa makini.",
+        withdrawWarningRest: "Miamala ya blockchain haiwezi kurudishwa baada ya kutumwa.",
+
+        plans: "Mipango",
+        transactions: "Miamala",
+        loading: "Inapakia…",
+
+        settingsTitle: "Mipangilio",
+        settingsSub: "Dhibiti akaunti yako.",
+        email: "Barua pepe",
+        password: "Nenosiri",
+        emailReadonly: "Barua pepe haiwezi kubadilishwa hapa. Wasiliana na msaada kuibadilisha.",
+        resetPassword: "Weka upya nenosiri",
+
+        supportTitle: "Msaada",
+        supportSub: "Tuko hapa kusaidia. Tufikie wakati wowote.",
+        supportEmailPrefix: "Barua pepe:",
+        supportForgot: "Kwa matatizo ya nenosiri, tumia Forgot Password.",
+        supportTxids: "Jumuisha barua pepe yako iliyosajiliwa na TXID zozote muhimu unapowasiliana nasi.",
+
+        qrAddress: "Anwani",
+        qrBtc: "Bitcoin (BTC)",
+        qrTrc: "USDT — TRC20",
+        qrEth: "Ethereum (ERC20)",
+
+        fxLive: "Inatumia viwango vya kubadilisha fedha vya moja kwa moja ({date}). Dashibodi inaonyesha kwa {currency}, huku thamani za akaunti zikibaki USD ndani.",
+        fxCache: "Inatumia viwango vya kubadilisha fedha vilivyohifadhiwa. Dashibodi inaonyesha kwa {currency}, huku thamani za akaunti zikibaki USD ndani.",
+        fxFallback: "Inatumia viwango vya kubadilisha fedha vya akiba. Dashibodi inaonyesha kwa {currency}, huku thamani za akaunti zikibaki USD ndani.",
+        depHelp: "Unaingiza kwa {currency}. Tunabadilisha kwenda USD ndani wakati wa kutuma.",
+        wdHelp: "Unaingiza kwa {currency}. Tunabadilisha kwenda USD ndani wakati wa kutuma.",
+
+        enterAmountIn: "Weka kiasi kwa {currency}",
+        notNumber: "Siyo namba",
+        minimumIs: "Kiwango cha chini ni {amount} (≈ ${usd} USD)",
+        maximumIs: "Kiwango cha juu ni {amount} (≈ ${usd} USD)",
+
+        addressNotAvailable: "Anwani haipatikani",
+        addressCopied: "Anwani imenakiliwa",
+        copyManually: "Nakili mwenyewe:",
+
+        depositSubmitted: "Uwekaji umewasilishwa ({local} ≈ ${usd} USD)",
+        failedSubmit: "Imeshindikana kuwasilisha",
+        networkError: "Hitilafu ya mtandao",
+
+        enterWithdrawalAmount: "Weka kiasi cha kutoa kwa {currency}",
+        enterAddress: "Weka anwani ya {network}",
+        withdrawalRequested: "Ombi la utoaji limetumwa ({local} ≈ ${usd} USD)",
+        failedRequest: "Imeshindikana kutuma ombi",
+
+        time: "Muda",
+        type: "Aina",
+        amountHead: "Kiasi",
+        status: "Hali",
+        ref: "Rejea",
+        noTransactions: "Hakuna miamala bado",
+        failedTransactions: "Imeshindikana kupakia miamala",
+
+        debit: "Kutoka",
+        credit: "Kuingia",
+        withdrawal: "Utoaji",
+        depositRef: "Uwekaji",
+
+        starter: "Starter",
+        growth: "Growth",
+        professional: "Professional",
+        range: "Kiwango",
+        profit: "Faida",
+        inHours: "ndani ya saa {hours}",
+        enterAmountLabel: "Weka kiasi ({currency})",
+        estimatedReturn: "Makadirio ya kurejea",
+        total: "jumla",
+        profitWord: "faida",
+        approxTotal: "≈ ${usd} jumla",
+        start: "Anza",
+
+        ifAccountExists: "Ikiwa akaunti hiyo ipo, kiungo cha kuweka upya kimetumwa."
+      }
+    };
+
+    function getLocale(){
+      try {
+        return localStorage.getItem('cv_locale') || 'en';
+      } catch {
+        return 'en';
+      }
+    }
+
+    function getText(){
+      const locale = getLocale();
+      return DASH_I18N[locale] || DASH_I18N.en;
+    }
+
+    function fmt(text, vars = {}){
+      return String(text).replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? '');
+    }
+
+    function escapeHtml(value){
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function setText(id, text){
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+
+    function setHtml(id, html){
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    }
+
+    function applyDashboardStaticText(){
+      const t = getText();
+
+      document.documentElement.lang = getLocale();
+      document.title = t.pageTitle;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute('content', t.metaDescription);
+
+      setText('utc-label', t.utc);
+      setText('nav-overview', t.navOverview);
+      setText('nav-wallet', t.navWallet);
+      setText('nav-plans', t.navPlans);
+      setText('nav-history', t.navHistory);
+      setText('nav-settings', t.navSettings);
+      setText('nav-support', t.navSupport);
+      setText('menu-logout', t.logout);
+      setText('btn-logout-2', t.logout);
+
+      const heroTitle = document.getElementById('hero-title');
+      if (heroTitle) {
+        heroTitle.childNodes[0].nodeValue = t.heroTitle + ' ';
+      }
+      setText('hero-chip-1', t.heroChip1);
+      setText('hero-chip-2', t.heroChip2);
+      setText('hero-chip-3', t.heroChip3);
+      setText('hero-start-btn', t.heroStart);
+
+      const heroX = document.querySelector('.hero-x');
+      if (heroX) heroX.setAttribute('aria-label', t.dismiss);
+
+      setHtml('hero-sub', `<strong>Cyrptonvest</strong> ${escapeHtml(t.heroSub).replace(/^Cyrptonvest\s*/, '')}`);
+
+      setText('tab-wallet', t.wallet);
+      setText('tab-dep', t.deposit);
+      setText('tab-wd', t.withdraw);
+
+      setText('wallet-total-assets-label', t.totalAssets);
+
+      setText('deposit-intro', t.depositIntro);
+      setHtml('dep-txid-label', `${escapeHtml(t.txidLabel)} <span style="color:#ef4444">*</span>`);
+      const depTx = document.getElementById('dep-txid');
+      if (depTx) depTx.placeholder = t.txidPlaceholder;
+      setText('dep-warn', t.depWarnBoth);
+      setText('deposit-submit-btn', t.depositButton);
+      setText('deposit-review-note', t.depositReview);
+
+      setText('withdraw-balance-label', t.balance);
+      setText('wd-btc-label', t.btcAddress);
+      setText('wd-trc-label', t.trcAddress);
+      setText('wd-eth-label', t.ethAddress);
+
+      const wdBtc = document.getElementById('wd-btc-addr');
+      const wdTrc = document.getElementById('wd-trc-addr');
+      const wdEth = document.getElementById('wd-eth-addr');
+      if (wdBtc) wdBtc.placeholder = t.btcAddressPlaceholder;
+      if (wdTrc) wdTrc.placeholder = t.trcAddressPlaceholder;
+      if (wdEth) wdEth.placeholder = t.ethAddressPlaceholder;
+
+      setText('wd-btc-btn', t.requestBtc);
+      setText('wd-trc-btn', t.requestTrc);
+      setText('wd-eth-btn', t.requestEth);
+      setHtml('withdraw-warning', `<strong style="color:var(--warn)">${escapeHtml(t.withdrawWarningStrong)}</strong> ${escapeHtml(t.withdrawWarningRest)}`);
+
+      setText('btn-tab-plans', t.plans);
+      setText('btn-tab-tx', t.transactions);
+      setText('tx-table', t.loading);
+
+      setText('settings-title', t.settingsTitle);
+      setText('settings-sub', t.settingsSub);
+      setText('settings-email-label', t.email);
+      setText('settings-password-label', t.password);
+      setText('settings-email-note', t.emailReadonly);
+      setText('btn-reset-pw', t.resetPassword);
+
+      setText('support-title', t.supportTitle);
+      setText('support-sub', t.supportSub);
+      setHtml('support-email-row', `${escapeHtml(t.supportEmailPrefix)} <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a>`);
+      setHtml('support-forgot-row', `${escapeHtml(t.supportForgot).replace('Forgot Password', '<a href="/forgot.html">Forgot Password</a>')}`);
+      setText('support-txid-row', t.supportTxids);
+
+      setText('qr-title', t.qrAddress);
+    }
+
     function toast(msg){
       const t=document.createElement('div');
       t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)';
-      t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200);
+      t.textContent=msg;
+      $('#toasts').appendChild(t);
+      setTimeout(()=>t.remove(),3200);
     }
 
     async function api(path, opts){
@@ -501,18 +872,21 @@
     }
 
     function updateFxUi(){
+      const t = getText();
       const pref = getPreferredCurrency();
-      $('#fx-pill').textContent = `FX: ${pref}`;
+
+      $('#fx-pill').textContent = `${t.fx}: ${pref}`;
       $('#fx-note').textContent =
         LIVE_RATES_SOURCE === "live"
-          ? `Using live FX rates (${LIVE_RATES_DATE || "latest"}). Dashboard displays in ${pref}, while account values stay in USD internally.`
+          ? fmt(t.fxLive, { date: LIVE_RATES_DATE || "latest", currency: pref })
           : LIVE_RATES_SOURCE === "cache"
-          ? `Using cached FX rates. Dashboard displays in ${pref}, while account values stay in USD internally.`
-          : `Using fallback FX rates. Dashboard displays in ${pref}, while account values stay in USD internally.`;
-      $('#dep-amount-label').textContent = `Amount (${pref})`;
-      $('#wd-amount-label').textContent = `Amount (${pref})`;
-      $('#dep-help').textContent = `You enter ${pref}. We convert it to USD internally when submitting.`;
-      $('#wd-help').textContent = `You enter ${pref}. We convert it to USD internally when submitting.`;
+          ? fmt(t.fxCache, { currency: pref })
+          : fmt(t.fxFallback, { currency: pref });
+
+      $('#dep-amount-label').textContent = `${t.amount} (${pref})`;
+      $('#wd-amount-label').textContent = `${t.amount} (${pref})`;
+      $('#dep-help').textContent = fmt(t.depHelp, { currency: pref });
+      $('#wd-help').textContent = fmt(t.wdHelp, { currency: pref });
     }
 
     async function ensureAuth(){
@@ -521,7 +895,7 @@
         SESSION = me.user || null;
         const email = (SESSION && SESSION.email) ? SESSION.email : '';
         $('#avatar').textContent = (email ? email[0] : '?').toUpperCase();
-        $('#dd-email').textContent = email || '(not signed in)';
+        $('#dd-email').textContent = email || getText().notSignedIn;
         $('#set-email') && ($('#set-email').value = email || '');
         return true;
       }catch(e){
@@ -530,24 +904,49 @@
       }
     }
 
-    function startInvesting(){ switchTop('deposit'); document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'}); }
-    function dismissHero(){ const el = $('#hero-wrap'); if(el) el.style.display = 'none'; }
+    function startInvesting(){
+      switchTop('deposit');
+      document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    function dismissHero(){
+      const el = $('#hero-wrap');
+      if(el) el.style.display = 'none';
+    }
 
     document.addEventListener('click',(e)=>{
-      const dd = $('#dropdown'); const av = $('#avatar');
-      if(av.contains(e.target)){ dd.classList.toggle('show'); return; }
+      const dd = $('#dropdown');
+      const av = $('#avatar');
+      if(av.contains(e.target)){
+        dd.classList.toggle('show');
+        return;
+      }
       if(!dd.contains(e.target)) dd.classList.remove('show');
     });
 
     document.querySelectorAll('[data-nav]').forEach(a=>{
-      a.addEventListener('click',(e)=>{ e.preventDefault(); const href=a.getAttribute('href'); location.hash=href; $('#dropdown').classList.remove('show'); });
+      a.addEventListener('click',(e)=>{
+        e.preventDefault();
+        const href=a.getAttribute('href');
+        location.hash=href;
+        $('#dropdown').classList.remove('show');
+      });
     });
 
-    $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
-    $('#btn-logout-2')?.addEventListener('click', async ()=>{ await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
+    $('#menu-logout')?.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      await fetch('/api/auth/logout',{method:'POST'});
+      location.href='/';
+    });
+
+    $('#btn-logout-2')?.addEventListener('click', async ()=>{
+      await fetch('/api/auth/logout',{method:'POST'});
+      location.href='/';
+    });
 
     const topPanels = { wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw' };
     const topTabs   = { wallet:'#tab-wallet',   deposit:'#tab-dep',      withdraw:'#tab-wd' };
+
     function switchTop(which){
       Object.keys(topPanels).forEach(k=>{
         document.querySelector(topPanels[k]).style.display = (k===which)?'block':'none';
@@ -558,17 +957,20 @@
     function initBottomTabs(){
       const btnPlans = $('#btn-tab-plans');
       const btnTx    = $('#btn-tab-tx');
+
       function setTab(which){
         btnPlans.classList.toggle('active', which==='plans');
         btnTx.classList.toggle('active', which==='tx');
         $('#panel-plans').classList.toggle('active', which==='plans');
         $('#panel-tx').classList.toggle('active', which==='tx');
       }
+
       btnPlans.addEventListener('click', ()=>setTab('plans'));
       btnTx.addEventListener('click', ()=>setTab('tx'));
     }
 
     function attachCalcSoft(id, rate, min, max){
+      const t = getText();
       const amt = $('#'+id+'-amt');
       const warn = $('#'+id+'-warn');
       const out  = $('#'+id+'-out');
@@ -582,10 +984,30 @@
         const localV = parseFloat(raw);
         const usdV = toUsd(localV, pref);
 
-        if(!raw){ warn.textContent=`Enter an amount in ${pref}`; warn.style.display='block'; out.textContent='—'; return; }
-        if(isNaN(localV)){ warn.textContent='Not a number'; warn.style.display='block'; out.textContent='—'; return; }
-        if(usdV<min){ warn.textContent=`Minimum is ${formatMoney(minLocal, pref)} (≈ $${min.toFixed(2)} USD)`; warn.style.display='block'; out.textContent='—'; return; }
-        if(usdV>max){ warn.textContent=`Maximum is ${formatMoney(maxLocal, pref)} (≈ $${max.toFixed(2)} USD)`; warn.style.display='block'; out.textContent='—'; return; }
+        if(!raw){
+          warn.textContent = fmt(t.enterAmountIn, { currency: pref });
+          warn.style.display='block';
+          out.textContent='—';
+          return;
+        }
+        if(isNaN(localV)){
+          warn.textContent=t.notNumber;
+          warn.style.display='block';
+          out.textContent='—';
+          return;
+        }
+        if(usdV<min){
+          warn.textContent=fmt(t.minimumIs, { amount: formatMoney(minLocal, pref), usd: min.toFixed(2) });
+          warn.style.display='block';
+          out.textContent='—';
+          return;
+        }
+        if(usdV>max){
+          warn.textContent=fmt(t.maximumIs, { amount: formatMoney(maxLocal, pref), usd: max.toFixed(2) });
+          warn.style.display='block';
+          out.textContent='—';
+          return;
+        }
 
         warn.style.display='none';
         const profitUsd = usdV * rate;
@@ -594,16 +1016,18 @@
         const totalLocal = usdTo(pref, totalUsd);
 
         out.innerHTML = `
-          <div style="font-weight:800">${formatMoney(totalLocal, pref)} total</div>
-          <div><span style="color:var(--ok)">${formatMoney(profitLocal, pref)}</span> profit</div>
-          <div class="muted" style="font-size:12px">≈ $${totalUsd.toFixed(2)} total</div>
+          <div style="font-weight:800">${formatMoney(totalLocal, pref)} ${escapeHtml(t.total)}</div>
+          <div><span style="color:var(--ok)">${formatMoney(profitLocal, pref)}</span> ${escapeHtml(t.profitWord)}</div>
+          <div class="muted" style="font-size:12px">${escapeHtml(fmt(t.approxTotal, { usd: totalUsd.toFixed(2) }))}</div>
         `;
       };
+
       amt?.addEventListener('input', update);
       update();
     }
 
     function startPlan(id, min, max){
+      const t = getText();
       const input = $('#'+id+'-amt');
       const warn  = $('#'+id+'-warn');
       const pref = getPreferredCurrency();
@@ -614,11 +1038,14 @@
         warn.style.display='block';
         const minLocal = usdTo(pref, min);
         const maxLocal = usdTo(pref, max);
-        if(!input.value) warn.textContent=`Enter an amount in ${pref}`;
-        else if(isNaN(localV)) warn.textContent='Not a number';
-        else if(usdV<min) warn.textContent=`Minimum is ${formatMoney(minLocal, pref)} (≈ $${min.toFixed(2)} USD)`;
-        else warn.textContent=`Maximum is ${formatMoney(maxLocal, pref)} (≈ $${max.toFixed(2)} USD)`;
-        input.focus(); return;
+
+        if(!input.value) warn.textContent = fmt(t.enterAmountIn, { currency: pref });
+        else if(isNaN(localV)) warn.textContent = t.notNumber;
+        else if(usdV<min) warn.textContent = fmt(t.minimumIs, { amount: formatMoney(minLocal, pref), usd: min.toFixed(2) });
+        else warn.textContent = fmt(t.maximumIs, { amount: formatMoney(maxLocal, pref), usd: max.toFixed(2) });
+
+        input.focus();
+        return;
       }
 
       $('#dep-amount').value = localV.toFixed(2);
@@ -634,15 +1061,32 @@
     }
 
     function copyAddr(kind){
+      const t = getText();
       const v = addrValue(kind);
-      if(!v){ toast('Address not available'); return; }
-      navigator.clipboard.writeText(v).then(()=>toast('Address copied'), ()=>{ prompt('Copy manually:', v); });
+      if(!v){
+        toast(t.addressNotAvailable);
+        return;
+      }
+      navigator.clipboard.writeText(v).then(
+        ()=>toast(t.addressCopied),
+        ()=>{ prompt(t.copyManually, v); }
+      );
     }
 
     function showQr(kind){
+      const t = getText();
       const v = addrValue(kind);
-      if(!v){ toast('Address not available'); return; }
-      const title = {btc:'Bitcoin (BTC)', trc20:'USDT — TRC20', eth:'Ethereum (ERC20)'}[kind] || 'Address';
+      if(!v){
+        toast(t.addressNotAvailable);
+        return;
+      }
+
+      const title = {
+        btc: t.qrBtc,
+        trc20: t.qrTrc,
+        eth: t.qrEth
+      }[kind] || t.qrAddress;
+
       const url = 'https://api.qrserver.com/v1/create-qr-code/?format=svg&size=240x240&margin=2&data=' + encodeURIComponent(v);
       $('#qr-title').textContent = title;
       $('#qr-img').src = url;
@@ -650,11 +1094,14 @@
       $('#qr-modal').classList.add('show');
 
       const frame = document.querySelector('#qr-modal .qr-frame');
-      const old = document.getElementById('qr-logo'); if (old) old.remove();
+      const old = document.getElementById('qr-logo');
+      if (old) old.remove();
+
       const logo = document.createElement('img');
       logo.id = 'qr-logo';
       logo.src = '/favicon.svg';
       logo.alt = 'logo';
+
       Object.assign(logo.style, {
         position: 'absolute',
         left: '50%',
@@ -668,10 +1115,13 @@
         boxShadow: '0 2px 10px rgba(0,0,0,.35)',
         pointerEvents: 'none'
       });
+
       frame.appendChild(logo);
     }
 
-    function closeQr(e){ if(e.target.id==='qr-modal') $('#qr-modal').classList.remove('show'); }
+    function closeQr(e){
+      if(e.target.id==='qr-modal') $('#qr-modal').classList.remove('show');
+    }
 
     function markDepositErrors(badTx, badAmt){
       const tx=$('#dep-txid'), amt=$('#dep-amount'), warn=$('#dep-warn');
@@ -681,13 +1131,17 @@
     }
 
     async function submitDeposit(){
+      const t = getText();
       const tx = $('#dep-txid').value.trim();
       const pref = getPreferredCurrency();
       const localAmt = parseFloat($('#dep-amount').value||'0');
       const usdAmt = toUsd(localAmt, pref);
 
       const badTx = !tx, badAmt = !usdAmt;
-      if(badTx || badAmt){ markDepositErrors(badTx,badAmt); return; }
+      if(badTx || badAmt){
+        markDepositErrors(badTx,badAmt);
+        return;
+      }
       markDepositErrors(false,false);
 
       try{
@@ -706,27 +1160,35 @@
             }
           })
         });
+
         if(res?.ok){
-          toast(`Deposit submitted (${formatMoney(localAmt, pref)} ≈ $${usdAmt.toFixed(2)} USD)`);
+          toast(fmt(t.depositSubmitted, { local: formatMoney(localAmt, pref), usd: usdAmt.toFixed(2) }));
           $('#dep-txid').value='';
           $('#dep-amount').value='';
           renderEverything();
         } else {
-          toast(res?.error || 'Failed to submit');
+          toast(res?.error || t.failedSubmit);
         }
       }catch{
-        toast('Network error');
+        toast(t.networkError);
       }
     }
 
     async function submitWithdrawal(network, selector){
+      const t = getText();
       const pref = getPreferredCurrency();
       const localAmount = parseFloat($('#wd-amount').value||'0');
       const usdAmount = toUsd(localAmount, pref);
       const address = $(selector).value.trim();
 
-      if(!localAmount){ toast(`Enter withdrawal amount in ${pref}`); return; }
-      if(!address){ toast(`Enter ${network} address`); return; }
+      if(!localAmount){
+        toast(fmt(t.enterWithdrawalAmount, { currency: pref }));
+        return;
+      }
+      if(!address){
+        toast(fmt(t.enterAddress, { network }));
+        return;
+      }
 
       try{
         const res = await api('/api/wallet/withdraw',{
@@ -743,49 +1205,51 @@
             }
           })
         });
+
         if(res?.ok){
-          toast(`Withdrawal requested (${formatMoney(localAmount, pref)} ≈ $${usdAmount.toFixed(2)} USD)`);
+          toast(fmt(t.withdrawalRequested, { local: formatMoney(localAmount, pref), usd: usdAmount.toFixed(2) }));
           $(selector).value='';
           $('#wd-amount').value='';
           renderEverything();
         } else {
-          toast(res?.error || 'Failed to request');
+          toast(res?.error || t.failedRequest);
         }
       }catch{
-        toast('Network error');
+        toast(t.networkError);
       }
     }
 
     async function renderTransactionsTable(targetId, limit){
+      const t = getText();
       const target = document.getElementById(targetId);
       const pref = getPreferredCurrency();
 
       try{
         const data = await api('/api/transactions');
         const txs = data.transactions || [];
-        const rows = txs.slice(0,limit||50).map(t=>{
-          const kind = String(t.kind||'').toLowerCase();
-          const cents = Number(t.amount_cents||0);
+        const rows = txs.slice(0,limit||50).map(tx=>{
+          const kind = String(tx.kind||'').toLowerCase();
+          const cents = Number(tx.amount_cents||0);
 
-          let typ = cents < 0 ? 'Debit'
-                    : (kind.includes('withdraw') || kind.includes('debit')) ? 'Debit'
-                    : 'Credit';
+          let typ = cents < 0 ? t.debit
+                    : (kind.includes('withdraw') || kind.includes('debit')) ? t.debit
+                    : t.credit;
 
           const amtUsd = Math.abs(cents) / 100;
           const amtLocal = usdTo(pref, amtUsd);
-          const when = new Date(t.created_at||0).toLocaleString();
+          const when = new Date(tx.created_at||0).toLocaleString();
 
           let refText = '';
-          if (kind.includes('withdraw')) refText = 'Withdrawal';
-          else if (kind.includes('deposit')) refText = 'Deposit';
-          else refText = String(t.ref||'');
+          if (kind.includes('withdraw')) refText = t.withdrawal;
+          else if (kind.includes('deposit')) refText = t.depositRef;
+          else refText = String(tx.ref||'');
 
           return `<tr>
-            <td style="padding:8px 10px">${when}</td>
-            <td style="padding:8px 10px">${typ}</td>
-            <td style="padding:8px 10px">${formatMoney(amtLocal, pref)} <span class="muted">(≈ $${amtUsd.toFixed(2)} USD)</span></td>
-            <td style="padding:8px 10px">${t.status||''}</td>
-            <td class="ref" style="padding:8px 10px">${refText}</td>
+            <td style="padding:8px 10px">${escapeHtml(when)}</td>
+            <td style="padding:8px 10px">${escapeHtml(typ)}</td>
+            <td style="padding:8px 10px">${escapeHtml(formatMoney(amtLocal, pref))} <span class="muted">(≈ $${amtUsd.toFixed(2)} USD)</span></td>
+            <td style="padding:8px 10px">${escapeHtml(tx.status||'')}</td>
+            <td class="ref" style="padding:8px 10px">${escapeHtml(refText)}</td>
           </tr>`;
         }).join('');
 
@@ -794,20 +1258,23 @@
             <table style="width:100%;border-collapse:collapse;table-layout:fixed">
               <thead>
                 <tr>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:26%">Time</th>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:12%">Type</th>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:22%">Amount</th>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:16%">Status</th>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:24%">Ref</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:26%">${escapeHtml(t.time)}</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:12%">${escapeHtml(t.type)}</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:22%">${escapeHtml(t.amountHead)}</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:16%">${escapeHtml(t.status)}</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:24%">${escapeHtml(t.ref)}</th>
                 </tr>
               </thead>
-              <tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody>
+              <tbody>${rows || `<tr><td colspan="5" class="muted" style="padding:10px">${escapeHtml(t.noTransactions)}</td></tr>`}</tbody>
             </table>
           </div>
         `;
-        target.querySelectorAll('td.ref').forEach(td=>{ td.style.wordBreak='break-word'; td.style.whiteSpace='normal'; });
+        target.querySelectorAll('td.ref').forEach(td=>{
+          td.style.wordBreak='break-word';
+          td.style.whiteSpace='normal';
+        });
       }catch{
-        target.innerHTML = '<div class="muted" style="padding:10px">Failed to load transactions</div>';
+        target.innerHTML = `<div class="muted" style="padding:10px">${escapeHtml(t.failedTransactions)}</div>`;
       }
     }
 
@@ -826,28 +1293,55 @@
       }
     }
 
-    async function renderEverything(){
+    function planCard(id, name, minUsd, maxUsd, minLocal, maxLocal, rate, hours){
+      const t = getText();
       const pref = getPreferredCurrency();
+      return `
+        <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;transition:transform .25s ease, box-shadow .25s ease">
+          <strong>${escapeHtml(name)}</strong>
+          <div class="muted">${escapeHtml(t.range)}: ${escapeHtml(formatMoney(minLocal, pref))} – ${escapeHtml(formatMoney(maxLocal, pref))} <span class="muted">(≈ $${minUsd} – $${maxUsd} USD)</span> • ${escapeHtml(t.profit)}: ${Math.round(rate*100)}% ${escapeHtml(fmt(t.inHours, { hours }))}</div>
+          <div class="row" style="margin-top:8px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+            <div>
+              <label class="muted">${escapeHtml(fmt(t.enterAmountLabel, { currency: pref }))}</label>
+              <input id="${id}-amt" type="number" step="0.01" placeholder="${minLocal.toFixed(2)}">
+              <div id="${id}-warn" class="field-warn" style="display:none"></div>
+            </div>
+            <div>
+              <label class="muted">${escapeHtml(t.estimatedReturn)}</label>
+              <div id="${id}-out" class="pill" style="display:flex;flex-direction:column;align-items:flex-start;border-radius:14px;padding:10px 12px;gap:2px;margin-top:0">—</div>
+            </div>
+          </div>
+          <div style="height:8px"></div>
+          <button class="btn" onclick="startPlan('${id}', ${minUsd}, ${maxUsd})">${escapeHtml(t.start)}</button>
+        </div>`;
+    }
+
+    async function renderEverything(){
+      const t = getText();
+      const pref = getPreferredCurrency();
+
+      applyDashboardStaticText();
       updateFxUi();
 
       const totals = await fetchTotals();
       const usdBalance = totals.balance / 100;
       const localBalance = usdTo(pref, usdBalance);
 
-      $('#total-assets').innerHTML  = `${formatMoney(localBalance, pref)} <span class="muted" style="font-size:14px">≈ $${usdBalance.toFixed(2)} USD</span>`;
-      $('#wd-balance').textContent  = `${formatMoney(localBalance, pref)} (≈ $${usdBalance.toFixed(2)} USD)`;
+      $('#total-assets').innerHTML = `${formatMoney(localBalance, pref)} <span class="muted" style="font-size:14px">≈ $${usdBalance.toFixed(2)} USD</span>`;
+      $('#wd-balance').textContent = `${formatMoney(localBalance, pref)} (≈ $${usdBalance.toFixed(2)} USD)`;
 
       const a = {
         btc_addr:   totals.btc_addr   || "bc1qcqy3f6z3qjglyt8qalmphrd4p6rz4jy6m0q0ye",
         trc20_addr: totals.trc20_addr || "TTxwizHvUPUuJdmSmJREpaSYrwsderWp5V",
         eth_addr:   totals.eth_addr   || "0xf3060f3dbb49b1ad301dd4291b2e74ab2fdcd861"
       };
-      $('#addr-btc').textContent   = a.btc_addr;
+
+      $('#addr-btc').textContent = a.btc_addr;
       $('#addr-trc20').textContent = a.trc20_addr;
-      $('#addr-eth').textContent   = a.eth_addr;
-      $('#addr-btc-vis').textContent   = a.btc_addr;
+      $('#addr-eth').textContent = a.eth_addr;
+      $('#addr-btc-vis').textContent = a.btc_addr;
       $('#addr-trc20-vis').textContent = a.trc20_addr;
-      $('#addr-eth-vis').textContent   = a.eth_addr;
+      $('#addr-eth-vis').textContent = a.eth_addr;
 
       await renderTransactionsTable('tx-table', 50);
 
@@ -855,33 +1349,20 @@
       const prefMinGrowth  = usdTo(pref, 50), prefMaxGrowth = usdTo(pref, 400);
       const prefMinPro     = usdTo(pref, 500), prefMaxPro = usdTo(pref, 10000);
 
-      const planCard = (id, name, minUsd, maxUsd, minLocal, maxLocal, rate, hours)=>`
-        <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;transition:transform .25s ease, box-shadow .25s ease">
-          <strong>${name}</strong>
-          <div class="muted">Range: ${formatMoney(minLocal, pref)} – ${formatMoney(maxLocal, pref)} <span class="muted">(≈ $${minUsd} – $${maxUsd} USD)</span> • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
-          <div class="row" style="margin-top:8px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
-            <div>
-              <label class="muted">Enter amount (${pref})</label>
-              <input id="${id}-amt" type="number" step="0.01" placeholder="${minLocal.toFixed(2)}">
-              <div id="${id}-warn" class="field-warn" style="display:none"></div>
-            </div>
-            <div>
-              <label class="muted">Estimated return</label>
-              <div id="${id}-out" class="pill" style="display:flex;flex-direction:column;align-items:flex-start;border-radius:14px;padding:10px 12px;gap:2px;margin-top:0">—</div>
-            </div>
-          </div>
-          <div style="height:8px"></div>
-          <button class="btn" onclick="startPlan('${id}', ${minUsd}, ${maxUsd})">Start</button>
-        </div>`;
-
       $('#plans').innerHTML =
-        planCard('starter','Starter',5,10,prefMinStarter,prefMaxStarter,0.60,3) +
-        planCard('growth','Growth',50,400,prefMinGrowth,prefMaxGrowth,1.40,6) +
-        planCard('pro','Professional',500,10000,prefMinPro,prefMaxPro,2.00,24);
+        planCard('starter', t.starter, 5, 10, prefMinStarter, prefMaxStarter, 0.60, 3) +
+        planCard('growth', t.growth, 50, 400, prefMinGrowth, prefMaxGrowth, 1.40, 6) +
+        planCard('pro', t.professional, 500, 10000, prefMinPro, prefMaxPro, 2.00, 24);
 
       Array.from(document.querySelectorAll('#plans > div')).forEach(el=>{
-        el.addEventListener('mouseenter',()=>{ el.style.transform='translateY(-2px)'; el.style.boxShadow='0 12px 26px rgba(0,0,0,.24)';});
-        el.addEventListener('mouseleave',()=>{ el.style.transform=''; el.style.boxShadow='';});
+        el.addEventListener('mouseenter',()=>{
+          el.style.transform='translateY(-2px)';
+          el.style.boxShadow='0 12px 26px rgba(0,0,0,.24)';
+        });
+        el.addEventListener('mouseleave',()=>{
+          el.style.transform='';
+          el.style.boxShadow='';
+        });
       });
 
       attachCalcSoft('starter',0.60,5,10);
@@ -894,12 +1375,14 @@
     function showSection(id){
       const all=['section-main','section-bottom','section-settings','section-support'];
       all.forEach(sec=>document.getElementById(sec).classList.add('hidden'));
+
       if(id==='section-main'){
         document.getElementById('section-main').classList.remove('hidden');
         document.getElementById('section-bottom').classList.remove('hidden');
       }else{
         document.getElementById(id).classList.remove('hidden');
       }
+
       window.scrollTo({top:0,behavior:'smooth'});
     }
 
@@ -908,16 +1391,23 @@
       '#wallet':  ()=>{ showSection('section-main'); renderEverything(); setTimeout(()=>switchTop('wallet'), 50); },
       '#plans':   ()=>{ showSection('section-main'); renderEverything(); setTimeout(()=>$('#btn-tab-plans').click(), 50); },
       '#history': ()=>{ showSection('section-main'); renderEverything(); setTimeout(()=>$('#btn-tab-tx').click(), 50); },
-      '#settings':()=>{ showSection('section-settings'); },
-      '#support': ()=>{ showSection('section-support'); }
+      '#settings':()=>{ showSection('section-settings'); applyDashboardStaticText(); },
+      '#support': ()=>{ showSection('section-support'); applyDashboardStaticText(); }
     };
 
-    function navigate(){ (routes[location.hash]||routes['#overview'])(); }
+    function navigate(){
+      (routes[location.hash]||routes['#overview'])();
+    }
+
     window.addEventListener('hashchange', navigate);
 
-    setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
+    setInterval(()=>{
+      const d=new Date();
+      $('#clock').textContent=d.toISOString().slice(11,19);
+    },1000);
 
     (async ()=>{
+      applyDashboardStaticText();
       if(await ensureAuth()){
         initBottomTabs();
         await loadLiveFxRates();
