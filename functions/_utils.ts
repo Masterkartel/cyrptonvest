@@ -213,7 +213,7 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
 /* ── D1 helpers ───────────────────────────────────────────────────────────── */
 export async function getUserByEmail(env: Env, email: string) {
   return await env.DB.prepare(
-    `SELECT id, email, password_hash, created_at
+    `SELECT id, email, password_hash, locale, created_at
        FROM users
       WHERE lower(email) = ?
       LIMIT 1`
@@ -223,6 +223,7 @@ export async function getUserByEmail(env: Env, email: string) {
       id: number | string;
       email: string;
       password_hash: string;
+      locale?: string | null;
       created_at: number | string | null;
     }>();
 }
