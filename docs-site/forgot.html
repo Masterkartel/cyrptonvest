@@ -74,7 +74,8 @@
       const btn = document.getElementById('btn'); btn.disabled = true; btn.textContent = 'Sending…';
       try{
         const email = document.getElementById('email').value.trim();
-        await postJSON('/api/auth/forgot', { email });
+        const locale = localStorage.getItem('cv_locale') || navigator.language || 'en';
+        await postJSON('/api/auth/forgot', { email, locale });
         showMsg('If that account exists, a reset link has been sent.', true);
       }catch(ex){
         showMsg(String(ex.message || ex), false);
