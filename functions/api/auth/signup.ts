@@ -9,7 +9,7 @@ import {
   sendEmail,
   type Env,
 } from "../../_utils";
-import { normalizeLocale, getEmailI18n } from "../../_i18n";
+import { normalizeLocale, EMAIL_I18N } from "../../_i18n";
 
 type ReqBody = {
   email?: string;
@@ -24,7 +24,7 @@ function normalizeCurrency(input?: string | null): string {
   const allowed = new Set([
     "USD", "KES", "UGX", "TZS", "RWF", "NGN", "GHS", "ZAR",
     "GBP", "EUR", "CNY", "JPY", "THB", "KRW", "MYR", "SGD",
-    "INR", "SAR", "AED",
+    "INR", "SAR", "AED"
   ]);
 
   return allowed.has(raw) ? raw : "USD";
@@ -111,7 +111,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       const dash = `${origin}/dashboard/#plans`;
       const firstName = getFriendlyNameFromEmail(email);
       const safeName = escapeHtml(firstName);
-      const t = getEmailI18n(locale);
+
+      const fallback = EMAIL_I18N.en;
+      const entry = EMAIL_I18N[locale] || fallback;
+
+      const t = {
+        welcomeSubject: entry.welcomeSubject || fallback.welcomeSubject,
+        welcomeHeading: entry.welcomeHeading || fallback.welcomeHeading,
+        welcomeBody:
+          typeof entry.welcomeBody === "function" ? entry.welcomeBody : fallback.welcomeBody,
+        welcomeButton: entry.welcomeButton || fallback.welcomeButton,
+        resetSubject: entry.resetSubject || fallback.resetSubject,
+        changedSubject: entry.changedSubject || fallback.changedSubject,
+      };
 
       const subject = t.welcomeSubject || "Welcome to Cyrptonvest 🎉";
       const heading = t.welcomeHeading || "AI-powered trading. Smart bots. Real results.";
