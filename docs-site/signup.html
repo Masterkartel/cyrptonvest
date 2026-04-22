@@ -95,9 +95,10 @@
 
     const email = document.getElementById('e').value.trim();
     const password = document.getElementById('p').value;
+    const locale = localStorage.getItem('cv_locale') || navigator.language || 'en';
 
     try{
-      await postJSON('/api/auth/signup', { email, password });
+      await postJSON('/api/auth/signup', { email, password, locale });
       location.href = '/dashboard/';
     }catch(ex){
       showErr(ex.message || 'Signup failed');
