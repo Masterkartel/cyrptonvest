@@ -17,8 +17,23 @@ export const SUPPORTED_LOCALES = [
 
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
 
+export type EmailI18nEntry = {
+  welcomeSubject: string;
+  welcomeHeading: string;
+  welcomeBody: (name: string) => string;
+  welcomeButton: string;
+  resetSubject: string;
+  changedSubject: string;
+};
+
+function isSupportedLocale(value: string): value is SupportedLocale {
+  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
+
 export function normalizeLocale(input?: string | null): SupportedLocale {
-  const raw = String(input || "").toLowerCase();
+  const raw = String(input || "").trim().toLowerCase();
+
+  if (!raw) return "en";
 
   if (raw.startsWith("fr")) return "fr";
   if (raw.startsWith("sw")) return "sw";
@@ -37,7 +52,7 @@ export function normalizeLocale(input?: string | null): SupportedLocale {
   return "en";
 }
 
-export const EMAIL_I18N = {
+export const EMAIL_I18N: Record<SupportedLocale, EmailI18nEntry> = {
   en: {
     welcomeSubject: "Welcome to Cyrptonvest 🎉",
     welcomeHeading: "AI-powered trading. Smart bots. Real results.",
@@ -103,7 +118,7 @@ export const EMAIL_I18N = {
 
   hi: {
     welcomeSubject: "Cyrptonvest में आपका स्वागत है 🎉",
-    welcomeHeading: "AI आधारित ट्रेडिंग",
+    welcomeHeading: "AI आधारित ट्रेडING",
     welcomeBody: (n: string) => `नमस्ते ${n}, आपका अकाउंट तैयार है।`,
     welcomeButton: "डैशबोर्ड खोलें",
     resetSubject: "पासवर्ड रीसेट करें",
@@ -164,3 +179,24 @@ export const EMAIL_I18N = {
     changedSubject: "கடவுச்சொல் மாற்றப்பட்டது",
   },
 };
+
+export function getEmailI18n(input?: string | null): EmailI18nEntry {
+  const locale = normalizeLocale(input);
+
+  if (isSupportedLocale(locale) && EMAIL_I18N[locale]) {
+    const entry = EMAIL_I18N[locale];
+    const fallback = EMAIL_I18N.en;
+
+    return {
+      welcomeSubject: entry.welcomeSubject || fallback.welcomeSubject,
+      welcomeHeading: entry.welcomeHeading || fallback.welcomeHeading,
+      welcomeBody:
+        typeof entry.welcomeBody === "function" ? entry.welcomeBody : fallback.welcomeBody,
+      welcomeButton: entry.welcomeButton || fallback.welcomeButton,
+      resetSubject: entry.resetSubject || fallback.resetSubject,
+      changedSubject: entry.changedSubject || fallback.changedSubject,
+    };
+  }
+
+  return EMAIL_I18N.en;
+}
