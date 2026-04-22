@@ -2,11 +2,13 @@
 import {
   json, bad, db, hashPasswordBcrypt, isReasonablePassword, sendEmail, type Env,
 } from "../../_utils";
+import { normalizeLocale, EMAIL_I18N } from "../../_i18n";
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
     const { env, request } = ctx;
-    const { token, password } = await ctx.request.json().catch(() => ({}));
+    const { token, password } = await request.json().catch(() => ({}));
+
     if (!token || typeof token !== "string") return bad("Invalid token", 400);
     if (!password || !isReasonablePassword(password)) {
       return bad("Password must be at least 8 characters", 400);
@@ -23,20 +25,25 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     if (row.used_at) return bad("This reset link has already been used", 400);
     if (now > (row.expires_at || 0)) return bad("This reset link has expired", 400);
 
-    // Update password for the user (by email)
     const hashed = await hashPasswordBcrypt(password);
     await db(env)
       .prepare("UPDATE users SET password_hash = ? WHERE lower(email) = ?")
       .bind(hashed, row.email.toLowerCase())
       .run();
 
-    // Mark token used
     await db(env)
       .prepare("UPDATE reset_tokens SET used_at = ? WHERE id = ?")
       .bind(now, row.id)
       .run();
 
-    // Send "password changed" confirmation (await optional; use await while testing)
+    const user = await db(env)
+      .prepare("SELECT locale FROM users WHERE lower(email) = ? LIMIT 1")
+      .bind(row.email.toLowerCase())
+      .first<{ locale?: string | null }>();
+
+    const locale = normalizeLocale(user?.locale);
+    const t = EMAIL_I18N[locale];
+
     const base =
       (env as any).WEB_BASE_URL?.replace(/\/+$/, "") ||
       new URL(request.url).origin;
@@ -58,23 +65,22 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
           <td style="font-weight:800;font-size:16px;color:#e6edf3">
             <img src="${base}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
           </td>
-          <td align="right" style="color:#9aa4b2;font-size:12px">Password changed</td>
+          <td align="right" style="color:#9aa4b2;font-size:12px">${t.changedSubject}</td>
         </tr></table>
       </td></tr>
       <tr><td style="padding:22px">
-        <h2 style="margin:0 0 8px">Your password was changed</h2>
+        <h2 style="margin:0 0 8px">${t.changedSubject}</h2>
         <p style="margin:0 0 12px;color:#cbd5e1">Hi ${first}, this is a confirmation that your password has just been changed.</p>
         <a href="${dash}" style="display:inline-block;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827;font-weight:800;padding:12px 16px;border-radius:999px">Open Dashboard</a>
-        <p style="margin:12px 0 0;color:#9aa4b2">If this wasn’t you, please <a href="mailto:support@cyrptonvest.com">contact support</a> immediately.</p>
+        <p style="margin:12px 0 0;color:#9aa4b2">If this wasn’t you, please contact support immediately.</p>
       </td></tr>
       <tr><td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">© ${new Date().getFullYear()} Cyrptonvest. All rights reserved.</td></tr>
     </table></td></tr></table></body></html>`;
 
-    // During testing you can await to see errors in Functions logs:
-    await sendEmail(env, row.email, "Your Cyrptonvest password was changed", html);
+    await sendEmail(env, row.email, t.changedSubject, html);
 
     return json({ ok: true, message: "Password updated" });
-  } catch (e: any) {
+  } catch {
     return bad("Unable to reset password", 500);
   }
 };
