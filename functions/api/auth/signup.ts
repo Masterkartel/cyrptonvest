@@ -1,138 +1,202 @@
-// functions/api/auth/signup.ts
-import {
-  json,
-  bad,
-  setCookie,
-  hashPasswordBcrypt,
-  getUserByEmail,
-  randomTokenHex,
-  sendEmail,
-  type Env,
-} from "../../_utils";
-import { normalizeLocale, EMAIL_I18N } from "../../_i18n";
+export const SUPPORTED_LOCALES = [
+  "en", // English
+  "fr", // French
+  "sw", // Swahili
+  "zh", // Chinese
+  "ja", // Japanese
+  "th", // Thai
+  "ar", // Arabic
+  "hi", // Hindi
+  "es", // Spanish
+  "pt", // Portuguese
+  "de", // German
+  "ko", // Korean
+  "ms", // Malay
+  "ta", // Tamil
+] as const;
 
-type ReqBody = {
-  email?: string;
-  password?: string;
-  locale?: string;
-  currency?: string;
+export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
+
+export type EmailI18nEntry = {
+  welcomeSubject: string;
+  welcomeHeading: string;
+  welcomeBody: (name: string) => string;
+  welcomeButton: string;
+  resetSubject: string;
+  changedSubject: string;
 };
 
-function normalizeCurrency(input?: string | null): string {
-  const raw = String(input || "").trim().toUpperCase();
-
-  const allowed = new Set([
-    "USD", "KES", "UGX", "TZS", "RWF", "NGN", "GHS", "ZAR",
-    "GBP", "EUR", "CNY", "JPY", "THB", "KRW", "MYR", "SGD",
-    "INR", "SAR", "AED"
-  ]);
-
-  return allowed.has(raw) ? raw : "USD";
+function isSupportedLocale(value: string): value is SupportedLocale {
+  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  try {
-    // --- Parse & validate body ---
-    let body: ReqBody = {};
-    try {
-      body = (await request.json()) as ReqBody;
-    } catch {
-      return bad("Invalid JSON body", 400);
-    }
+export function normalizeLocale(input?: string | null): SupportedLocale {
+  const raw = String(input || "").trim().toLowerCase();
 
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password || "");
-    const locale = normalizeLocale(body.locale);
-    const currency = normalizeCurrency(body.currency);
+  if (!raw) return "en";
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return bad("Enter a valid email address", 400);
-    }
-    if (password.length < 8) {
-      return bad("Password must be at least 8 characters", 400);
-    }
+  if (raw.startsWith("fr")) return "fr";
+  if (raw.startsWith("sw")) return "sw";
+  if (raw.startsWith("zh")) return "zh";
+  if (raw.startsWith("ja")) return "ja";
+  if (raw.startsWith("th")) return "th";
+  if (raw.startsWith("ar")) return "ar";
+  if (raw.startsWith("hi")) return "hi";
+  if (raw.startsWith("es")) return "es";
+  if (raw.startsWith("pt")) return "pt";
+  if (raw.startsWith("de")) return "de";
+  if (raw.startsWith("ko")) return "ko";
+  if (raw.startsWith("ms")) return "ms";
+  if (raw.startsWith("ta")) return "ta";
 
-    // --- Uniqueness check ---
-    const exists = await getUserByEmail(env, email);
-    if (exists) return bad("Email is already registered", 409);
+  return "en";
+}
 
-    // --- Create user ---
-    const id = randomTokenHex(16);
-    const password_hash = await hashPasswordBcrypt(password);
-    const created_at = Math.floor(Date.now() / 1000);
+export const EMAIL_I18N: Record<SupportedLocale, EmailI18nEntry> = {
+  en: {
+    welcomeSubject: "Welcome to Cyrptonvest 🎉",
+    welcomeHeading: "AI-powered trading. Smart bots. Real results.",
+    welcomeBody: (n: string) => `Hi ${n}, your account is ready.`,
+    welcomeButton: "Go to Dashboard",
+    resetSubject: "Reset your Cyrptonvest password",
+    changedSubject: "Your password was changed",
+  },
 
-    await env.DB.prepare(
-      `INSERT INTO users (id, email, password_hash, locale, created_at)
-       VALUES (?, ?, ?, ?, ?)`
-    )
-      .bind(id, email, password_hash, locale, created_at)
-      .run();
+  fr: {
+    welcomeSubject: "Bienvenue sur Cyrptonvest 🎉",
+    welcomeHeading: "Trading avec IA. Résultats réels.",
+    welcomeBody: (n: string) => `Bonjour ${n}, votre compte est prêt.`,
+    welcomeButton: "Ouvrir le tableau de bord",
+    resetSubject: "Réinitialisez votre mot de passe",
+    changedSubject: "Votre mot de passe a été modifié",
+  },
 
-    // --- Best-effort wallet currency preference ---
-    try {
-      await env.DB.prepare(
-        `INSERT INTO wallets (user_id, balance_cents, currency)
-         VALUES (?, 0, ?)
-         ON CONFLICT(user_id) DO UPDATE SET currency = excluded.currency`
-      )
-        .bind(id, currency)
-        .run();
-    } catch (e) {
-      console.warn("wallet preference save failed:", e);
-    }
+  sw: {
+    welcomeSubject: "Karibu Cyrptonvest 🎉",
+    welcomeHeading: "Biashara kwa AI. Matokeo halisi.",
+    welcomeBody: (n: string) => `Habari ${n}, akaunti yako iko tayari.`,
+    welcomeButton: "Fungua Dashboard",
+    resetSubject: "Weka upya nenosiri",
+    changedSubject: "Nenosiri limebadilishwa",
+  },
 
-    // --- Create session + Set-Cookie ---
-    const role: "user" | "admin" =
-      env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
+  zh: {
+    welcomeSubject: "欢迎来到 Cyrptonvest 🎉",
+    welcomeHeading: "AI驱动交易，智能机器人。",
+    welcomeBody: (n: string) => `你好 ${n}，你的账户已准备好。`,
+    welcomeButton: "进入仪表盘",
+    resetSubject: "重置您的密码",
+    changedSubject: "您的密码已更改",
+  },
 
-    const res = json({ ok: true, user: { id, email, role, locale, currency } }, 200);
-    await setCookie(res, env, { sub: id, email, role }, request);
+  ja: {
+    welcomeSubject: "Cyrptonvestへようこそ 🎉",
+    welcomeHeading: "AI取引。スマートボット。",
+    welcomeBody: (n: string) => `${n}さん、アカウントが準備できました。`,
+    welcomeButton: "ダッシュボードへ",
+    resetSubject: "パスワードをリセット",
+    changedSubject: "パスワードが変更されました",
+  },
 
-    // --- Send welcome email (best-effort) ---
-    try {
-      const origin = new URL(request.url).origin.replace(/\/+$/, "");
-      const dash = `${origin}/dashboard/#plans`;
-      const first = email.split("@")[0] || "there";
-      const t = EMAIL_I18N[locale];
+  th: {
+    welcomeSubject: "ยินดีต้อนรับสู่ Cyrptonvest 🎉",
+    welcomeHeading: "การเทรดด้วย AI",
+    welcomeBody: (n: string) => `สวัสดี ${n} บัญชีของคุณพร้อมแล้ว`,
+    welcomeButton: "ไปที่แดชบอร์ด",
+    resetSubject: "รีเซ็ตรหัสผ่าน",
+    changedSubject: "รหัสผ่านถูกเปลี่ยนแล้ว",
+  },
 
-      const html = `
-<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>a{color:#f59e0b;text-decoration:none}</style>
-</head><body style="margin:0;background:#0b0f19;color:#e6edf3;font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0f19"><tr><td align="center" style="padding:24px">
-<table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:
-radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
-radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.18), transparent 55%),
-linear-gradient(180deg,#101934,#0c1226);border:1px solid #27335a;border-radius:16px;overflow:hidden">
-  <tr><td style="padding:16px 20px;border-bottom:1px solid #1d2640">
-    <table width="100%"><tr>
-      <td style="font-weight:800;font-size:16px;color:#e6edf3">
-        <img src="${origin}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
-      </td>
-      <td align="right" style="color:#9aa4b2;font-size:12px">${t.welcomeSubject.replace(" 🎉", "")}</td>
-    </tr></table>
-  </td></tr>
-  <tr><td style="padding:22px">
-    <h1 style="margin:0 0 8px;font-size:22px;line-height:1.3">${t.welcomeHeading}</h1>
-    <p style="margin:0 0 14px;color:#cbd5e1">${t.welcomeBody(first)}</p>
-    <div style="margin:12px 0 18px">
-      <span style="display:inline-block;padding:6px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:12px;color:#d1d5db;margin-right:6px">🤖 AI Bots</span>
-      <span style="display:inline-block;padding:6px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:12px;color:#d1d5db;margin-right:6px">📊 Auto-Execution</span>
-      <span style="display:inline-block;padding:6px 10px;border:1px solid #2a3a66;background:#0f1a36;border-radius:999px;font-size:12px;color:#d1d5db">⚙️ 24/7</span>
-    </div>
-    <a href="${dash}" style="display:inline-block;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827;font-weight:800;padding:12px 16px;border-radius:999px">${t.welcomeButton}</a>
-  </td></tr>
-  <tr><td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">© ${new Date().getFullYear()} Cyrptonvest. All rights reserved.</td></tr>
-</table></td></tr></table></body></html>`;
-      await sendEmail(env, email, t.welcomeSubject, html);
-    } catch (e) {
-      console.warn("signup email failed:", e);
-    }
+  ar: {
+    welcomeSubject: "مرحبًا بك في Cyrptonvest 🎉",
+    welcomeHeading: "تداول بالذكاء الاصطناعي",
+    welcomeBody: (n: string) => `مرحبًا ${n}، حسابك جاهز.`,
+    welcomeButton: "لوحة التحكم",
+    resetSubject: "إعادة تعيين كلمة المرور",
+    changedSubject: "تم تغيير كلمة المرور",
+  },
 
-    return res;
-  } catch (err) {
-    console.error("signup error:", err);
-    return bad("Could not create account. Please try again.", 500);
-  }
+  hi: {
+    welcomeSubject: "Cyrptonvest में आपका स्वागत है 🎉",
+    welcomeHeading: "AI आधारित ट्रेडING",
+    welcomeBody: (n: string) => `नमस्ते ${n}, आपका अकाउंट तैयार है।`,
+    welcomeButton: "डैशबोर्ड खोलें",
+    resetSubject: "पासवर्ड रीसेट करें",
+    changedSubject: "पासवर्ड बदल दिया गया है",
+  },
+
+  es: {
+    welcomeSubject: "Bienvenido a Cyrptonvest 🎉",
+    welcomeHeading: "Trading con IA",
+    welcomeBody: (n: string) => `Hola ${n}, tu cuenta está lista.`,
+    welcomeButton: "Ir al panel",
+    resetSubject: "Restablecer contraseña",
+    changedSubject: "Contraseña cambiada",
+  },
+
+  pt: {
+    welcomeSubject: "Bem-vindo ao Cyrptonvest 🎉",
+    welcomeHeading: "Trading com IA",
+    welcomeBody: (n: string) => `Olá ${n}, sua conta está pronta.`,
+    welcomeButton: "Ir ao painel",
+    resetSubject: "Redefinir senha",
+    changedSubject: "Senha alterada",
+  },
+
+  de: {
+    welcomeSubject: "Willkommen bei Cyrptonvest 🎉",
+    welcomeHeading: "KI-gestützter Handel",
+    welcomeBody: (n: string) => `Hallo ${n}, dein Konto ist bereit.`,
+    welcomeButton: "Zum Dashboard",
+    resetSubject: "Passwort zurücksetzen",
+    changedSubject: "Passwort geändert",
+  },
+
+  ko: {
+    welcomeSubject: "Cyrptonvest에 오신 것을 환영합니다 🎉",
+    welcomeHeading: "AI 기반 트레이딩",
+    welcomeBody: (n: string) => `안녕하세요 ${n}, 계정이 준비되었습니다.`,
+    welcomeButton: "대시보드로 이동",
+    resetSubject: "비밀번호 재설정",
+    changedSubject: "비밀번호가 변경되었습니다",
+  },
+
+  ms: {
+    welcomeSubject: "Selamat datang ke Cyrptonvest 🎉",
+    welcomeHeading: "Perdagangan dengan AI",
+    welcomeBody: (n: string) => `Hai ${n}, akaun anda sudah siap.`,
+    welcomeButton: "Pergi ke Dashboard",
+    resetSubject: "Tetapkan semula kata laluan",
+    changedSubject: "Kata laluan telah ditukar",
+  },
+
+  ta: {
+    welcomeSubject: "Cyrptonvest வரவேற்கிறது 🎉",
+    welcomeHeading: "AI அடிப்படையிலான வர்த்தகம்",
+    welcomeBody: (n: string) => `வணக்கம் ${n}, உங்கள் கணக்கு தயார்.`,
+    welcomeButton: "டாஷ்போர்டுக்கு செல்லவும்",
+    resetSubject: "கடவுச்சொல்லை மாற்றவும்",
+    changedSubject: "கடவுச்சொல் மாற்றப்பட்டது",
+  },
 };
+
+export function getEmailI18n(input?: string | null): EmailI18nEntry {
+  const locale = normalizeLocale(input);
+
+  if (isSupportedLocale(locale) && EMAIL_I18N[locale]) {
+    const entry = EMAIL_I18N[locale];
+    const fallback = EMAIL_I18N.en;
+
+    return {
+      welcomeSubject: entry.welcomeSubject || fallback.welcomeSubject,
+      welcomeHeading: entry.welcomeHeading || fallback.welcomeHeading,
+      welcomeBody:
+        typeof entry.welcomeBody === "function" ? entry.welcomeBody : fallback.welcomeBody,
+      welcomeButton: entry.welcomeButton || fallback.welcomeButton,
+      resetSubject: entry.resetSubject || fallback.resetSubject,
+      changedSubject: entry.changedSubject || fallback.changedSubject,
+    };
+  }
+
+  return EMAIL_I18N.en;
+}
