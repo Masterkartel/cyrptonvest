@@ -1,8 +1,29 @@
 // functions/api/auth/reset.ts
 import {
-  json, bad, db, hashPasswordBcrypt, isReasonablePassword, sendEmail, type Env,
+  json,
+  bad,
+  db,
+  hashPasswordBcrypt,
+  isReasonablePassword,
+  sendEmail,
+  type Env,
 } from "../../_utils";
 import { normalizeLocale, EMAIL_I18N } from "../../_i18n";
+
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function getFriendlyNameFromEmail(email: string): string {
+  const local = String(email || "").split("@")[0] || "there";
+  const cleaned = local.replace(/[._-]+/g, " ").trim();
+  return cleaned || "there";
+}
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   try {
@@ -26,6 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     if (now > (row.expires_at || 0)) return bad("This reset link has expired", 400);
 
     const hashed = await hashPasswordBcrypt(password);
+
     await db(env)
       .prepare("UPDATE users SET password_hash = ? WHERE lower(email) = ?")
       .bind(hashed, row.email.toLowerCase())
@@ -42,45 +64,95 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       .first<{ locale?: string | null }>();
 
     const locale = normalizeLocale(user?.locale);
-    const t = EMAIL_I18N[locale];
+    const fallback = EMAIL_I18N.en;
+    const entry = EMAIL_I18N[locale] || fallback;
+
+    const t = {
+      changedSubject: entry.changedSubject || fallback.changedSubject,
+    };
 
     const base =
       (env as any).WEB_BASE_URL?.replace(/\/+$/, "") ||
       new URL(request.url).origin;
+
     const dash = `${base}/dashboard/`;
-    const first = row.email.split("@")[0] || "there";
+    const first = getFriendlyNameFromEmail(row.email);
+    const safeFirst = escapeHtml(first);
+
+    const subject = t.changedSubject || "Your password was changed";
+    const bodyText = `Hi ${safeFirst}, this is a confirmation that your password has just been changed.`;
+    const buttonText = "Open Dashboard";
+    const alertText = "If this wasn’t you, please contact support immediately.";
 
     const html = `
-    <!doctype html><html><head>
-      <meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8">
-      <style>a{color:#f59e0b;text-decoration:none}</style>
-    </head><body style="margin:0;background:#0b0f19;color:#e6edf3;font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0f19"><tr><td align="center" style="padding:24px">
-    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:
-    radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
-    radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.18), transparent 55%),
-    linear-gradient(180deg,#101934,#0c1226);border:1px solid #27335a;border-radius:16px;overflow:hidden">
-      <tr><td style="padding:16px 20px;border-bottom:1px solid #1d2640">
-        <table width="100%"><tr>
-          <td style="font-weight:800;font-size:16px;color:#e6edf3">
-            <img src="${base}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
-          </td>
-          <td align="right" style="color:#9aa4b2;font-size:12px">${t.changedSubject}</td>
-        </tr></table>
-      </td></tr>
-      <tr><td style="padding:22px">
-        <h2 style="margin:0 0 8px">${t.changedSubject}</h2>
-        <p style="margin:0 0 12px;color:#cbd5e1">Hi ${first}, this is a confirmation that your password has just been changed.</p>
-        <a href="${dash}" style="display:inline-block;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827;font-weight:800;padding:12px 16px;border-radius:999px">Open Dashboard</a>
-        <p style="margin:12px 0 0;color:#9aa4b2">If this wasn’t you, please contact support immediately.</p>
-      </td></tr>
-      <tr><td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">© ${new Date().getFullYear()} Cyrptonvest. All rights reserved.</td></tr>
-    </table></td></tr></table></body></html>`;
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta charset="utf-8" />
+    <style>a{color:#f59e0b;text-decoration:none}</style>
+  </head>
+  <body style="margin:0;background:#0b0f19;color:#e6edf3;font:15px/1.6 Inter,system-ui,Segoe UI,Arial,sans-serif">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0f19">
+      <tr>
+        <td align="center" style="padding:24px">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:
+            radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
+            radial-gradient(900px 600px at 120% 0%, rgba(34,197,94,.18), transparent 55%),
+            linear-gradient(180deg,#101934,#0c1226);border:1px solid #27335a;border-radius:16px;overflow:hidden">
+            <tr>
+              <td style="padding:16px 20px;border-bottom:1px solid #1d2640">
+                <table width="100%">
+                  <tr>
+                    <td style="font-weight:800;font-size:16px;color:#e6edf3">
+                      <img src="${base}/assets/logo-email.png" width="22" height="22" alt="Cyrptonvest" style="vertical-align:middle;margin-right:8px;display:inline-block">Cyrptonvest
+                    </td>
+                    <td align="right" style="color:#9aa4b2;font-size:12px">${escapeHtml(subject)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-    await sendEmail(env, row.email, t.changedSubject, html);
+            <tr>
+              <td style="padding:22px">
+                <h2 style="margin:0 0 8px">${escapeHtml(subject)}</h2>
+                <p style="margin:0 0 12px;color:#cbd5e1">${bodyText}</p>
+
+                <a href="${dash}" style="display:inline-block;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#111827;font-weight:800;padding:12px 16px;border-radius:999px">
+                  ${escapeHtml(buttonText)}
+                </a>
+
+                <p style="margin:12px 0 0;color:#9aa4b2">${escapeHtml(alertText)}</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:12px 22px;border-top:1px solid #1d2640;color:#9aa4b2;font-size:12px">
+                © ${new Date().getFullYear()} Cyrptonvest. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+    try {
+      await sendEmail(env, row.email, subject, html);
+    } catch (e) {
+      console.error("password changed email failed", {
+        email: row.email,
+        locale,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
 
     return json({ ok: true, message: "Password updated" });
-  } catch {
+  } catch (e) {
+    console.error("reset password error", {
+      error: e instanceof Error ? e.message : String(e),
+    });
     return bad("Unable to reset password", 500);
   }
 };
