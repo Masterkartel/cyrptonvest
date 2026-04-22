@@ -10,6 +10,9 @@ export const SUPPORTED_LOCALES = [
   "es", // Spanish
   "pt", // Portuguese
   "de", // German
+  "ko", // Korean
+  "ms", // Malay
+  "ta", // Tamil
 ] as const;
 
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
@@ -27,6 +30,9 @@ export function normalizeLocale(input?: string | null): SupportedLocale {
   if (raw.startsWith("es")) return "es";
   if (raw.startsWith("pt")) return "pt";
   if (raw.startsWith("de")) return "de";
+  if (raw.startsWith("ko")) return "ko";
+  if (raw.startsWith("ms")) return "ms";
+  if (raw.startsWith("ta")) return "ta";
 
   return "en";
 }
@@ -129,5 +135,32 @@ export const EMAIL_I18N = {
     welcomeButton: "Zum Dashboard",
     resetSubject: "Passwort zurücksetzen",
     changedSubject: "Passwort geändert",
+  },
+
+  ko: {
+    welcomeSubject: "Cyrptonvest에 오신 것을 환영합니다 🎉",
+    welcomeHeading: "AI 기반 트레이딩",
+    welcomeBody: (n: string) => `안녕하세요 ${n}, 계정이 준비되었습니다.`,
+    welcomeButton: "대시보드로 이동",
+    resetSubject: "비밀번호 재설정",
+    changedSubject: "비밀번호가 변경되었습니다",
+  },
+
+  ms: {
+    welcomeSubject: "Selamat datang ke Cyrptonvest 🎉",
+    welcomeHeading: "Perdagangan dengan AI",
+    welcomeBody: (n: string) => `Hai ${n}, akaun anda sudah siap.`,
+    welcomeButton: "Pergi ke Dashboard",
+    resetSubject: "Tetapkan semula kata laluan",
+    changedSubject: "Kata laluan telah ditukar",
+  },
+
+  ta: {
+    welcomeSubject: "Cyrptonvest வரவேற்கிறது 🎉",
+    welcomeHeading: "AI அடிப்படையிலான வர்த்தகம்",
+    welcomeBody: (n: string) => `வணக்கம் ${n}, உங்கள் கணக்கு தயார்.`,
+    welcomeButton: "டாஷ்போர்டுக்கு செல்லவும்",
+    resetSubject: "கடவுச்சொல்லை மாற்றவும்",
+    changedSubject: "கடவுச்சொல் மாற்றப்பட்டது",
   },
 };
