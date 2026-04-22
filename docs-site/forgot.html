@@ -21,11 +21,15 @@
     .ok{background:#10291a;border:1px solid #1d5b2a;color:#bbf7d0}
     .row{margin-top:10px}
     a{color:#fbbf24;text-decoration:none}
+    .pref-note{margin:0 0 12px;text-align:center;color:var(--muted);font-size:12px}
   </style>
 </head>
 <body>
   <div class="wrap">
     <form class="card" id="forgot-form" novalidate>
+      <div id="lang-switcher"></div>
+      <p id="pref-note" class="pref-note"></p>
+
       <h1>Reset your password</h1>
       <div class="muted">Enter your account email and we’ll send a reset link.</div>
 
@@ -42,7 +46,29 @@
     </form>
   </div>
 
+  <script src="/assets/site-preferences.js"></script>
   <script>
+    const prefs = window.CV_PREFS;
+    const initial = prefs.ensurePreferences();
+    prefs.applyForgotText(initial.locale);
+
+    const prefNote = document.getElementById('pref-note');
+    function updatePrefNote() {
+      const locale = prefs.detectLocale();
+      const currency = prefs.getCurrency();
+      prefNote.textContent = `Language: ${locale.toUpperCase()} • Preferred currency: ${currency}`;
+    }
+
+    prefs.buildLanguageSwitcher(document.getElementById('lang-switcher'), initial.locale, (nextLocale) => {
+      prefs.applyForgotText(nextLocale);
+      updatePrefNote();
+      const btn = document.getElementById('btn');
+      const t = prefs.getText('forgot', nextLocale);
+      if (btn && !btn.disabled) btn.textContent = t.submit || 'Send reset link';
+    });
+
+    updatePrefNote();
+
     async function postJSON(url, body){
       const r = await fetch(url, {
         method: 'POST',
@@ -71,16 +97,24 @@
 
     document.getElementById('forgot-form')?.addEventListener('submit', async (e)=>{
       e.preventDefault();
-      const btn = document.getElementById('btn'); btn.disabled = true; btn.textContent = 'Sending…';
+
+      const locale = prefs.detectLocale();
+      const currency = prefs.getCurrency();
+      const t = prefs.getText('forgot', locale);
+
+      const btn = document.getElementById('btn');
+      btn.disabled = true;
+      btn.textContent = t.submitting || 'Sending…';
+
       try{
         const email = document.getElementById('email').value.trim();
-        const locale = localStorage.getItem('cv_locale') || navigator.language || 'en';
-        await postJSON('/api/auth/forgot', { email, locale });
-        showMsg('If that account exists, a reset link has been sent.', true);
+        await postJSON('/api/auth/forgot', { email, locale, currency });
+        showMsg(t.success || 'If that account exists, a reset link has been sent.', true);
       }catch(ex){
         showMsg(String(ex.message || ex), false);
       }finally{
-        btn.disabled = false; btn.textContent = 'Send reset link';
+        btn.disabled = false;
+        btn.textContent = t.submit || 'Send reset link';
       }
     });
   </script>
