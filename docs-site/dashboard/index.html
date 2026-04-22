@@ -17,7 +17,6 @@
     a{color:var(--brand);text-decoration:none}
     .content{max-width:1200px;margin:0 auto}
 
-    /* Topbar */
     .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;
       padding:12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e152f,transparent)}
     .brand{display:flex;align-items:center;gap:10px;font-weight:800}
@@ -34,7 +33,6 @@
     .dropdown a{display:block;color:#e6edf3;padding:10px 12px;text-decoration:none;transition:background .2s ease}
     .dropdown a:hover{background:#121d3a}
 
-    /* Sections / cards */
     .section{padding:16px}
     .card{
       background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden;
@@ -50,7 +48,6 @@
     .muted{color:var(--muted)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
-    /* Top switch */
     .switch{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
     .switch button{padding:10px;border:none;background:#121a33;color:#d1d5db;cursor:pointer;font-weight:700;transition:background .2s ease,transform .15s ease}
     .switch button:active{transform:scale(.98)}
@@ -63,13 +60,11 @@
       linear-gradient(180deg,#0f1629 0%,#0b1226 100%);border-color:#243055}
     .topcard .panel{background:rgba(10,16,34,.75);backdrop-filter:blur(2px)}
 
-    /* KPI */
     .kpi{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel-2);
       padding:14px;border-radius:14px;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
     .kpi:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(0,0,0,.24);border-color:#2a3761}
     .wallet-icon{width:40px;height:40px;border-radius:12px;background:#111d37;border:1px solid var(--line);display:grid;place-items:center;font-weight:900}
 
-    /* Deposit addresses */
     .addr-group{display:grid;gap:10px}
     .addr-line{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;
       border-bottom:1px dashed #203054;padding:6px 0;transition:background .2s ease,border-color .2s ease}
@@ -86,7 +81,6 @@
     .icon-btn:hover{box-shadow:0 6px 14px rgba(0,0,0,.25);border-color:#2a3a66;background:#112049}
     .icon-btn:active{transform:scale(.94)}
 
-    /* Buttons & inputs */
     .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#111827;border:none;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,.15);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
     .btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,158,11,.22)}
     .btn:active{transform:translateY(0);filter:saturate(.96)}
@@ -98,12 +92,10 @@
     .field-warn{color:#fca5a5;font-size:12px;margin-top:6px}
     input.input-error{box-shadow:0 0 0 3px rgba(239,68,68,.25);border-color:#ef4444}
 
-    /* Bottom tabs */
     .tabs-2 .switch{grid-template-columns:1fr 1fr}
     .tab-panel{display:none}
     .tab-panel.active{display:block}
 
-    /* Hero */
     .hero{background:
       radial-gradient(900px 500px at -10% -40%, rgba(245,158,11,.22), transparent 55%),
       radial-gradient(900px 600px at 120% 0%,   rgba(34,197,94,.18), transparent 55%),
@@ -114,7 +106,6 @@
     .hero-x{position:absolute;top:10px;right:10px;background:#0f1a36;border:1px solid var(--line);color:#cbd5e1;width:32px;height:32px;border-radius:999px;cursor:pointer;transition:transform .2s ease,background .2s ease}
     .hero-x:hover{background:#132043;transform:rotate(4deg)}
 
-    /* Modal (QR with corner guards) */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90}
     .modal.show{display:grid}
     .modal.show .modal-card{animation:modalIn .28s ease-out both}
@@ -130,7 +121,6 @@
     .corner.br{bottom:6px;right:6px;border-left:none;border-top:none}
     .qr-address{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;color:#cbd5e1;word-break:break-all;background:#0b1328;border:1px solid #223055;border-radius:10px;padding:8px}
 
-    /* Mobile tweaks */
     @media (max-width: 640px){
       .row{grid-template-columns:1fr}
       .addr-scroll{font-size:12px}
@@ -143,11 +133,11 @@
   </style>
 </head>
 <body>
-  <!-- Topbar -->
   <header class="topbar">
     <div class="brand"><img src="/assets/logo.svg" alt="logo"> Cyrptonvest</div>
     <div style="display:flex;align-items:center;gap:10px;position:relative">
       <div class="pill">UTC <span id="clock" style="margin-left:6px">--:--:--</span></div>
+      <div class="pill" id="fx-pill">FX: USD</div>
       <div id="avatar" class="avatar" title="Menu">?</div>
       <nav id="dropdown" class="dropdown">
         <div class="hd" id="dd-email">—</div>
@@ -162,7 +152,6 @@
     </div>
   </header>
 
-  <!-- Ticker -->
   <div style="border-bottom:1px solid var(--line)">
     <div class="tradingview-widget-container">
       <div class="tradingview-widget-container__widget"></div>
@@ -185,7 +174,6 @@
     </div>
   </div>
 
-  <!-- Hero -->
   <section id="hero-wrap" class="section">
     <div class="card hero">
       <button class="hero-x" aria-label="Dismiss" onclick="dismissHero()">✕</button>
@@ -201,11 +189,11 @@
       <div class="hero-actions">
         <button class="btn" onclick="startInvesting()">Start Investing</button>
       </div>
+      <p class="muted" id="fx-note" style="margin:10px 0 0;font-size:12px">Using live FX rates when available.</p>
     </div>
   </section>
 
   <main class="content">
-    <!-- Wallet / Deposit / Withdraw -->
     <section id="section-main" class="section">
       <div class="card topcard">
         <div class="switch" style="grid-template-columns:1fr 1fr 1fr">
@@ -214,7 +202,6 @@
           <button id="tab-wd" onclick="switchTop('withdraw')">Withdraw</button>
         </div>
 
-        <!-- Wallet -->
         <div id="panel-wallet" class="panel">
           <div class="row">
             <div class="kpi" style="grid-column:1/-1">
@@ -227,7 +214,6 @@
           </div>
         </div>
 
-        <!-- Deposit -->
         <div id="panel-deposit" class="panel" style="display:none">
           <p class="muted" style="margin:0 0 10px">Send funds to one of the addresses below, then submit your TXID and amount.</p>
           <div class="addr-group">
@@ -268,8 +254,9 @@
               <div id="dep-warn" class="field-warn" style="display:none">Enter BOTH TXID and Amount.</div>
             </div>
             <div>
-              <label class="muted">Amount (USD) <span style="color:#ef4444">*</span></label>
+              <label class="muted" id="dep-amount-label">Amount</label>
               <input id="dep-amount" type="number" step="0.01" placeholder="100.00"/>
+              <div class="muted" id="dep-help" style="font-size:12px;margin-top:6px"></div>
             </div>
           </div>
           <div style="height:10px"></div>
@@ -277,11 +264,14 @@
           <p class="muted" style="font-size:12px;margin-top:6px">We credit after network confirmations and review.</p>
         </div>
 
-        <!-- Withdraw -->
         <div id="panel-withdraw" class="panel" style="display:none">
           <div class="row">
             <div><div class="muted">Balance</div><div id="wd-balance" style="font-weight:800;font-size:20px">$0.00 USD</div></div>
-            <div><label class="muted">Amount (USD)</label><input id="wd-amount" type="number" step="0.01" placeholder="50.00"/></div>
+            <div>
+              <label class="muted" id="wd-amount-label">Amount</label>
+              <input id="wd-amount" type="number" step="0.01" placeholder="50.00"/>
+              <div class="muted" id="wd-help" style="font-size:12px;margin-top:6px"></div>
+            </div>
           </div>
           <div style="height:8px"></div>
 
@@ -316,7 +306,6 @@
       </div>
     </section>
 
-    <!-- Plans / Transactions -->
     <section id="section-bottom" class="section">
       <div class="card">
         <div class="switch tabs-2">
@@ -325,14 +314,10 @@
         </div>
 
         <div id="panel-plans" class="panel tab-panel active"><div id="plans"></div></div>
-
-        <div id="panel-tx" class="panel tab-panel">
-          <div id="tx-table">Loading…</div>
-        </div>
+        <div id="panel-tx" class="panel tab-panel"><div id="tx-table">Loading…</div></div>
       </div>
     </section>
 
-    <!-- Settings -->
     <section id="section-settings" class="section hidden">
       <div class="card">
         <h2>Settings</h2>
@@ -357,7 +342,6 @@
       </div>
     </section>
 
-    <!-- Support -->
     <section id="section-support" class="section hidden">
       <div class="card">
         <h2>Support</h2>
@@ -366,8 +350,6 @@
           <p>Email: <a href="mailto:support@cyrptonvest.com">support@cyrptonvest.com</a></p>
           <p>For password issues, use <a href="/forgot.html">Forgot Password</a>.</p>
           <p>Include your registered email and any relevant TXIDs when contacting us.</p>
-
-          <!-- Small WhatsApp icon (opens chat to +1 (505) 363-4200) -->
           <p style="margin-top:8px">
             <a href="https://wa.me/15053634200" target="_blank" rel="noopener"
                aria-label="WhatsApp chat +1 (505) 363-4200"
@@ -378,16 +360,13 @@
               <span class="muted" style="color:#cbd5e1">WhatsApp</span>
             </a>
           </p>
-          <!-- /Small WhatsApp icon -->
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Toasts -->
   <div id="toasts" style="position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:99"></div>
 
-  <!-- QR Modal -->
   <div id="qr-modal" class="modal" onclick="closeQr(event)">
     <div class="modal-card">
       <div class="qr-title muted" id="qr-title">Address</div>
@@ -400,7 +379,6 @@
     </div>
   </div>
 
-  <!-- Floating WhatsApp button (opens chat to +1 (505) 363-4200) -->
   <a href="https://wa.me/15053634200" target="_blank" rel="noopener"
      aria-label="Chat on WhatsApp +1 (505) 363-4200"
      style="position:fixed;right:18px;bottom:18px;width:56px;height:56px;border-radius:50%;
@@ -410,15 +388,16 @@
       <path d="M20.52 3.48A11.94 11.94 0 0 0 12.06 0C5.52 0 .2 5.32.2 11.86c0 2.08.55 4.08 1.58 5.86L0 24l6.43-1.67a11.82 11.82 0 0 0 5.63 1.43h.01c6.54 0 11.86-5.32 11.86-11.86 0-3.17-1.23-6.14-3.41-8.42zM12.06 21.3h-.01a9.5 9.5 0 0 1-4.85-1.31l-.35-.2-3.82.99 1.02-3.73-.23-.38a9.46 9.46 0 0 1-1.45-5.01c0-5.23 4.26-9.49 9.51-9.49 2.54 0 4.93 .99 6.72 2.78a9.43 9.43 0 0 1 2.78 6.71c0 5.23-4.26 9.49-9.52 9.49zm5.47-7.14c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.66 .15 s-.76 .97 -.92 1.17 c -.17 .2 -.34 .22 -.63 .07 -.3 -.15 -1.26 -.46 -2.4 -1.47 -.89 -.79 -1.49 -1.77 -1.66 -2.07 -.17 -.3 -.02 -.46 .13 -.61 .13 -.13 .3 -.34 .45 -.51 .15 -.17 .2 -.3 .3 -.5 .1 -.2 .05 -.37 -.02 -.53 -.07 -.15 -.66 -1.6 -.91 -2.18 -.24 -.58 -.48 -.5 -.66 -.51 l -.56 -.01 c -.2 0 -.53 .08 -.8 .37 -.27 .3 -1.05 1.02 -1.05 2.49 s 1.08 2.89 1.24 3.09 c .15 .2 2.12 3.22 5.14 4.52 .72 .31 1.28 .5 1.72 .64 .72 .23 1.38 .2 1.9 .12 .58 -.09 1.77 -.72 2.02 -1.41 .25 -.69 .25 -1.28 .17 -1.41 -.08 -.13 -.28 -.21 -.58 -.36 z"/>
     </svg>
   </a>
-  <!-- /Floating WhatsApp button -->
 
   <script>
     const $ = (s)=>document.querySelector(s);
+
     function toast(msg){
       const t=document.createElement('div');
       t.style.cssText='background:#111d37;border:1px solid #1d2640;color:#e6edf3;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)';
       t.textContent=msg; $('#toasts').appendChild(t); setTimeout(()=>t.remove(),3200);
     }
+
     async function api(path, opts){
       const r = await fetch(path, {credentials:'include', ...opts});
       if (r.status === 401) throw new Error('unauthorized');
@@ -426,8 +405,116 @@
       return ct.includes('application/json') ? r.json() : r.text();
     }
 
-    // Session bootstrap
     let SESSION = null;
+    let LIVE_RATES = { USD: 1 };
+    let LIVE_RATES_DATE = "";
+    let LIVE_RATES_SOURCE = "fallback";
+
+    const STATIC_FX = {
+      USD:1, KES:129, UGX:3800, TZS:2550, RWF:1300, NGN:1500, GHS:15, ZAR:18,
+      GBP:0.78, EUR:0.92, CNY:7.2, JPY:155, THB:36, KRW:1350, MYR:4.7,
+      SGD:1.35, INR:83, AED:3.67, SAR:3.75
+    };
+
+    const SYMBOLS = {
+      USD:"$", KES:"KSh ", UGX:"USh ", TZS:"TSh ", RWF:"RF ", NGN:"₦", GHS:"₵", ZAR:"R ",
+      GBP:"£", EUR:"€", CNY:"¥", JPY:"¥", THB:"฿", KRW:"₩", MYR:"RM ", SGD:"S$",
+      INR:"₹", AED:"د.إ ", SAR:"﷼ "
+    };
+
+    function getPreferredCurrency(){
+      try { return localStorage.getItem('cv_currency') || 'USD'; }
+      catch { return 'USD'; }
+    }
+
+    function formatMoney(amount, currency){
+      const sym = SYMBOLS[currency] || (currency + " ");
+      return `${sym}${Number(amount || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    }
+
+    function usdTo(currency, usdAmount){
+      const rate = LIVE_RATES[currency] || STATIC_FX[currency] || 1;
+      return usdAmount * rate;
+    }
+
+    function toUsd(amount, fromCurrency){
+      const rate = LIVE_RATES[fromCurrency] || STATIC_FX[fromCurrency] || 1;
+      if (!rate) return amount;
+      return amount / rate;
+    }
+
+    async function loadLiveFxRates(){
+      const cacheKey = "cv_fx_rates_v1";
+      const cacheTsKey = "cv_fx_rates_v1_ts";
+      const now = Date.now();
+
+      try{
+        const cached = localStorage.getItem(cacheKey);
+        const cachedTs = Number(localStorage.getItem(cacheTsKey) || 0);
+        if (cached && cachedTs && (now - cachedTs) < 1000 * 60 * 60 * 12) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.rates && parsed.rates.USD) {
+            LIVE_RATES = parsed.rates;
+            LIVE_RATES_DATE = parsed.date || "";
+            LIVE_RATES_SOURCE = "cache";
+            updateFxUi();
+            return;
+          }
+        }
+      }catch{}
+
+      try{
+        const wanted = Object.keys(STATIC_FX).join(",");
+        const res = await fetch(`https://api.frankfurter.dev/v2/rates?base=USD&quotes=${encodeURIComponent(wanted)}`);
+        if (!res.ok) throw new Error(`FX HTTP ${res.status}`);
+        const arr = await res.json();
+
+        const rates = { USD: 1 };
+        let fxDate = "";
+
+        if (Array.isArray(arr)) {
+          arr.forEach(item => {
+            if (item && item.quote && item.rate) {
+              rates[item.quote] = Number(item.rate);
+              fxDate = item.date || fxDate;
+            }
+          });
+        }
+
+        if (!rates.USD) rates.USD = 1;
+        LIVE_RATES = { ...STATIC_FX, ...rates };
+        LIVE_RATES_DATE = fxDate;
+        LIVE_RATES_SOURCE = "live";
+
+        try{
+          localStorage.setItem(cacheKey, JSON.stringify({ rates: LIVE_RATES, date: LIVE_RATES_DATE }));
+          localStorage.setItem(cacheTsKey, String(now));
+        }catch{}
+
+        updateFxUi();
+      }catch(e){
+        LIVE_RATES = { ...STATIC_FX };
+        LIVE_RATES_DATE = "";
+        LIVE_RATES_SOURCE = "fallback";
+        updateFxUi();
+      }
+    }
+
+    function updateFxUi(){
+      const pref = getPreferredCurrency();
+      $('#fx-pill').textContent = `FX: ${pref}`;
+      $('#fx-note').textContent =
+        LIVE_RATES_SOURCE === "live"
+          ? `Using live FX rates (${LIVE_RATES_DATE || "latest"}). Dashboard displays in ${pref}, while account values stay in USD internally.`
+          : LIVE_RATES_SOURCE === "cache"
+          ? `Using cached FX rates. Dashboard displays in ${pref}, while account values stay in USD internally.`
+          : `Using fallback FX rates. Dashboard displays in ${pref}, while account values stay in USD internally.`;
+      $('#dep-amount-label').textContent = `Amount (${pref})`;
+      $('#wd-amount-label').textContent = `Amount (${pref})`;
+      $('#dep-help').textContent = `You enter ${pref}. We convert it to USD internally when submitting.`;
+      $('#wd-help').textContent = `You enter ${pref}. We convert it to USD internally when submitting.`;
+    }
+
     async function ensureAuth(){
       try{
         const me = await api('/api/me');
@@ -446,19 +533,19 @@
     function startInvesting(){ switchTop('deposit'); document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'}); }
     function dismissHero(){ const el = $('#hero-wrap'); if(el) el.style.display = 'none'; }
 
-    // Avatar dropdown
     document.addEventListener('click',(e)=>{
       const dd = $('#dropdown'); const av = $('#avatar');
       if(av.contains(e.target)){ dd.classList.toggle('show'); return; }
       if(!dd.contains(e.target)) dd.classList.remove('show');
     });
+
     document.querySelectorAll('[data-nav]').forEach(a=>{
       a.addEventListener('click',(e)=>{ e.preventDefault(); const href=a.getAttribute('href'); location.hash=href; $('#dropdown').classList.remove('show'); });
     });
+
     $('#menu-logout')?.addEventListener('click', async (e)=>{ e.preventDefault(); await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
     $('#btn-logout-2')?.addEventListener('click', async ()=>{ await fetch('/api/auth/logout',{method:'POST'}); location.href='/'; });
 
-    // Top tabs
     const topPanels = { wallet:'#panel-wallet', deposit:'#panel-deposit', withdraw:'#panel-withdraw' };
     const topTabs   = { wallet:'#tab-wallet',   deposit:'#tab-dep',      withdraw:'#tab-wd' };
     function switchTop(which){
@@ -468,7 +555,6 @@
       });
     }
 
-    // Bottom tabs
     function initBottomTabs(){
       const btnPlans = $('#btn-tab-plans');
       const btnTx    = $('#btn-tab-tx');
@@ -482,53 +568,77 @@
       btnTx.addEventListener('click', ()=>setTab('tx'));
     }
 
-    // Calculator pills
     function attachCalcSoft(id, rate, min, max){
       const amt = $('#'+id+'-amt');
       const warn = $('#'+id+'-warn');
       const out  = $('#'+id+'-out');
+      const pref = getPreferredCurrency();
+
+      const minLocal = usdTo(pref, min);
+      const maxLocal = usdTo(pref, max);
+
       const update = ()=>{
         const raw = amt.value.trim();
-        const v = parseFloat(raw);
-        if(!raw){ warn.textContent='Enter an amount'; warn.style.display='block'; out.textContent='—'; return; }
-        if(isNaN(v)){ warn.textContent='Not a number'; warn.style.display='block'; out.textContent='—'; return; }
-        if(v<min){ warn.textContent=`Minimum is $${min}`; warn.style.display='block'; out.textContent='—'; return; }
-        if(v>max){ warn.textContent=`Maximum is $${max}`; warn.style.display='block'; out.textContent='—'; return; }
+        const localV = parseFloat(raw);
+        const usdV = toUsd(localV, pref);
+
+        if(!raw){ warn.textContent=`Enter an amount in ${pref}`; warn.style.display='block'; out.textContent='—'; return; }
+        if(isNaN(localV)){ warn.textContent='Not a number'; warn.style.display='block'; out.textContent='—'; return; }
+        if(usdV<min){ warn.textContent=`Minimum is ${formatMoney(minLocal, pref)} (≈ $${min.toFixed(2)} USD)`; warn.style.display='block'; out.textContent='—'; return; }
+        if(usdV>max){ warn.textContent=`Maximum is ${formatMoney(maxLocal, pref)} (≈ $${max.toFixed(2)} USD)`; warn.style.display='block'; out.textContent='—'; return; }
+
         warn.style.display='none';
-        const profit = v*rate, total = v+profit;
-        out.innerHTML = `<div style="font-weight:800">$${total.toFixed(2)} total</div><div><span style="color:var(--ok)">$${profit.toFixed(2)}</span> profit</div>`;
+        const profitUsd = usdV * rate;
+        const totalUsd = usdV + profitUsd;
+        const profitLocal = usdTo(pref, profitUsd);
+        const totalLocal = usdTo(pref, totalUsd);
+
+        out.innerHTML = `
+          <div style="font-weight:800">${formatMoney(totalLocal, pref)} total</div>
+          <div><span style="color:var(--ok)">${formatMoney(profitLocal, pref)}</span> profit</div>
+          <div class="muted" style="font-size:12px">≈ $${totalUsd.toFixed(2)} total</div>
+        `;
       };
-      amt?.addEventListener('input', update); update();
+      amt?.addEventListener('input', update);
+      update();
     }
+
     function startPlan(id, min, max){
       const input = $('#'+id+'-amt');
       const warn  = $('#'+id+'-warn');
-      const v = parseFloat(input.value||'');
-      if(!(v>=min && v<=max)){
+      const pref = getPreferredCurrency();
+      const localV = parseFloat(input.value||'');
+      const usdV = toUsd(localV, pref);
+
+      if(!(usdV>=min && usdV<=max)){
         warn.style.display='block';
-        if(!input.value) warn.textContent='Enter an amount';
-        else if(isNaN(v)) warn.textContent='Not a number';
-        else if(v<min) warn.textContent=`Minimum is $${min}`;
-        else warn.textContent=`Maximum is $${max}`;
+        const minLocal = usdTo(pref, min);
+        const maxLocal = usdTo(pref, max);
+        if(!input.value) warn.textContent=`Enter an amount in ${pref}`;
+        else if(isNaN(localV)) warn.textContent='Not a number';
+        else if(usdV<min) warn.textContent=`Minimum is ${formatMoney(minLocal, pref)} (≈ $${min.toFixed(2)} USD)`;
+        else warn.textContent=`Maximum is ${formatMoney(maxLocal, pref)} (≈ $${max.toFixed(2)} USD)`;
         input.focus(); return;
       }
-      $('#dep-amount').value = v.toFixed(2);
+
+      $('#dep-amount').value = localV.toFixed(2);
       switchTop('deposit');
       document.querySelector('.topcard').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
-    // Deposit / Withdraw helpers
     function addrValue(kind){
       if(kind==='btc') return $('#addr-btc').textContent.trim();
       if(kind==='trc20') return $('#addr-trc20').textContent.trim();
       if(kind==='eth') return $('#addr-eth').textContent.trim();
       return '';
     }
+
     function copyAddr(kind){
       const v = addrValue(kind);
       if(!v){ toast('Address not available'); return; }
       navigator.clipboard.writeText(v).then(()=>toast('Address copied'), ()=>{ prompt('Copy manually:', v); });
     }
+
     function showQr(kind){
       const v = addrValue(kind);
       if(!v){ toast('Address not available'); return; }
@@ -539,7 +649,6 @@
       $('#qr-addr').textContent = v;
       $('#qr-modal').classList.add('show');
 
-      /* --- ADDED: tiny centered favicon overlay inside the QR (non-intrusive) --- */
       const frame = document.querySelector('#qr-modal .qr-frame');
       const old = document.getElementById('qr-logo'); if (old) old.remove();
       const logo = document.createElement('img');
@@ -560,8 +669,8 @@
         pointerEvents: 'none'
       });
       frame.appendChild(logo);
-      /* --- END ADDED --- */
     }
+
     function closeQr(e){ if(e.target.id==='qr-modal') $('#qr-modal').classList.remove('show'); }
 
     function markDepositErrors(badTx, badAmt){
@@ -570,41 +679,87 @@
       amt.classList.toggle('input-error', badAmt);
       warn.style.display = (badTx || badAmt)?'block':'none';
     }
+
     async function submitDeposit(){
       const tx = $('#dep-txid').value.trim();
-      const amtV = parseFloat($('#dep-amount').value||'0');
-      const badTx = !tx, badAmt = !amtV;
+      const pref = getPreferredCurrency();
+      const localAmt = parseFloat($('#dep-amount').value||'0');
+      const usdAmt = toUsd(localAmt, pref);
+
+      const badTx = !tx, badAmt = !usdAmt;
       if(badTx || badAmt){ markDepositErrors(badTx,badAmt); return; }
       markDepositErrors(false,false);
+
       try{
         const res = await api('/api/wallet/deposit',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ amount_cents:Math.round(amtV*100), currency:'USD', network:'manual', address:'', txid:tx })
+          body:JSON.stringify({
+            amount_cents:Math.round(usdAmt*100),
+            currency:'USD',
+            network:'manual',
+            address:'',
+            txid:tx,
+            meta:{
+              display_currency: pref,
+              display_amount: localAmt
+            }
+          })
         });
-        if(res?.ok){ toast('Deposit submitted'); $('#dep-txid').value=''; $('#dep-amount').value=''; renderEverything(); }
-        else toast(res?.error || 'Failed to submit');
-      }catch{ toast('Network error'); }
+        if(res?.ok){
+          toast(`Deposit submitted (${formatMoney(localAmt, pref)} ≈ $${usdAmt.toFixed(2)} USD)`);
+          $('#dep-txid').value='';
+          $('#dep-amount').value='';
+          renderEverything();
+        } else {
+          toast(res?.error || 'Failed to submit');
+        }
+      }catch{
+        toast('Network error');
+      }
     }
+
     async function submitWithdrawal(network, selector){
-      const amount = parseFloat($('#wd-amount').value||'0');
+      const pref = getPreferredCurrency();
+      const localAmount = parseFloat($('#wd-amount').value||'0');
+      const usdAmount = toUsd(localAmount, pref);
       const address = $(selector).value.trim();
-      if(!amount){ toast('Enter withdrawal amount'); return; }
+
+      if(!localAmount){ toast(`Enter withdrawal amount in ${pref}`); return; }
       if(!address){ toast(`Enter ${network} address`); return; }
+
       try{
         const res = await api('/api/wallet/withdraw',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ amount_cents:Math.round(amount*100), currency:'USD', network, address })
+          body:JSON.stringify({
+            amount_cents:Math.round(usdAmount*100),
+            currency:'USD',
+            network,
+            address,
+            meta:{
+              display_currency: pref,
+              display_amount: localAmount
+            }
+          })
         });
-        if(res?.ok){ toast('Withdrawal requested'); $(selector).value=''; renderEverything(); }
-        else toast(res?.error || 'Failed to request');
-      }catch{ toast('Network error'); }
+        if(res?.ok){
+          toast(`Withdrawal requested (${formatMoney(localAmount, pref)} ≈ $${usdAmount.toFixed(2)} USD)`);
+          $(selector).value='';
+          $('#wd-amount').value='';
+          renderEverything();
+        } else {
+          toast(res?.error || 'Failed to request');
+        }
+      }catch{
+        toast('Network error');
+      }
     }
 
-    // Transactions: smart Type + adjusted widths for perfect alignment
     async function renderTransactionsTable(targetId, limit){
       const target = document.getElementById(targetId);
+      const pref = getPreferredCurrency();
+
       try{
         const data = await api('/api/transactions');
         const txs = data.transactions || [];
@@ -612,15 +767,14 @@
           const kind = String(t.kind||'').toLowerCase();
           const cents = Number(t.amount_cents||0);
 
-          // Type from sign, fallback to keywords
           let typ = cents < 0 ? 'Debit'
                     : (kind.includes('withdraw') || kind.includes('debit')) ? 'Debit'
                     : 'Credit';
 
-          const amt = Math.abs(cents);
+          const amtUsd = Math.abs(cents) / 100;
+          const amtLocal = usdTo(pref, amtUsd);
           const when = new Date(t.created_at||0).toLocaleString();
 
-          // Ref label for common actions
           let refText = '';
           if (kind.includes('withdraw')) refText = 'Withdrawal';
           else if (kind.includes('deposit')) refText = 'Deposit';
@@ -629,7 +783,7 @@
           return `<tr>
             <td style="padding:8px 10px">${when}</td>
             <td style="padding:8px 10px">${typ}</td>
-            <td style="padding:8px 10px">$${(amt/100).toFixed(2)} ${t.currency||'USD'}</td>
+            <td style="padding:8px 10px">${formatMoney(amtLocal, pref)} <span class="muted">(≈ $${amtUsd.toFixed(2)} USD)</span></td>
             <td style="padding:8px 10px">${t.status||''}</td>
             <td class="ref" style="padding:8px 10px">${refText}</td>
           </tr>`;
@@ -642,23 +796,21 @@
                 <tr>
                   <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:26%">Time</th>
                   <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:12%">Type</th>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:18%">Amount</th>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:18%">Status</th>
-                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:26%">Ref</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:22%">Amount</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:16%">Status</th>
+                  <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #172042;width:24%">Ref</th>
                 </tr>
               </thead>
               <tbody>${rows || '<tr><td colspan="5" class="muted" style="padding:10px">No transactions yet</td></tr>'}</tbody>
             </table>
           </div>
         `;
-        // wrap long ref text
         target.querySelectorAll('td.ref').forEach(td=>{ td.style.wordBreak='break-word'; td.style.whiteSpace='normal'; });
       }catch{
         target.innerHTML = '<div class="muted" style="padding:10px">Failed to load transactions</div>';
       }
     }
 
-    // Totals + addresses
     async function fetchTotals(){
       try{
         const bal = await api('/api/wallet/balance');
@@ -675,11 +827,16 @@
     }
 
     async function renderEverything(){
-      const totals = await fetchTotals();
-      $('#total-assets').innerHTML  = `$${(totals.balance/100).toFixed(2)} <span class="muted" style="font-size:14px">${totals.currency}</span>`;
-      $('#wd-balance').textContent  = `$${(totals.balance/100).toFixed(2)} ${totals.currency}`;
+      const pref = getPreferredCurrency();
+      updateFxUi();
 
-      // Fallback addresses kept
+      const totals = await fetchTotals();
+      const usdBalance = totals.balance / 100;
+      const localBalance = usdTo(pref, usdBalance);
+
+      $('#total-assets').innerHTML  = `${formatMoney(localBalance, pref)} <span class="muted" style="font-size:14px">≈ $${usdBalance.toFixed(2)} USD</span>`;
+      $('#wd-balance').textContent  = `${formatMoney(localBalance, pref)} (≈ $${usdBalance.toFixed(2)} USD)`;
+
       const a = {
         btc_addr:   totals.btc_addr   || "bc1qcqy3f6z3qjglyt8qalmphrd4p6rz4jy6m0q0ye",
         trc20_addr: totals.trc20_addr || "TTxwizHvUPUuJdmSmJREpaSYrwsderWp5V",
@@ -694,15 +851,18 @@
 
       await renderTransactionsTable('tx-table', 50);
 
-      // Plans
-      const planCard = (id, name, min, max, rate, hours)=>`
+      const prefMinStarter = usdTo(pref, 5), prefMaxStarter = usdTo(pref, 10);
+      const prefMinGrowth  = usdTo(pref, 50), prefMaxGrowth = usdTo(pref, 400);
+      const prefMinPro     = usdTo(pref, 500), prefMaxPro = usdTo(pref, 10000);
+
+      const planCard = (id, name, minUsd, maxUsd, minLocal, maxLocal, rate, hours)=>`
         <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;transition:transform .25s ease, box-shadow .25s ease">
           <strong>${name}</strong>
-          <div class="muted">Range: $${min} – $${max} • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
+          <div class="muted">Range: ${formatMoney(minLocal, pref)} – ${formatMoney(maxLocal, pref)} <span class="muted">(≈ $${minUsd} – $${maxUsd} USD)</span> • Profit: ${Math.round(rate*100)}% in ${hours}h</div>
           <div class="row" style="margin-top:8px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
             <div>
-              <label class="muted">Enter amount (USD)</label>
-              <input id="${id}-amt" type="number" step="0.01" placeholder="${min}">
+              <label class="muted">Enter amount (${pref})</label>
+              <input id="${id}-amt" type="number" step="0.01" placeholder="${minLocal.toFixed(2)}">
               <div id="${id}-warn" class="field-warn" style="display:none"></div>
             </div>
             <div>
@@ -711,12 +871,13 @@
             </div>
           </div>
           <div style="height:8px"></div>
-          <button class="btn" onclick="startPlan('${id}', ${min}, ${max})">Start</button>
+          <button class="btn" onclick="startPlan('${id}', ${minUsd}, ${maxUsd})">Start</button>
         </div>`;
+
       $('#plans').innerHTML =
-        planCard('starter','Starter',5,10,0.60,3) +
-        planCard('growth','Growth',50,400,1.40,6) +
-        planCard('pro','Professional',500,10000,2.00,24);
+        planCard('starter','Starter',5,10,prefMinStarter,prefMaxStarter,0.60,3) +
+        planCard('growth','Growth',50,400,prefMinGrowth,prefMaxGrowth,1.40,6) +
+        planCard('pro','Professional',500,10000,prefMinPro,prefMaxPro,2.00,24);
 
       Array.from(document.querySelectorAll('#plans > div')).forEach(el=>{
         el.addEventListener('mouseenter',()=>{ el.style.transform='translateY(-2px)'; el.style.boxShadow='0 12px 26px rgba(0,0,0,.24)';});
@@ -730,7 +891,6 @@
       switchTop('wallet');
     }
 
-    // Router
     function showSection(id){
       const all=['section-main','section-bottom','section-settings','section-support'];
       all.forEach(sec=>document.getElementById(sec).classList.add('hidden'));
@@ -742,6 +902,7 @@
       }
       window.scrollTo({top:0,behavior:'smooth'});
     }
+
     const routes = {
       '#overview':()=>{ showSection('section-main'); renderEverything(); },
       '#wallet':  ()=>{ showSection('section-main'); renderEverything(); setTimeout(()=>switchTop('wallet'), 50); },
@@ -750,16 +911,16 @@
       '#settings':()=>{ showSection('section-settings'); },
       '#support': ()=>{ showSection('section-support'); }
     };
+
     function navigate(){ (routes[location.hash]||routes['#overview'])(); }
     window.addEventListener('hashchange', navigate);
 
-    // Clock
     setInterval(()=>{ const d=new Date(); $('#clock').textContent=d.toISOString().slice(11,19); },1000);
 
-    // Boot
     (async ()=>{
       if(await ensureAuth()){
         initBottomTabs();
+        await loadLiveFxRates();
         navigate();
       }
     })();
