@@ -1,18 +1,18 @@
 export const SUPPORTED_LOCALES = [
-  "en", // English
-  "fr", // French
-  "sw", // Swahili
-  "zh", // Chinese
-  "ja", // Japanese
-  "th", // Thai
-  "ar", // Arabic
-  "hi", // Hindi
-  "es", // Spanish
-  "pt", // Portuguese
-  "de", // German
-  "ko", // Korean
-  "ms", // Malay
-  "ta", // Tamil
+  "en",
+  "fr",
+  "sw",
+  "zh",
+  "ja",
+  "th",
+  "ar",
+  "hi",
+  "es",
+  "pt",
+  "de",
+  "ko",
+  "ms",
+  "ta",
 ] as const;
 
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
@@ -26,14 +26,8 @@ export type EmailI18nEntry = {
   changedSubject: string;
 };
 
-function isSupportedLocale(value: string): value is SupportedLocale {
-  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
-
 export function normalizeLocale(input?: string | null): SupportedLocale {
-  const raw = String(input || "").trim().toLowerCase();
-
-  if (!raw) return "en";
+  const raw = String(input || "").toLowerCase();
 
   if (raw.startsWith("fr")) return "fr";
   if (raw.startsWith("sw")) return "sw";
@@ -118,7 +112,7 @@ export const EMAIL_I18N: Record<SupportedLocale, EmailI18nEntry> = {
 
   hi: {
     welcomeSubject: "Cyrptonvest में आपका स्वागत है 🎉",
-    welcomeHeading: "AI आधारित ट्रेडING",
+    welcomeHeading: "AI आधारित ट्रेडिंग",
     welcomeBody: (n: string) => `नमस्ते ${n}, आपका अकाउंट तैयार है।`,
     welcomeButton: "डैशबोर्ड खोलें",
     resetSubject: "पासवर्ड रीसेट करें",
@@ -182,21 +176,16 @@ export const EMAIL_I18N: Record<SupportedLocale, EmailI18nEntry> = {
 
 export function getEmailI18n(input?: string | null): EmailI18nEntry {
   const locale = normalizeLocale(input);
+  const entry = EMAIL_I18N[locale];
+  const fallback = EMAIL_I18N.en;
 
-  if (isSupportedLocale(locale) && EMAIL_I18N[locale]) {
-    const entry = EMAIL_I18N[locale];
-    const fallback = EMAIL_I18N.en;
-
-    return {
-      welcomeSubject: entry.welcomeSubject || fallback.welcomeSubject,
-      welcomeHeading: entry.welcomeHeading || fallback.welcomeHeading,
-      welcomeBody:
-        typeof entry.welcomeBody === "function" ? entry.welcomeBody : fallback.welcomeBody,
-      welcomeButton: entry.welcomeButton || fallback.welcomeButton,
-      resetSubject: entry.resetSubject || fallback.resetSubject,
-      changedSubject: entry.changedSubject || fallback.changedSubject,
-    };
-  }
-
-  return EMAIL_I18N.en;
+  return {
+    welcomeSubject: entry?.welcomeSubject || fallback.welcomeSubject,
+    welcomeHeading: entry?.welcomeHeading || fallback.welcomeHeading,
+    welcomeBody:
+      typeof entry?.welcomeBody === "function" ? entry.welcomeBody : fallback.welcomeBody,
+    welcomeButton: entry?.welcomeButton || fallback.welcomeButton,
+    resetSubject: entry?.resetSubject || fallback.resetSubject,
+    changedSubject: entry?.changedSubject || fallback.changedSubject,
+  };
 }
